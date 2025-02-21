@@ -57,13 +57,13 @@ def create_spring(spring_length, num_coils, coil_width):
 
     return spring
 
-def create_mass(type, size, font_size):
+def create_mass(type="rect", size=1.5, font_size=30):
     """
     Generate a mass animation object for Manim.
 
-    :param type: Choose mass type, "rect" for rectangular or "circ" for circular.
-    :param size: Size of the mass element (used as width/height for rect, radius for circle).
-    :param font_size: Font size of the text "m".
+    :param type: Choose mass type, "rect" for rectangular (default) or "circ" for circular.
+    :param size: Size of the mass element (default = 1.5).
+    :param font_size: Font size of the text "m" (default = 30).
     :return: A Manim VGroup representing the mass.
     """
     if type not in ["rect", "circ"]:
@@ -74,7 +74,7 @@ def create_mass(type, size, font_size):
 
     if type == "rect":
         shape = Rectangle(width=size, height=size)
-    elif type == "circ":
+    else:  # type == "circ"
         shape = Circle(radius=size / 2)  # Adjust size for radius
 
     mass.add(shape, text)

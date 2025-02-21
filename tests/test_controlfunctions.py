@@ -1,7 +1,7 @@
 from manim import *
 from controltheorylib import controlfunctions  # Import your function
 
-class TestSpringScene(Scene):
+class Test(Scene):
     def construct(self):
         # Create the spring with user-defined values
         spring = controlfunctions.create_spring(
@@ -10,7 +10,7 @@ class TestSpringScene(Scene):
             coil_width = 0.5
         )
         L = Line((-1,0,0), (1,0,0))
-        mass = controlfunctions.create_mass(type="rect", size=1, font_size=10 )
+        mass = controlfunctions.create_mass()
         # Add to scene
         self.add(mass)
 
