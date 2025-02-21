@@ -4,7 +4,7 @@ def create_spring(spring_length, num_coils, coil_width):
     """
     Generate a spring animation object for Manim.
 
-    :param spring_length: Total height of the spring (centered at the origin)
+    :param spring_length: Total length of the spring (centered at the origin)
     :param num_coils: Number of coils in the spring
     :param coil_width: The horizontal width of the coils
     :return: A Manim VGroup representing the spring
@@ -56,3 +56,26 @@ def create_spring(spring_length, num_coils, coil_width):
     )
 
     return spring
+
+def create_mass(type, size, font_size):
+    """
+    Generate a mass animation object for Manim.
+
+    :param type: Choose mass type, "rect" for rectangular or "circ" for circular.
+    :param size: Size of the mass element (used as width/height for rect, radius for circle).
+    :param font_size: Font size of the text "m".
+    :return: A Manim VGroup representing the mass.
+    """
+    if type not in ["rect", "circ"]:
+        raise ValueError("Invalid type. Use 'rect' for rectangle or 'circ' for circle.")
+
+    mass = VGroup()
+    text = MathTex("m", font_size=font_size)
+
+    if type == "rect":
+        shape = Rectangle(width=size, height=size)
+    elif type == "circ":
+        shape = Circle(radius=size / 2)  # Adjust size for radius
+
+    mass.add(shape, text)
+    return mass

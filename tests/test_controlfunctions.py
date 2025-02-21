@@ -10,8 +10,9 @@ class TestSpringScene(Scene):
             coil_width = 0.5
         )
         L = Line((-1,0,0), (1,0,0))
+        mass = controlfunctions.create_mass(type="rect", size=1, font_size=10 )
         # Add to scene
-        self.add(spring, L)
+        self.add(mass)
 
 # Run in terminal to preview:
 # manim -pql test_controlfunctions.py TestSpringScene
