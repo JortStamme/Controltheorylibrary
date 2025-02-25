@@ -1,9 +1,8 @@
 from manim import *
-from controltheorylib import controlfunctions  # Import your function
+from controltheorylib import controlfunctions
 
 class Test(Scene):
     def construct(self):
-        # Create the spring with user-defined values
         spring = controlfunctions.create_spring(
             spring_length = 3,
             num_coils = 6,
@@ -11,8 +10,8 @@ class Test(Scene):
         )
         L = Line((-1,0,0), (1,0,0))
         mass = controlfunctions.create_mass()
-        # Add to scene
-        self.add(mass)
+        self.add(mass, spring)
+
 
 # Run in terminal to preview:
 # manim -pql test_controlfunctions.py TestSpringScene

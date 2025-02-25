@@ -1,6 +1,6 @@
 from manim import *
 
-def create_spring(spring_length, num_coils, coil_width):
+def create_spring(spring_length=3 , num_coils=6, coil_width=0.5):
     """
     Generate a spring animation object for Manim.
 
