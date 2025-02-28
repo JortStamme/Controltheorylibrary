@@ -68,6 +68,8 @@ def create_mass(type="rect", size=1.5, font_size=50):
     """
     if type not in ["rect", "circ"]:
         raise ValueError("Invalid type. Use 'rect' for rectangle or 'circ' for circle.")
+    if size <= 0 or font_size<=0:
+        raise ValueError("Size and font size must be positive values")
 
     mass = VGroup()
     text = MathTex("m", font_size=font_size)
