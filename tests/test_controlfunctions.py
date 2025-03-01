@@ -3,7 +3,7 @@ from controltheorylib import controlfunctions
 
 class Test(Scene):
     def construct(self):
-        spring = controlfunctions.create_spring(coil_width=-1)
+        spring = controlfunctions.create_spring((-1,0,0),(2,3,0),coil_width=0.5)
         L = Line((-1,0,0), (1,0,0))
         mass = controlfunctions.create_mass()
         self.add(mass, spring,L)

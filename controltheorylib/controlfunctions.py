@@ -1,5 +1,6 @@
 from manim import *
 import numpy as np
+
 def create_spring(start=ORIGIN, end=UP*3, num_coils=6, coil_width=0.5, type="zigzag"):
     """
     Generate a spring animation object for Manim.
@@ -16,6 +17,9 @@ def create_spring(start=ORIGIN, end=UP*3, num_coils=6, coil_width=0.5, type="zig
 
     spring = VGroup()
     
+    start = np.asarray(start, dtype=float)
+    end = np.asarray(end, dtype=float)
+
     # Compute spring length and direction
     direction = end - start
     spring_length = np.linalg.norm(direction)
