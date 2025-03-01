@@ -1,12 +1,12 @@
 from manim import *
 import numpy as np
 
-def create_spring(start=ORIGIN, end= UP*3, num_coils=6, coil_width=0.5):
+def create_spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5):
     """
-    Generate a spring animation object for Manim.
+    Generate a spring animation object for Manim that adapts to any given start and end points.
 
-    :param start: Start point of the spring
-    :param end: End point of the spring
+    :param start: Start point of the spring (numpy array or tuple)
+    :param end: End point of the spring (numpy array or tuple)
     :param num_coils: Number of coils in the spring
     :param coil_width: The horizontal width of the coils
     :return: A Manim VGroup representing the spring
@@ -14,49 +14,46 @@ def create_spring(start=ORIGIN, end= UP*3, num_coils=6, coil_width=0.5):
     if num_coils <= 0 or coil_width <= 0:
         raise ValueError("All parameters must be positive values.")
 
+    # Convert start and end to numpy arrays
+    start = np.array(start, dtype=float)
+    end = np.array(end, dtype=float)
+
+    # Compute main direction vector and unit vector
+    spring_vector = end - start
+    total_length = np.linalg.norm(spring_vector)
+    unit_dir = spring_vector / total_length  # Unit vector from start to end
+    
+    # Perpendicular vector for coil width
+    perp_vector = np.array([-unit_dir[1], unit_dir[0], 0]) * coil_width
+    
+    # Define the spring components
     spring = VGroup()
-
-    # Define top and bottom points based on the center
-    top_point = np.asarray(start, dtype=float)
-    bottom_point = np.asarray(end, dtype=float)
-
+    
     # Vertical segments at the top and bottom
-    top_vertical_line = Line(top_point, top_point + DOWN * 0.2)
-    bottom_vertical_line = Line(bottom_point, bottom_point + UP * 0.2)
-
-    # First diagonal segment
-    small_right_diag = Line(top_point + DOWN * 0.2, top_point + DOWN * 0.4 + RIGHT * coil_width)
-
+    top_vertical = Line(start, start + unit_dir * 0.2 * total_length)
+    bottom_vertical = Line(end, end - unit_dir * 0.2 * total_length)
+    
     # Compute coil spacing dynamically
-    coil_spacing = (np.linalg.norm(np.array(end) - np.array(start)) - 0.6) / num_coils
-
-    # Zigzag coils
-    conn_diag_lines_left = VGroup(*[
-        Line(
-            top_point + DOWN * (0.4 + i * coil_spacing) + RIGHT * coil_width,
-            top_point + DOWN * (0.4 + (i + 0.5) * coil_spacing) + LEFT * coil_width
-        )
-        for i in range(num_coils)
-    ])
-
-    conn_diag_lines_right = VGroup(*[
-        Line(
-            top_point + DOWN * (0.4 + (i + 0.5) * coil_spacing) + LEFT * coil_width,
-            top_point + DOWN * (0.4 + (i + 1) * coil_spacing) + RIGHT * coil_width
-        )
-        for i in range(num_coils - 1)
-    ])
-
-    # Final diagonal
-    small_left_diag = Line(conn_diag_lines_left[-1].get_end(), bottom_point + 0.2 * UP)
-
+    coil_spacing = (total_length - 0.4 * total_length) / num_coils
+    
+    # Create coil zigzag pattern
+    points = [start + unit_dir * 0.2 * total_length]
+    
+    for i in range(num_coils):
+        if i % 2 == 0:
+            next_point = points[-1] + unit_dir * coil_spacing + perp_vector
+        else:
+            next_point = points[-1] + unit_dir * coil_spacing - perp_vector
+        points.append(next_point)
+    
+    # Final segment
+    points.append(end - unit_dir * 0.2 * total_length)
+    
+    coil_lines = VGroup(*[Line(points[i], points[i+1]) for i in range(len(points)-1)])
+    
     # Combine all parts into the spring
-    spring.add(
-        top_vertical_line, small_right_diag,
-        conn_diag_lines_left, conn_diag_lines_right,
-        small_left_diag, bottom_vertical_line
-    )
-
+    spring.add(top_vertical, coil_lines, bottom_vertical)
+    
     return spring
 
 def create_mass(type="rect", size=1.5, font_size=50):
