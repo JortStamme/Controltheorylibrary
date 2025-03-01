@@ -40,7 +40,7 @@ def create_spring(start=ORIGIN, end=UP*3, num_coils=6, coil_width=0.5, type="zig
             points.append(points[-1] + coil_spacing * unit_dir + (perp_dir if i % 2 == 0 else -perp_dir))
         points.append(end - 0.2 * unit_dir)
         
-        spring.add(PolyLine(*points))
+        spring.add(VMobject().set_points_as_corners(points))
     
     elif type == "helical":
         # Create helical pattern using sine wave approximation
@@ -49,7 +49,7 @@ def create_spring(start=ORIGIN, end=UP*3, num_coils=6, coil_width=0.5, type="zig
             t = i / (num_coils * 10)
             new_point = start + (0.2 + t * (spring_length - 0.4)) * unit_dir + np.sin(t * 2 * np.pi * num_coils) * perp_dir
             points.append(new_point)
-        spring.add(PolyLine(*points))
+        spring.add(VMobject().set_points_as_corners(points))
     
     else:
         raise ValueError("Invalid type. Choose 'zigzag' or 'helical'.")
