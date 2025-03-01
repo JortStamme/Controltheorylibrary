@@ -17,8 +17,8 @@ def create_spring(start=ORIGIN, end= UP*3, num_coils=6, coil_width=0.5):
     spring = VGroup()
 
     # Define top and bottom points based on the center
-    top_point = start
-    bottom_point = end
+    top_point = np.asarray(start, dtype=float)
+    bottom_point = np.asarray(end, dtype=float)
 
     # Vertical segments at the top and bottom
     top_vertical_line = Line(top_point, top_point + DOWN * 0.2)
@@ -28,7 +28,7 @@ def create_spring(start=ORIGIN, end= UP*3, num_coils=6, coil_width=0.5):
     small_right_diag = Line(top_point + DOWN * 0.2, top_point + DOWN * 0.4 + RIGHT * coil_width)
 
     # Compute coil spacing dynamically
-    coil_spacing = ((end-start) - 0.6) / num_coils
+    coil_spacing = (np.linalg.norm(np.array(end) - np.array(start)) - 0.6) / num_coils
 
     # Zigzag coils
     conn_diag_lines_left = VGroup(*[
@@ -58,6 +58,7 @@ def create_spring(start=ORIGIN, end= UP*3, num_coils=6, coil_width=0.5):
     )
 
     return spring
+
 def create_mass(type="rect", size=1.5, font_size=50):
     """
     Generate a mass animation object for Manim.
