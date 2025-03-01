@@ -19,40 +19,44 @@ def create_spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5):
     end = np.array(end, dtype=float)
 
     # Compute main direction vector and unit vector
-    spring_vector = end - start
+    spring_vector = end-start
     total_length = np.linalg.norm(spring_vector)
-    unit_dir = spring_vector / total_length  # Unit vector from start to end
+    unit_dir = spring_vector/total_length  # Unit vector from start to end
     
-    # Perpendicular vector for coil width
-    perp_vector = np.array([-unit_dir[1], unit_dir[0], 0]) * coil_width
+    # Perpendicular vector
+    perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
     
-    # Define the spring components
     spring = VGroup()
     
     # Vertical segments at the top and bottom
-    top_vertical = Line(start, start + unit_dir * 0.2 * total_length)
-    bottom_vertical = Line(end, end - unit_dir * 0.2 * total_length)
+    bottom_vertical = Line(start, start+unit_dir*0.2)
+    top_vertical = Line(end, end-unit_dir*0.2)
     
-    # Compute coil spacing dynamically
-    coil_spacing = (total_length - 0.4 * total_length) / num_coils
+    # Small diagonals at the start and end
+    small_start_diag = Line(start+unit_dir*0.2 , start+unit_dir*0.4+perp_vector*coil_width)
+    small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width)
     
-    # Create coil zigzag pattern
-    points = [start + unit_dir * 0.2 * total_length]
+    coil_spacing = (total_length-0.6)/num_coils
     
-    for i in range(num_coils):
-        if i % 2 == 0:
-            next_point = points[-1] + unit_dir * coil_spacing + perp_vector
-        else:
-            next_point = points[-1] + unit_dir * coil_spacing - perp_vector
-        points.append(next_point)
+    # Zigzag pattern
+    conn_diag_lines_left = VGroup(*[
+        Line(
+            end-unit_dir*(0.4+i*coil_spacing)-perp_vector*coil_width,
+            end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width
+        )
+        for i in range(num_coils)
+    ])
     
-    # Final segment
-    points.append(end - unit_dir * 0.2 * total_length)
+    conn_diag_lines_right = VGroup(*[
+        Line(
+            end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width,
+            end-unit_dir*(0.4+(i+1)*coil_spacing)-perp_vector*coil_width
+        )
+        for i in range(num_coils-1)
+    ])
     
-    coil_lines = VGroup(*[Line(points[i], points[i+1]) for i in range(len(points)-1)])
-    
-    # Combine all parts into the spring
-    spring.add(top_vertical, coil_lines, bottom_vertical)
+    spring.add(top_vertical, small_end_diag, small_start_diag, bottom_vertical,
+               conn_diag_lines_left,conn_diag_lines_right)
     
     return spring
 
