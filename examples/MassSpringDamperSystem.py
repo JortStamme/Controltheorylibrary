@@ -6,7 +6,7 @@ class MassSpring(Scene):
     def construct(self):
         # Define parameters 
         g = 9.81 #acceleration constant m/s^2
-        m = 2 # mass [kg]
+        m = 4 # mass [kg]
         k = 100 # stiffnes of spring [N/m]
         L = 3 # length of spring in rest
         L_ceiling = 4 # length of ceiling line
@@ -33,8 +33,8 @@ class MassSpring(Scene):
         spring = controlfunctions.create_spring(start=[-0.5,ceiling_height,0], end=[0.5,y_eq+mass_size/2,0], coil_width=0.3)
 
         # create damper
-        damper = controlfunctions.create_damper(start=[0.5,ceiling_height,0], end=[0.5, y_eq+mass_size/2,0])
-
+        damper_box, damper_rod = controlfunctions.create_damper(start=[0.5, ceiling_height, 0], end=[0.5, y_eq + mass_size / 2, 0])
+        
         # Solving ODE using Euler's Method
         dt = 0.01 #time step
         t = 0 #t0
@@ -59,15 +59,15 @@ class MassSpring(Scene):
             y, y_dot, t = euler_method(dt,t,y,y_dot)
             mob.move_to([0, y, 0])
             new_spring = controlfunctions.create_spring(start=[-0.5,ceiling_height,0], end=[-0.5,y+mass_size/2,0], coil_width=0.3)
-            new_damper = controlfunctions.create_damper(start=[0.5,ceiling_height,0], end=[0.5,y+mass_size/2,0])
+            new_damper_rod = controlfunctions.create_damper(start=[0.5,ceiling_height,0], end=[0.5,y+mass_size/2,0])[1]
             spring.become(new_spring)
-            damper.become(new_damper)
+            damper_rod.become(new_damper_rod)
 
         mass.add_updater(oscillate)
         spring.add_updater(oscillate)
-        damper.add_updater(oscillate)
+        damper_rod.add_updater(oscillate)
 
-        self.add(fixed_world, spring, mass, damper)
+        self.add(fixed_world, spring, mass, damper_box, damper_rod)
         self.wait(10)
 
 
