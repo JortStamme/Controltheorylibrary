@@ -12,11 +12,10 @@ class MassSpring(Scene):
         L_ceiling = 4 # length of ceiling line
         ceiling_height = 2.5 
         y_eq = ceiling_height-L-(m*g)/k #equilibrium position
-        A = 0.5  # amplitude of oscillation
-        B = 0.4
-        eta = 0.05
+        zeta = 0.1
         omega = np.sqrt(k/m)  # angular frequency
-        omega_d = omega*np.sqrt(1-eta**2)
+        c = 2*zeta*np.sqrt(k*m)
+
 
         # Create "fixed world"
         fixed_world = VGroup()
@@ -35,12 +34,6 @@ class MassSpring(Scene):
         m_label = MathTex(r'm', font_size=40).move_to(mass_rect)
         mass = VGroup(mass_rect, m_label)
 
-        # create x-vector
-        #x_vector = VGroup()
-        #horizontal_line = Line((-3,y_eq,0), (-2,y_eq,0))
-        #x_vector = VGroup(horizontal_line)
-
-        
         #create spring 
         def create_spring(mass_y):
             spring = VGroup()
@@ -101,25 +94,72 @@ class MassSpring(Scene):
             return damper
         damper = create_damper(y_eq)
 
+        # Solving ODE using Euler's Method
+        dt = 0.01 #time step
+        t = 0 #t0
+        y = y_eq #mass at rest
+        y_dot = 0 # initial velocity
 
+        def euler_method(dt,t,y,y_dot):
+            F_g = m*g
+            F_k = -k*(y-y_eq)
+            F_d =  -c*y_dot
+            F_tot = F_g + F_k + F_d
+            y_ddot = F_tot/m
 
-
-        self.add(fixed_world, spring, mass, damper)
-
+            y_new = y+y_dot*dt
+            y_dot_new = y_dot+y_ddot*dt
+            t_new = t+dt
+            return y_new, y_dot_new, t_new
+        
+        # define oscilating function
         def oscillate(mob, dt):
-            t = self.time
-            #y = A * np.sin(omega * t) + y_eq #sine because it starts at the equilibrium position
-            #y = A*cmath.e**(-omega*t*(eta+cmath.sqrt(eta**2-1)))+B*cmath.e**(-omega*t*(eta-cmath.sqrt(eta**2-1)))
-            y = A * np.exp(-eta * omega * t) * np.cos(omega_d * t) + B * np.exp(-eta * omega * t) * np.sin(omega_d * t)
-            dy = y - mass_rect.get_y() 
-            mass.shift(UP * dy)  # Move mass
-            new_spring = create_spring(y)  # Stretch spring
-            new_damper = create_damper(y) 
-            spring.become(new_spring) 
+            nonlocal y,y_dot,t
+            y, y_dot, t = euler_method(dt,t,y,y_dot)
+
+            mob.move_to([0, y, 0])
+            new_spring = create_spring(y)
+            new_damper = create_damper(y)
+            spring.become(new_spring)
             damper.become(new_damper)
 
         mass.add_updater(oscillate)
         spring.add_updater(oscillate)
         damper.add_updater(oscillate)
 
+        self.add(fixed_world, spring, mass, damper)
         self.wait(10)
+
+
+        #EOM derivation 
+        
+        #title = Text("Single mass-spring-damper system", font_size=40).to_edge(UP)
+        #self.play(Write(title))
+        #self.wait(1)
+
+        #self.play(FadeIn(fixed_world, damper, mass,spring))
+        #self.wait(2)
+
+        #self.play(FadeOut(title))
+        #self.wait(1)
+
+        #self.play(FadeOut(fixed_world, spring,damper))
+        #self.wait(1)
+
+        #gravity_force = Arrow(start=mass.get_center(), end=mass.get_center() + DOWN * 1, color=RED)
+        #gravity_label = MathTex("mg", color=RED).next_to(gravity_force, RIGHT)
+
+        #spring_force = Arrow(start=mass.get_center(), end=mass.get_center() + UP * 1, color=BLUE)
+        #spring_label = MathTex("k(x - x_{eq})", color=BLUE).next_to(spring_force, LEFT)
+
+        #damper_force = Arrow(start=mass.get_center(), end=mass.get_center() + UP * 0.7, color=GREEN)
+        #damper_label = MathTex("c \\dot{x}", color=GREEN).next_to(damper_force, LEFT)
+    
+        #y_vector = Arrow(start=ORIGIN-mass_size*2*LEFT, end=ORIGIN-mass_size*2*LEFT+1.5*DOWN)
+        #y_label = MathTex("y",color=WHITE).next_to(y_vector,RIGHT)
+        
+        #self.play(GrowArrow(gravity_force), Write(gravity_label))
+        #self.play(GrowArrow(spring_force), Write(spring_label))
+        #self.play(GrowArrow(damper_force), Write(damper_label))
+        #self.play(GrowArrow(y_vector), Write(y_label))
+        #self.wait(2)
