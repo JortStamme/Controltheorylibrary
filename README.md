@@ -11,3 +11,5 @@ The functions available in this library are as follows:
 create_spring() function: Creates a spring Mobject, possibility to choose between zigzag or helicial type. For implementation, see MassSpringDamperSystem.py 
 
 create_mass() function: Creates a mass Mobject, possibility to choose between rectangular or circular type. For implementation, see MassSpringDamperSystem.py
+
+create_damper() function: Creates a damper Mobject. For implementation, see MassSpringDamperSystem.py
