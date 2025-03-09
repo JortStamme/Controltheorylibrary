@@ -2,6 +2,8 @@ from manim import *
 import numpy as np
 import warnings
 
+
+# Spring function
 def create_spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag'):
     """
     Generate a spring animation object for Manim that adapts to any given start and end points.
@@ -94,6 +96,8 @@ def create_spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='z
         spring.add(helical_lines)  
     return spring
 
+
+# Mass function
 def create_mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
     """
     Generate a mass animation object.
@@ -131,3 +135,52 @@ def create_mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
 
     mass.add(shape, text)
     return mass
+
+# Damper function
+def create_damper(start=ORIGIN, end=UP*3, width = 0.5):
+    """
+    Generate a damper animation object.
+    
+    :param start: Startpoint of the damper
+    :param end: Endpoint of the damper
+    :param width: Width of the damper
+    :return: A Manim VGroup representing the damper.
+    """
+
+    # Validate inputs
+    if  width <= 0:
+        warnings.warn("Width must be a positive value, Setting to default value (0.5).", UserWarning)
+        width = 1.5
+
+    # Convert start and end to numpy arrays
+    start = np.array(start, dtype=float)
+    end = np.array(end, dtype=float)
+
+    # Compute main direction vector and unit vector
+    damper_vector = end-start
+    total_length = np.linalg.norm(damper_vector)
+    unit_dir = damper_vector/total_length  # Unit vector from start to end
+    
+    # Perpendicular vector
+    perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
+
+    # Vertical parts of the damper
+    damp_vertical_top = Line(end, end-(unit_dir*(total_length/2)))
+    damp_vertical_bottom = Line(start, start +unit_dir*0.2)
+    
+    # Horizontal part of the damper
+    damp_hor_top = Line(damp_vertical_top.get_end() - (perp_vector*(width/2-0.02)), damp_vertical_top.get_end()+(perp_vector*(width/2-0.02)))
+    
+    # Box for damper
+    open_box = VGroup()
+    hor_damper = Line(damp_vertical_bottom.get_end()- (perp_vector*width)/2, damp_vertical_bottom.get_end()+ (perp_vector*width)/2 )
+    
+    left_wall = Line(hor_damper.get_start(), hor_damper.get_start()+(unit_dir*((total_length/2)+0.2)))
+    
+    right_wall = Line(hor_damper.get_end(), hor_damper.get_end()+(unit_dir*((total_length/2)+0.2)))
+
+    open_box.add(hor_damper, left_wall, right_wall)
+    
+    # Combine all components to form the damper
+    damper = VGroup(damp_vertical_bottom, damp_vertical_top, open_box, damp_hor_top)
+    return damper

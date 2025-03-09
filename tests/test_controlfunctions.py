@@ -7,7 +7,8 @@ class Test(Scene):
         mass = controlfunctions.create_mass()
 
         mass = controlfunctions.create_mass(pos=(-2,0,0),type='circ', size=2.5)
-        self.add(spring, mass)
+        damper = controlfunctions.create_damper(start=ORIGIN, end=(2,2,0), width=0.5)
+        self.add(damper)
 
 
 # Run in terminal to preview:
