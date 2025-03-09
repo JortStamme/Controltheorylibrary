@@ -166,10 +166,10 @@ def create_damper(start=ORIGIN, end=UP*3, width = 0.5):
 
     # Vertical parts of the damper
     damp_vertical_top = Line(end, end-(unit_dir*(total_length/2)))
-    damp_vertical_bottom = Line(start, start +unit_dir*0.2)
+    damp_vertical_bottom = Line(start, start+unit_dir*0.2)
     
     # Horizontal part of the damper
-    damp_hor_top = Line(damp_vertical_top.get_end() - (perp_vector*(width/2-0.02)), damp_vertical_top.get_end()+(perp_vector*(width/2-0.02)))
+    damp_hor_top = Line(damp_vertical_top.get_end()-(perp_vector*(width/2-0.02)), damp_vertical_top.get_end()+(perp_vector*(width/2-0.02)))
     
     # Box for damper
     open_box = VGroup()
