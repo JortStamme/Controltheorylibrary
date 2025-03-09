@@ -1,7 +1,8 @@
 from manim import *
 import numpy as np
+import warnings
 
-def create_spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5):
+def create_spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag'):
     """
     Generate a spring animation object for Manim that adapts to any given start and end points.
 
@@ -9,10 +10,22 @@ def create_spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5):
     :param end: End point of the spring (numpy array or tuple)
     :param num_coils: Number of coils in the spring
     :param coil_width: The horizontal width of the coils
+    :param type: Spring type ('zigzag' or 'helical)
     :return: A Manim VGroup representing the spring
     """
-    if num_coils <= 0 or coil_width <= 0:
-        raise ValueError("All parameters must be positive values.")
+
+    # Validate parameters
+    if num_coils<=0:
+        warnings.warn("num_coils must be a positive value, setting to default value (6)", UserWarning)
+        num_coils=6
+
+    if coil_width<=0:
+        warnings.warn("coild_width must be a positive value, setting to default value(0.5)", UserWarning)
+        coil_width=0.5
+    
+    if type not in ['zigzag', 'helical']:
+        warnings.warn("Invalid spring type, setting to default ('zigzag')", UserWarning)
+        type == 'zigzag'
 
     # Convert start and end to numpy arrays
     start = np.array(start, dtype=float)
@@ -27,37 +40,58 @@ def create_spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5):
     perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
     
     spring = VGroup()
+
+    if type == 'zigzag':
     
     # Vertical segments at the top and bottom
-    bottom_vertical = Line(start, start+unit_dir*0.2)
-    top_vertical = Line(end, end-unit_dir*0.2)
+     bottom_vertical = Line(start, start+unit_dir*0.2)
+     top_vertical = Line(end, end-unit_dir*0.2)
     
     # Small diagonals at the start and end
-    small_start_diag = Line(start+unit_dir*0.2 , start+unit_dir*0.4+perp_vector*coil_width)
-    small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width)
+     small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width)
     
-    coil_spacing = (total_length-0.6)/num_coils
+     coil_spacing = (total_length-0.6)/num_coils
     
     # Zigzag pattern
-    conn_diag_lines_left = VGroup(*[
+     conn_diag_lines_left = VGroup(*[
         Line(
             end-unit_dir*(0.4+i*coil_spacing)-perp_vector*coil_width,
             end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width
         )
         for i in range(num_coils)
-    ])
+     ])
     
-    conn_diag_lines_right = VGroup(*[
+     conn_diag_lines_right = VGroup(*[
         Line(
             end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width,
             end-unit_dir*(0.4+(i+1)*coil_spacing)-perp_vector*coil_width
         )
         for i in range(num_coils-1)
-    ])
-    
-    spring.add(top_vertical, small_end_diag, small_start_diag, bottom_vertical,
+     ])
+     small_start_diag = Line(conn_diag_lines_left[-1].get_end(), start+unit_dir*0.2)
+
+     spring.add(top_vertical, small_end_diag, small_start_diag, bottom_vertical,
                conn_diag_lines_left,conn_diag_lines_right)
-    
+
+    elif type == 'helical':
+        helical_lines = VGroup() 
+        coil_spacing = total_length/num_coils 
+
+    for i in range(num_coils):
+        t_start = i*(2*np.pi)  #start of full rotation
+        t_end = (i+1)*(2*np.pi)  #end of full rotation
+
+        helix_segment = ParametricFunction(
+            lambda t: start +
+                      unit_dir*(t/(2*np.pi)*coil_spacing) + 
+                      perp_vector*np.sin(t)*coil_width+  # x oscilation
+                      np.cross(unit_dir, perp_vector)*np.cos(t)*coil_width, #y oscilation
+            t_range=(t_start, t_end, 0.1),  
+        )
+        
+        helical_lines.add(helix_segment)  
+
+    spring.add(helical_lines)  
     return spring
 
 def create_mass(type="rect", size=1.5, font_size=50):
@@ -80,7 +114,7 @@ def create_mass(type="rect", size=1.5, font_size=50):
     if type == "rect":
         shape = Rectangle(width=size, height=size)
     else:  # type == "circ"
-        shape = Circle(radius=size / 2)  # Adjust size for radius
+        shape = Circle(radius=size/2)  # Adjust size for radius
 
     mass.add(shape, text)
     return mass
