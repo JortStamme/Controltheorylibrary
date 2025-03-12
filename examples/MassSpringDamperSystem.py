@@ -141,7 +141,7 @@ class MassSpring(Scene):
         self.play(FadeOut(Text2, Text3))
         
         # Non-homogeneous ODE
-        Text4 = Text("Nonhomogeneous ODE", font_size =40)
+        Text4 = Text("Nonhomogeneous ODE", font_size = 40)
         Text4.next_to(equation4, 1.5*UP)
         self.play(FadeIn(Text4), run_time=0.7)
         self.wait(1)
@@ -196,7 +196,7 @@ class MassSpring(Scene):
         # Graph init
         # Define Axes for Graph
         graph_axes = Axes(
-        x_range=[0, 12, 1],  # Time range (0 to 7 seconds)
+        x_range=[0, 8, 1],  # Time range (0 to 7 seconds)
         y_range=[-1, 1, 0.5],  # y, y_dot, y_ddot range
         axis_config={"color": WHITE}
         ).scale(0.6).to_edge(RIGHT, buff=0.5)
@@ -213,10 +213,10 @@ class MassSpring(Scene):
 
         # Position the labels
         y_label.move_to(graph_axes.c2p(0, 1.1))  # Adjust the positioning as needed
-        y_dot_label.move_to(graph_axes.c2p(1.2, 1.1))  # Adjust the positioning as needed
-        y_ddot_label.move_to(graph_axes.c2p(2.4, 1.1))  # Adjust the positioning as needed
-        comma1.move_to(graph_axes.c2p(0.2, 1.1))
-        comma2.move_to(graph_axes.c2p(1.4, 1.1))
+        y_dot_label.move_to(graph_axes.c2p(0.8, 1.1))  # Adjust the positioning as needed
+        y_ddot_label.move_to(graph_axes.c2p(1.6, 1.1))  # Adjust the positioning as needed
+        comma1.move_to(graph_axes.c2p(0.3, 1.05))
+        comma2.move_to(graph_axes.c2p(1.1, 1.05))
         # Create empty plots
         y_graph = VGroup()
         y_dot_graph = VGroup()
@@ -234,6 +234,13 @@ class MassSpring(Scene):
         self.wait(1)  # Display empty graph for 1 second 
         scaling_factor = 0.1
 
+        #Underdamped?
+        damping_text = MathTex(r"\zeta = 0.2 < 1", font_size=40)
+        conc_text = MathTex(",Underdamped", font_size=40)
+        damping_text.move_to(2*UP+2*RIGHT)
+        conc_text.next_to(damping_text,RIGHT)
+        self.play(FadeIn(damping_text,conc_text), run_time=0.7)
+        
         # define oscilating function
         def oscillate(mob, dt):
             nonlocal y,y_dot,t
@@ -282,4 +289,4 @@ class MassSpring(Scene):
         damper_rod2.add_updater(oscillate)
 
         self.add(fixed_world, spring2, mass2, damper_box2, damper_rod2)
-        self.wait(10)
+        self.wait(9)
