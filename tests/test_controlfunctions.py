@@ -3,7 +3,7 @@ from controltheorylib import control
 
 class Test(Scene):
     def construct(self):
-        spring = control.spring(start=(-2,0,0),end=(2,2,0),coil_width=-0.3,num_coils=8, type='helical')
+        spring = control.spring(start=(-2,0,0),end=(2,2,0),coil_width=0.3,num_coils=7, type='helical')
         mass = control.mass()
 
         mass = control.mass(pos=(-2,0,0),type='circ', size=2.5)

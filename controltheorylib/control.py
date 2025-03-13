@@ -76,24 +76,23 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag')
                conn_diag_lines_left,conn_diag_lines_right)
 
     elif type == 'helical':
-        helical_lines = VGroup() 
-        coil_spacing = total_length/num_coils 
+        num_pts = 1000  # Smooth helical shape
+        coil_spacing = (total_length-2*coil_width)/num_coils
+        alpha = np.pi*(2*num_coils+1)/(total_length-2*coil_width)
 
-        for i in range(num_coils):
-            t_start = i*(2*np.pi)  #start of full rotation
-            t_end = (i+1)*(2*np.pi)  #end of full rotation
+        # Generate helical spring points
+        t = np.linspace(0, total_length-2*coil_width, num_pts)
+        x = t+coil_width*np.cos(alpha*t-np.pi)+coil_width
+        y = coil_width*np.sin(alpha*t-np.pi)
 
-            helix_segment = ParametricFunction(
-                lambda t: start +
-                      unit_dir*(t/(2*np.pi)*coil_spacing) + 
-                      perp_vector*np.sin(t)*coil_width+  # x oscilation
-                      np.cross(unit_dir, perp_vector)*np.cos(t)*coil_width, #y oscilation
-                t_range=(t_start, t_end, 0.1),  
-           )
+        # Rotate and shift
+        x_rot = x*unit_dir[0]-y*perp_vector[0]
+        y_rot = x*unit_dir[1]-y*perp_vector[1]
+
+        points = np.array([x_rot+start[0], y_rot+start[1], np.zeros(num_pts)]).T
+        helical_spring = VMobject().set_points_as_corners(points)
         
-            helical_lines.add(helix_segment)  
-
-        spring.add(helical_lines)  
+        spring.add(helical_spring)  
     return spring
 
 
