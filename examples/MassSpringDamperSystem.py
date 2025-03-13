@@ -1,6 +1,6 @@
 from manim import *
 import cmath
-from controltheorylib import controlfunctions
+from controltheorylib import control
 
 class MassSpring(Scene):
     def construct(self):
@@ -12,7 +12,7 @@ class MassSpring(Scene):
         L_ceiling = 4 # length of ceiling line
         ceiling_height = 2.5 
         y_eq = ceiling_height-L-(m*g)/k #equilibrium position
-        zeta = 0.2 #damping ratio
+        zeta = 0.1 #damping ratio
         c = 2*zeta*np.sqrt(k*m)
         mass_size = 1.5
 
@@ -27,13 +27,13 @@ class MassSpring(Scene):
         fixed_world.add(ceiling_line, diagonal_lines)
 
         #create mass
-        mass = controlfunctions.create_mass(pos=[0,y_eq,0], size=mass_size)
+        mass = control.mass(pos=[0,y_eq,0], size=mass_size)
 
         # create spring 
-        spring = controlfunctions.create_spring(start=[-0.5,ceiling_height,0], end=[-0.5,y_eq+mass_size/2,0], coil_width=0.3)
+        spring = control.spring(start=[-0.5,ceiling_height,0], end=[-0.5,y_eq+mass_size/2,0], coil_width=0.3)
 
         # create damper
-        damper_box, damper_rod = controlfunctions.create_damper(start=[0.5, ceiling_height, 0], end=[0.5, y_eq + mass_size / 2, 0], box_height=1.2)
+        damper_box, damper_rod = control.damper(start=[0.5, ceiling_height, 0], end=[0.5, y_eq + mass_size / 2, 0], box_height=1.2)
         
         system = VGroup(mass, spring, damper_box, damper_rod,fixed_world)
         system.move_to(DOWN*0.6)
@@ -121,11 +121,13 @@ class MassSpring(Scene):
         self.wait(1.7)
 
         # Introduce natural frequency and damping factor 
-        Text2 = MathTex(r"\zeta=\frac{c}{2m\omega}, \omega^2 = \frac{k}{m}", font_size=40)
-        Text2.next_to(equation3, UP)
-        Text3 = MathTex("Let").next_to(Text2, LEFT)
+        Text2 = MathTex(r"\zeta=\frac{c}{2m\omega},", font_size=40)
+        Text22 = MathTex(r"\omega^2 = \frac{k}{m}", font_size=40)
+        Text2.next_to(equation3, UP+0.1*LEFT)
+        Text22.next_to(Text2, RIGHT)
+        Text3 = MathTex("Let").next_to(Text2,LEFT)
         self.play(Write(Text3), run_time=0.2)
-        self.play(Write(Text2), run_time=0.7)
+        self.play(Write(Text2),Write(Text22), run_time=0.7)
         self.wait(1)
 
         # Rewrite equation using the definitions of zeta and omega
@@ -138,7 +140,7 @@ class MassSpring(Scene):
         equation4.move_to(third_law_eq.get_center())
         self.play(ReplacementTransform(equation3, equation4), run_time=0.7)
         self.wait(1.5)
-        self.play(FadeOut(Text2, Text3))
+        self.play(FadeOut(Text2, Text3, Text22))
         
         # Non-homogeneous ODE
         Text4 = Text("Nonhomogeneous ODE", font_size = 40)
@@ -150,20 +152,23 @@ class MassSpring(Scene):
         self.play(FadeOut(Text4,equation4), run_time=0.7)
         self.wait(1)
         self.remove(spring, damper_box, damper_rod,mass)
+
         #create fixed world
         fixed_world.move_to(ORIGIN+(ceiling_height+0.15)*UP+3.5*LEFT)
 
         #create mass 
-        mass2 = controlfunctions.create_mass(pos=[-3.5,y_eq,0], size=mass_size)
+        mass2 = control.mass(pos=[-3.5,y_eq,0], size=mass_size)
 
         #create spring
-        spring2 = controlfunctions.create_spring(start=[-4, ceiling_height,0], end=[-4,y_eq+mass_size/2,0], coil_width=0.3)
+        spring2 = control.spring(start=[-4, ceiling_height,0], end=[-4,y_eq+mass_size/2,0], coil_width=0.3)
         
         #create damper
-        damper_box2, damper_rod2 = controlfunctions.create_damper(start=[-3, ceiling_height, 0], end=[-3, y_eq + mass_size / 2, 0], box_height=1.2)
+        damper_box2, damper_rod2 = control.damper(start=[-3, ceiling_height, 0], end=[-3, y_eq + mass_size / 2, 0], box_height=1.2)
 
         self.play(system_forces.animate.move_to(mass2.get_center()+0.35*UP+0.35*LEFT))
         self.wait(1)
+
+        #Replace the FBD with the spring and damper
         self.play(    ReplacementTransform(spring_force, spring2),
         ReplacementTransform(spring_label, spring2),  
         ReplacementTransform(damper_force, damper_rod2),
@@ -173,9 +178,9 @@ class MassSpring(Scene):
         ReplacementTransform(FBD, fixed_world),       
         ReplacementTransform(mass, mass2), FadeOut(gravity_force,gravity_label),
         FadeIn(damper_box2, fixed_world) )
-       
         self.wait(2)
-        # Solving ODE using Euler's Method
+
+       # Solving ODE using Euler's Method
         dt = 0.01 #time step
         t = 0 #t0
         y = y_eq # initial equilibrium position
@@ -193,10 +198,10 @@ class MassSpring(Scene):
             t_new = t+dt
             return y_new, y_dot_new, t_new
         
-        # Graph init
-        # Define Axes for Graph
+        
+        # Define Graph
         graph_axes = Axes(
-        x_range=[0, 8, 1],  # Time range (0 to 7 seconds)
+        x_range=[0, 8, 1],  # Time range
         y_range=[-1, 1, 0.5],  # y, y_dot, y_ddot range
         axis_config={"color": WHITE}
         ).scale(0.6).to_edge(RIGHT, buff=0.5)
@@ -212,11 +217,12 @@ class MassSpring(Scene):
         y_ddot_label = MathTex("\\ddot{y}", color=RED)
 
         # Position the labels
-        y_label.move_to(graph_axes.c2p(0, 1.1))  # Adjust the positioning as needed
-        y_dot_label.move_to(graph_axes.c2p(0.8, 1.1))  # Adjust the positioning as needed
-        y_ddot_label.move_to(graph_axes.c2p(1.6, 1.1))  # Adjust the positioning as needed
-        comma1.move_to(graph_axes.c2p(0.3, 1.05))
-        comma2.move_to(graph_axes.c2p(1.1, 1.05))
+        y_label.move_to(graph_axes.c2p(0, 1.1)) 
+        y_dot_label.move_to(graph_axes.c2p(0.5, 1.1)) 
+        y_ddot_label.move_to(graph_axes.c2p(1.0, 1.1)) 
+        comma1.move_to(graph_axes.c2p(0.2, 1.05))
+        comma2.move_to(graph_axes.c2p(0.7, 1.05))
+
         # Create empty plots
         y_graph = VGroup()
         y_dot_graph = VGroup()
@@ -234,9 +240,24 @@ class MassSpring(Scene):
         self.wait(1)  # Display empty graph for 1 second 
         scaling_factor = 0.1
 
-        #Underdamped?
-        damping_text = MathTex(r"\zeta = 0.2 < 1", font_size=40)
-        conc_text = MathTex(",Underdamped", font_size=40)
+        # Check if underdamped, crit damped or overdamped
+        if zeta < 1:
+            damping_text = MathTex(r"\zeta =", f"{zeta:.2f}", r"<1,", font_size=40)
+            conc_text = Text("Underdamped", font_size=30)
+
+        elif zeta > 1:
+            damping_text = MathTex(r"\zeta =", f"{zeta:.2f}", r">1,", font_size=40)
+            conc_text = Text("Overdamped", font_size=30)
+        
+        elif zeta == 1:
+            damping_text = MathTex(r"\zeta =", f"{zeta:.2f}", font_size=40)
+            conc_text = Text("Critically Damped", font_size=30)
+
+        else: 
+            damping_text = MathTex(r"\zeta =", f"{zeta:.2f}", font_size=40)
+            conc_text = Text("No damping", font_size=30)
+            return
+        
         damping_text.move_to(2*UP+2*RIGHT)
         conc_text.next_to(damping_text,RIGHT)
         self.play(FadeIn(damping_text,conc_text), run_time=0.7)
@@ -266,8 +287,8 @@ class MassSpring(Scene):
 
             mob.move_to([-3.5, y, 0])
 
-            new_spring = controlfunctions.create_spring(start=[-4,ceiling_height,0], end=[-4,y+mass_size/2,0], coil_width=0.3)
-            new_damper_rod = controlfunctions.create_damper(start=[-3,ceiling_height,0], end=[-3,y+mass_size/2,0])[1]
+            new_spring = control.spring(start=[-4,ceiling_height,0], end=[-4,y+mass_size/2,0], coil_width=0.3)
+            new_damper_rod = control.damper(start=[-3,ceiling_height,0], end=[-3,y+mass_size/2,0])[1]
             spring2.become(new_spring)
             damper_rod2.become(new_damper_rod)
             t_tracker.increment_value(dt)
@@ -290,3 +311,4 @@ class MassSpring(Scene):
 
         self.add(fixed_world, spring2, mass2, damper_box2, damper_rod2)
         self.wait(9)
+        # manim -ql -p  MassSpringDamperSystem.py MassSpring
