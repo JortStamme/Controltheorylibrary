@@ -12,7 +12,8 @@ class MassSpring(Scene):
         L_ceiling = 4 # length of ceiling line
         ceiling_height = 2.5 
         y_eq = ceiling_height-L-(m*g)/k #equilibrium position
-        zeta = 0.1 #damping ratio
+        omega = np.sqrt(k/m) # natural frequency
+        zeta = 1.5 #damping ratio
         c = 2*zeta*np.sqrt(k*m)
         mass_size = 1.5
 
@@ -120,8 +121,8 @@ class MassSpring(Scene):
         # Introduce natural frequency and damping factor 
         Text_zeta = MathTex(r"\zeta=\frac{c}{2m\omega},", font_size=40)
         Text_omega = MathTex(r"\omega^2 = \frac{k}{m}", font_size=40)
-        Text_let = MathTex("Let")
-        introduce_text = VGroup(Text_let, Text_zeta, Text_omega).arrange(RIGHT, buff=0.1)
+        Text_let = MathTex("Let", font_size=40)
+        introduce_text = VGroup(Text_let, Text_zeta, Text_omega).arrange(RIGHT, buff=0.3)
         introduce_text.next_to(equation3, 1.5*UP)
         self.play(Write(introduce_text), run_time=0.7)
         self.wait(1)
@@ -183,6 +184,7 @@ class MassSpring(Scene):
         y_dot = 2 # initial velocity
 
         def euler_method(dt,t,y,y_dot):
+
             F_g = m*g
             F_k = -k*(y-y_eq)
             F_d =  -c*y_dot
@@ -194,11 +196,18 @@ class MassSpring(Scene):
             t_new = t+dt
             return y_new, y_dot_new, t_new
         
-        
+        #determine max amplitude and settling time
+        y_ddot_max = omega**2 * abs(y_eq)*0.5
+
+        if zeta > 0:
+           t_settling = 6 / (zeta * omega) + 4 # Approximate rule for settling time
+        else:
+            t_settling = 12  # Arbitrary large value for underdamped cases
+
         # Define Graph
         graph_axes = Axes(
-        x_range=[0, 8, 1],  # Time range
-        y_range=[-1, 1, 0.5],  # y, y_dot, y_ddot range
+        x_range=[0, t_settling, t_settling/8],  # Time range
+        y_range=[-y_ddot_max, y_ddot_max, y_ddot_max/5],  # y, y_dot, y_ddot range
         axis_config={"color": WHITE}
         ).scale(0.6).to_edge(RIGHT, buff=0.5)
         graph_axes.y_axis.set_height(7) 
@@ -213,11 +222,13 @@ class MassSpring(Scene):
         y_ddot_label = MathTex("\\ddot{y}", color=RED)
 
         # Position the labels
-        y_label.move_to(graph_axes.c2p(0, 1.1)) 
-        y_dot_label.move_to(graph_axes.c2p(0.5, 1.1)) 
-        y_ddot_label.move_to(graph_axes.c2p(1.0, 1.1)) 
-        comma1.move_to(graph_axes.c2p(0.2, 1.05))
-        comma2.move_to(graph_axes.c2p(0.7, 1.05))
+        y_label.move_to(graph_axes.c2p(0, 
+        y_ddot_max*1.1)) 
+        y_dot_label.next_to(y_label, RIGHT, buff=0.3) 
+        comma1.next_to(y_label, RIGHT+0.05*DOWN, buff=0.05)  
+        y_dot_label.next_to(comma1, RIGHT+0.05*UP, buff=0.15)  
+        comma2.next_to(y_dot_label, RIGHT+0.05*DOWN, buff=0.05)  
+        y_ddot_label.next_to(comma2, RIGHT+0.05*UP, buff=0.15) 
 
         # Create empty plots
         y_graph = VGroup()
@@ -234,7 +245,6 @@ class MassSpring(Scene):
         t_tracker = ValueTracker(0) 
         self.play(FadeIn(graph_axes, time_label, y_label, y_dot_label, y_ddot_label, comma2, comma1))
         self.wait(1)  # Display empty graph for 1 second 
-        scaling_factor = 0.1
 
         # Check if underdamped, crit damped or overdamped
         if zeta < 1:
@@ -265,17 +275,13 @@ class MassSpring(Scene):
             # Compute acceleration
             y_ddot = (-k * (y - y_eq) - c * y_dot + m * g) / m
 
-            scaled_y = scaling_factor * (y - y_eq)  # Scaled displacement from equilibrium
-            scaled_y_dot = scaling_factor * y_dot  # Scaled velocity
-            scaled_y_ddot = scaling_factor * y_ddot  # Scaled acceleration
-
             time_values.append(t)
-            y_values.append(scaled_y)
-            y_dot_values.append(scaled_y_dot)
-            y_ddot_values.append(scaled_y_ddot)
+            y_values.append(y-y_eq)
+            y_dot_values.append(y_dot)
+            y_ddot_values.append(y_ddot)
 
            # Limit stored data to keep graph size reasonable
-            if len(time_values) > 2000:
+            if len(time_values) > 5000:
                 time_values.pop(0)
                 y_values.pop(0)
                 y_dot_values.pop(0)
@@ -291,7 +297,7 @@ class MassSpring(Scene):
 
         def update_graph():
             if len(time_values) < 2:
-               return VGroup()  # Avoid errors with empty data
+               return VGroup()  
 
             y_curve = graph_axes.plot_line_graph(time_values, y_values, add_vertex_dots=False, line_color=BLUE)
             y_dot_curve = graph_axes.plot_line_graph(time_values, y_dot_values, add_vertex_dots=False, line_color=GREEN)
@@ -306,5 +312,5 @@ class MassSpring(Scene):
         damper_rod2.add_updater(oscillate)
 
         self.add(fixed_world, spring2, mass2, damper_box2, damper_rod2)
-        self.wait(9)
+        self.wait(t_settling+3)
         # manim -ql -p  MassSpringDamperSystem.py MassSpring
