@@ -30,7 +30,7 @@ class MassSpring(Scene):
         mass = control.mass(pos=[0,y_eq,0], size=mass_size)
 
         # create spring 
-        spring = control.spring(start=[-0.5,ceiling_height,0], end=[-0.5,y_eq+mass_size/2,0], coil_width=0.3)
+        spring = control.spring(start=[-0.5,ceiling_height,0], end=[-0.5,y_eq+mass_size/2,0], coil_width=0.3, type='helical')
 
         # create damper
         damper_box, damper_rod = control.damper(start=[0.5, ceiling_height, 0], end=[0.5, y_eq + mass_size / 2, 0], box_height=1.2)
@@ -79,9 +79,6 @@ class MassSpring(Scene):
                        damper_force, damper_label, y_vector,y_label, FBD)
         self.play(system_forces.animate.move_to(2.5*RIGHT+0.4*UP))
         self.wait(0.5)
-        framebox1 = SurroundingRectangle(spring_label, buff=0.1, color=BLUE)
-        framebox2 = SurroundingRectangle(damper_label, buff=0.1, color=GREEN)
-        framebox3 = SurroundingRectangle(gravity_label, buff=0.1, color=RED)
         
         # force balance
         third_law_eq = MathTex("\\sum F_y=m\\ddot{y}").move_to(2.5*LEFT+0.2*UP)
@@ -121,13 +118,12 @@ class MassSpring(Scene):
         self.wait(1.7)
 
         # Introduce natural frequency and damping factor 
-        Text2 = MathTex(r"\zeta=\frac{c}{2m\omega},", font_size=40)
-        Text22 = MathTex(r"\omega^2 = \frac{k}{m}", font_size=40)
-        Text2.next_to(equation3, UP+0.1*LEFT)
-        Text22.next_to(Text2, RIGHT)
-        Text3 = MathTex("Let").next_to(Text2,LEFT)
-        self.play(Write(Text3), run_time=0.2)
-        self.play(Write(Text2),Write(Text22), run_time=0.7)
+        Text_zeta = MathTex(r"\zeta=\frac{c}{2m\omega},", font_size=40)
+        Text_omega = MathTex(r"\omega^2 = \frac{k}{m}", font_size=40)
+        Text_let = MathTex("Let")
+        introduce_text = VGroup(Text_let, Text_zeta, Text_omega).arrange(RIGHT, buff=0.1)
+        introduce_text.next_to(equation3, 1.5*UP)
+        self.play(Write(introduce_text), run_time=0.7)
         self.wait(1)
 
         # Rewrite equation using the definitions of zeta and omega
@@ -140,7 +136,7 @@ class MassSpring(Scene):
         equation4.move_to(third_law_eq.get_center())
         self.play(ReplacementTransform(equation3, equation4), run_time=0.7)
         self.wait(1.5)
-        self.play(FadeOut(Text2, Text3, Text22))
+        self.play(FadeOut(introduce_text))
         
         # Non-homogeneous ODE
         Text4 = Text("Nonhomogeneous ODE", font_size = 40)
@@ -160,7 +156,7 @@ class MassSpring(Scene):
         mass2 = control.mass(pos=[-3.5,y_eq,0], size=mass_size)
 
         #create spring
-        spring2 = control.spring(start=[-4, ceiling_height,0], end=[-4,y_eq+mass_size/2,0], coil_width=0.3)
+        spring2 = control.spring(start=[-4, ceiling_height,0], end=[-4,y_eq+mass_size/2,0], coil_width=0.3,type='helical')
         
         #create damper
         damper_box2, damper_rod2 = control.damper(start=[-3, ceiling_height, 0], end=[-3, y_eq + mass_size / 2, 0], box_height=1.2)
@@ -258,7 +254,7 @@ class MassSpring(Scene):
             conc_text = Text("No damping", font_size=30)
             return
         
-        damping_text.move_to(2*UP+2*RIGHT)
+        damping_text.move_to(2*UP+2.3*RIGHT)
         conc_text.next_to(damping_text,RIGHT)
         self.play(FadeIn(damping_text,conc_text), run_time=0.7)
         
@@ -287,7 +283,7 @@ class MassSpring(Scene):
 
             mob.move_to([-3.5, y, 0])
 
-            new_spring = control.spring(start=[-4,ceiling_height,0], end=[-4,y+mass_size/2,0], coil_width=0.3)
+            new_spring = control.spring(start=[-4,ceiling_height,0], end=[-4,y+mass_size/2,0], coil_width=0.3, type='helical')
             new_damper_rod = control.damper(start=[-3,ceiling_height,0], end=[-3,y+mass_size/2,0])[1]
             spring2.become(new_spring)
             damper_rod2.become(new_damper_rod)
