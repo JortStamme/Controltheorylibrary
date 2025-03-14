@@ -13,7 +13,7 @@ class MassSpring(Scene):
         ceiling_height = 2.5 
         y_eq = ceiling_height-L-(m*g)/k #equilibrium position
         omega = np.sqrt(k/m) # natural frequency
-        zeta = 1.5 #damping ratio
+        zeta = 0.2 #damping ratio
         c = 2*zeta*np.sqrt(k*m)
         mass_size = 1.5
 
@@ -200,7 +200,7 @@ class MassSpring(Scene):
         y_ddot_max = omega**2 * abs(y_eq)*0.5
 
         if zeta > 0:
-           t_settling = 6 / (zeta * omega) + 4 # Approximate rule for settling time
+           t_settling = 6 / (zeta * omega) + 4 # Approximation for settling time
         else:
             t_settling = 12  # Arbitrary large value for underdamped cases
 
@@ -312,5 +312,5 @@ class MassSpring(Scene):
         damper_rod2.add_updater(oscillate)
 
         self.add(fixed_world, spring2, mass2, damper_box2, damper_rod2)
-        self.wait(t_settling+3)
+        self.wait(t_settling)
         # manim -ql -p  MassSpringDamperSystem.py MassSpring

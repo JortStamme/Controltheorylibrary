@@ -136,7 +136,7 @@ def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
     return mass
 
 # Damper function
-def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=1):
+def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None):
     """
     Generate a damper animation object.
     
@@ -152,6 +152,7 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=1):
         warnings.warn("Width must be a positive value, Setting to default value (0.5).", UserWarning)
         width = 1.5
 
+
     # Convert start and end to numpy arrays
     start = np.array(start, dtype=float)
     end = np.array(end, dtype=float)
@@ -163,12 +164,14 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=1):
     
     if total_length<=0:
         ValueError("The distance between start and end must be greater than zero")
-    
+    if box_height is None: #scale font according to size
+        box_height=total_length/2
+
     # Perpendicular vector
     perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
 
     # Vertical parts of the damper
-    damp_vertical_top = Line(end, end-(unit_dir*(total_length/2)))
+    damp_vertical_top = Line(end, end-(unit_dir*(total_length-box_height*0.75)))
     damp_vertical_bottom = Line(start, start+unit_dir*0.2)
     
     # Horizontal part of the damper
@@ -176,9 +179,11 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=1):
     
     # Box for damper
     hor_damper = Line(damp_vertical_bottom.get_end()- (perp_vector*width)/2, damp_vertical_bottom.get_end()+ (perp_vector*width)/2 )  
-    left_wall = Line(hor_damper.get_start(), hor_damper.get_start()+(unit_dir*box_height))    
-    right_wall = Line(hor_damper.get_end(), hor_damper.get_end()+(unit_dir*box_height))
-    damper_box = VGroup(hor_damper, left_wall, right_wall, damp_vertical_bottom)
+    right_wall = Line(hor_damper.get_start(), hor_damper.get_start()+(unit_dir*box_height))    
+    left_wall = Line(hor_damper.get_end(), hor_damper.get_end()+(unit_dir*box_height))
+    left_closing = Line(left_wall.get_end(), left_wall.get_end()-perp_vector*(width/2-0.05))
+    right_closing = Line(right_wall.get_end(), right_wall.get_end()+perp_vector*(width/2-0.05))
+    damper_box = VGroup(hor_damper, left_wall, right_wall, damp_vertical_bottom,left_closing, right_closing)
     
     damper_rod = VGroup(damp_vertical_top,damp_hor_top)
 
