@@ -16,9 +16,9 @@ The animation simulates a **mass-spring-damper system** by:
 
 ## Functions used from control library
 
-- **spring()**: The spring function is used to construct a helical type spring 
-- **damper()**
-- **mass()**
+- **spring()**: The spring function is used to construct a helical spring  
+- **damper()**: The damper function is used to construct a damper
+- **mass()**: The mass function is used to construct a rectangular mass element
 
 ## 📌 Dependencies
 
