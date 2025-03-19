@@ -1,6 +1,6 @@
 ## 📌 Overview
 
-The animation simulates a **mass-spring-damper system** by:
+The animation simulates a **mass-spring-damper system** in time-domain by:
 - Constructing a **physical model** with a mass, spring, and damper.
 - Showing a **free-body diagram (FBD)** of forces acting on the mass.
 - Deriving the **equation of motion** step-by-step.

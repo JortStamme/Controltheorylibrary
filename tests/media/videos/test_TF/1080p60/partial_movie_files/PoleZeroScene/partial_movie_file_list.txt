@@ -1,0 +1,6 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/tests/media/videos/test_TF/1080p60/partial_movie_files/PoleZeroScene/3977891868_1503989988_223132457.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/tests/media/videos/test_TF/1080p60/partial_movie_files/PoleZeroScene/2852726489_308165132_197268865.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/tests/media/videos/test_TF/1080p60/partial_movie_files/PoleZeroScene/2852726489_925856355_3940827624.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/tests/media/videos/test_TF/1080p60/partial_movie_files/PoleZeroScene/2852726489_2374223932_1916272000.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/tests/media/videos/test_TF/1080p60/partial_movie_files/PoleZeroScene/2852726489_2408024828_887843798.mp4'

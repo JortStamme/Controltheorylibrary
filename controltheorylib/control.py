@@ -1,7 +1,8 @@
 from manim import *
 import numpy as np
 import warnings
-
+from scipy import signal
+import sympy as sp
 
 # Spring function
 def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag'):
@@ -189,3 +190,131 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None):
 
     # Combine all components to form the damper
     return VGroup(damper_box,damper_rod)
+
+
+def get_pole_zero_plot(num, den, title=None):
+    """
+    Creates a Manim VGroup containing the pole-zero plot with enhanced visualization features.
+
+    :param num: Symbolic expression for the numerator (use s for continuous-time and z for discrete-time)
+    :param den: Symbolic expression for the denominator (use s for continuous-time and z for discrete-time)
+    :param title: Title of the plot
+    :return: VGroup containing the transfer function, axes, poles, and zeros.
+    """
+
+    # Check if the system is continuous or discrete-time
+    if 's' in str(num) or 's' in str(den):  # Continuous-time system (Laplace domain)
+        system_type = 'continuous'
+        variable = sp.symbols('s')
+    elif 'z' in str(num) or 'z' in str(den):  # Discrete-time system (Z-domain)
+        system_type = 'discrete'
+        variable = sp.symbols('z')
+    else:
+        raise ValueError("Unable to determine if the system is continuous or discrete.")
+
+    # Factorize numerator and denominator
+    num_factored = sp.factor(num, variable)
+    den_factored = sp.factor(den, variable)
+
+    # Compute poles and zeros
+    zeros = sp.solve(num_factored, variable)
+    poles = sp.solve(den_factored, variable)
+
+    # Convert to numerical values
+    zero_coords = [(float(sp.re(z)), float(sp.im(z))) for z in zeros]
+    pole_coords = [(float(sp.re(p)), float(sp.im(p))) for p in poles]
+
+    # Extract real and imaginary parts of zeros and poles
+    zero_real_parts = [z[0] for z in zero_coords]
+    zero_imag_parts = [z[1] for z in zero_coords]
+    pole_real_parts = [p[0] for p in pole_coords]
+    pole_imag_parts = [p[1] for p in pole_coords]
+
+    # Calculate the max and min for real and imaginary parts
+    max_zero_real = max(zero_real_parts)
+    min_zero_real = min(zero_real_parts)
+    max_zero_imag = max(zero_imag_parts)
+    min_zero_imag = min(zero_imag_parts)
+
+    max_pole_real = max(pole_real_parts)
+    min_pole_real = min(pole_real_parts)
+    max_pole_imag = max(pole_imag_parts)
+    min_pole_imag = min(pole_imag_parts)
+    
+    # Check max x_range
+    if max_zero_real >= max_pole_real:
+        x_range_max = max_zero_real
+    else:
+        x_range_max = max_pole_real
+    # Check min x_range
+    if min_zero_real <= min_pole_real:
+        x_range_min = min_zero_real
+    else: 
+        x_range_min = min_pole_real
+    # Check max y_range
+    if max_zero_imag >= max_pole_imag:
+        y_range_max = max_zero_imag
+    else: 
+        y_range_max = max_pole_imag
+    # Check min y_range
+    if min_zero_imag <= min_pole_imag:
+        y_range_min = min_zero_imag
+    else:
+        y_range_min = min_pole_imag
+
+    # Create axis
+    axis = ComplexPlane(
+        x_range=[x_range_min-2, x_range_max+2, 1],  
+        y_range=[y_range_min-2, y_range_max+2, 1],
+        background_line_style={"stroke_opacity": 0.5}
+    ).add_coordinates()
+
+    # Add axis labels
+    re_label = MathTex("Re").next_to(axis.get_x_axis(), RIGHT, buff=0.2)
+    im_label = MathTex("Im").next_to(axis.get_y_axis(), UP, buff=0.2)
+    axis_labels = VGroup(re_label, im_label)
+
+    # Plot zeros (blue circles)
+    zero_markers = [Circle(radius=0.15, color=BLUE).move_to(axis.n2p(complex(x, y))) for x, y in zero_coords]
+
+    # Plot poles (red crosses)
+    pole_markers = [Cross(scale_factor=0.2, color=RED).move_to(axis.n2p(complex(x, y))) for x, y in pole_coords]
+    
+    if system_type == 'continuous':
+    # Highlight unstable region (right-half plane)
+        unstable_region = Rectangle(
+        width=abs(x_range_max)+2, height=(abs(y_range_max)+abs(y_range_min)+4),
+        color=RED, fill_opacity=0.2, stroke_opacity=0
+        ).move_to(axis.n2p(0 + 0j), aligned_edge=LEFT)
+        font_size_unst = 40
+        Text_unst = Text("Unstable", font_size=font_size_unst).move_to(unstable_region, aligned_edge=UP)
+        if abs(x_range_max)+2<=2:
+            Text_unst.shift(0.2*RIGHT)
+        unstable = VGroup(unstable_region, Text_unst)
+
+    # Highlight stable region (left-half plane)
+        if x_range_min<=0:
+            width_st = abs(x_range_min)+2
+        else:
+            width_st = 2
+    
+        stable_region = Rectangle(
+        width=width_st, height=abs(y_range_max) + abs(y_range_min)+4,
+        color=BLUE, fill_opacity=0.2, stroke_opacity = 0
+        ).move_to(axis.n2p(0 + 0j), aligned_edge=RIGHT)
+        Text_stab = Text("Stable", font_size=40).move_to(stable_region, aligned_edge=UP)
+        stable = VGroup(stable_region, Text_stab)
+        
+        pole_zero_plot = VGroup(axis, *zero_markers, *pole_markers, unstable, stable, axis_labels)
+    else: 
+        unit_circle = Circle(radius=1, color=WHITE)
+        unit_circle.move_to(axis.n2p(0+0j))
+        axis.add(unit_circle)
+        pole_zero_plot = VGroup(axis, *zero_markers, *pole_markers, re_label, im_label, unit_circle)
+    
+    if title:
+        title_text = Text(title).to_edge(UP)
+        pole_zero_plot.add(title_text)
+    
+    return pole_zero_plot
+
