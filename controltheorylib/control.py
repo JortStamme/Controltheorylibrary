@@ -96,6 +96,31 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag')
         spring.add(helical_spring)  
     return spring
 
+# fixed_world function
+def fixed_world(start, end, spacing=0.5):
+    """
+    Generate a fixed-world representation
+    :param start: Startpoint of the fixed world
+    :param end: Endpoint of the fixed world
+    :param spacing: horizontal spacing between diagonal lines
+    :return: A Manim VGroup representing the fixed world 
+    """
+    # Create the main ceiling line
+    ceiling_line = Line(start=start, end=end)
+
+    # Calculate number of diagonal lines based on spacing
+    num_lines = int((end[0]-start[0])/spacing)+1
+
+    diagonal_lines = VGroup(*[
+        Line(
+            start=(start[0]+i *spacing, start[1], start[2]),
+            end=(start[0]+i*spacing-0.3, start[1] + 0.3, start[2])
+        )
+        for i in range(num_lines)
+    ])
+
+    fixed_world = VGroup(ceiling_line, diagonal_lines)
+    return fixed_world
 
 # Mass function
 def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
@@ -192,14 +217,16 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None):
     return VGroup(damper_box,damper_rod)
 
 
-def get_pole_zero_plot(num, den, title=None):
+def pzmap(num, den, x_range=None, y_range=None, title=None):
     """
     Creates a Manim VGroup containing the pole-zero plot with enhanced visualization features.
 
     :param num: Symbolic expression for the numerator (use s for continuous-time and z for discrete-time)
     :param den: Symbolic expression for the denominator (use s for continuous-time and z for discrete-time)
+    :param x_range: Sets the x_range
+    :param y_range: Sets the y_range
     :param title: Title of the plot
-    :return: VGroup containing the transfer function, axes, poles, and zeros.
+    :return: Tuple containing (axis, zero_markers, pole_markers, stable, unstable, axis_labels, unit_circle)
     """
 
     # Check if the system is continuous or discrete-time
@@ -217,12 +244,12 @@ def get_pole_zero_plot(num, den, title=None):
     den_factored = sp.factor(den, variable)
 
     # Compute poles and zeros
-    zeros = sp.solve(num_factored, variable)
-    poles = sp.solve(den_factored, variable)
+    zeros_gr = sp.solve(num_factored, variable)
+    poles_gr = sp.solve(den_factored, variable)
 
     # Convert to numerical values
-    zero_coords = [(float(sp.re(z)), float(sp.im(z))) for z in zeros]
-    pole_coords = [(float(sp.re(p)), float(sp.im(p))) for p in poles]
+    zero_coords = [(float(sp.re(z)), float(sp.im(z))) for z in zeros_gr]
+    pole_coords = [(float(sp.re(p)), float(sp.im(p))) for p in poles_gr]
 
     # Extract real and imaginary parts of zeros and poles
     zero_real_parts = [z[0] for z in zero_coords]
@@ -242,37 +269,46 @@ def get_pole_zero_plot(num, den, title=None):
     min_pole_imag = min(pole_imag_parts)
     
     # Check max x_range
-    if max_zero_real >= max_pole_real:
-        x_range_max = max_zero_real
-    else:
-        x_range_max = max_pole_real
+    if x_range is None:
+        if max_zero_real >= max_pole_real:
+            x_range_max = max_zero_real
+        else:
+            x_range_max = max_pole_real
     # Check min x_range
-    if min_zero_real <= min_pole_real:
-        x_range_min = min_zero_real
-    else: 
-        x_range_min = min_pole_real
-    # Check max y_range
-    if max_zero_imag >= max_pole_imag:
-        y_range_max = max_zero_imag
-    else: 
-        y_range_max = max_pole_imag
-    # Check min y_range
-    if min_zero_imag <= min_pole_imag:
-        y_range_min = min_zero_imag
+        if min_zero_real <= min_pole_real:
+            x_range_min = min_zero_real
+        else: 
+            x_range_min = min_pole_real
+        x_range_re = [x_range_min-1, x_range_max+1, 1]
     else:
-        y_range_min = min_pole_imag
+        x_range_re = x_range
+    # Check max y_range
+    if y_range is None:
+        if max_zero_imag >= max_pole_imag:
+            y_range_max = max_zero_imag
+        else: 
+            y_range_max = max_pole_imag
+    # Check min y_range
+        if min_zero_imag <= min_pole_imag:
+            y_range_min = min_zero_imag
+        else:
+            y_range_min = min_pole_imag
+        y_range_im = [y_range_min-1,y_range_max+1,1]
+    else:
+        y_range_im = y_range
 
     # Create axis
     axis = ComplexPlane(
-        x_range=[x_range_min-2, x_range_max+2, 1],  
-        y_range=[y_range_min-2, y_range_max+2, 1],
-        background_line_style={"stroke_opacity": 0.5}
+    x_range= x_range_re,  
+    y_range= y_range_im,
+    background_line_style={"stroke_opacity": 0.5}
     ).add_coordinates()
 
     # Add axis labels
-    re_label = MathTex("Re").next_to(axis.get_x_axis(), RIGHT, buff=0.2)
-    im_label = MathTex("Im").next_to(axis.get_y_axis(), UP, buff=0.2)
+    re_label = MathTex(r"\mathrm{Re}").next_to(axis.get_x_axis(), RIGHT, buff=0.3)
+    im_label = MathTex(r"\mathrm{Im}").next_to(axis.get_y_axis(), UP, buff=0.3)
     axis_labels = VGroup(re_label, im_label)
+    axis.add(axis_labels)
 
     # Plot zeros (blue circles)
     zero_markers = [Circle(radius=0.15, color=BLUE).move_to(axis.n2p(complex(x, y))) for x, y in zero_coords]
@@ -280,41 +316,79 @@ def get_pole_zero_plot(num, den, title=None):
     # Plot poles (red crosses)
     pole_markers = [Cross(scale_factor=0.2, color=RED).move_to(axis.n2p(complex(x, y))) for x, y in pole_coords]
     
+    zeros = VGroup(*zero_markers)
+    poles = VGroup(*pole_markers)
+    
+    # set groups to None
+    stable, unstable = None, None
+    unit_circle = None
+
     if system_type == 'continuous':
     # Highlight unstable region (right-half plane)
+        # determine width of unstable region
+        if x_range_re[1]<=0:
+            width_unst = 0
+        else: 
+            width_unst = x_range_re[1]
+        
         unstable_region = Rectangle(
-        width=abs(x_range_max)+2, height=(abs(y_range_max)+abs(y_range_min)+4),
+        width=width_unst, height=abs(y_range_im[0])+abs(y_range_im[1]),
         color=RED, fill_opacity=0.2, stroke_opacity=0
         ).move_to(axis.n2p(0 + 0j), aligned_edge=LEFT)
-        font_size_unst = 40
-        Text_unst = Text("Unstable", font_size=font_size_unst).move_to(unstable_region, aligned_edge=UP)
-        if abs(x_range_max)+2<=2:
-            Text_unst.shift(0.2*RIGHT)
-        unstable = VGroup(unstable_region, Text_unst)
+
+        Text_unst = None
+        if width_unst > 0:
+            Text_unst = Text("Unstable", font_size=40).move_to(unstable_region, aligned_edge=UP)
+            if width_unst<=2:
+                Text_unst.shift(0.5*RIGHT)
+
+        unstable = VGroup(unstable_region, Text_unst) if Text_unst else VGroup(unstable_region)
 
     # Highlight stable region (left-half plane)
-        if x_range_min<=0:
-            width_st = abs(x_range_min)+2
+        if x_range_re[0]>=0:
+            width_st = 0
         else:
-            width_st = 2
+            width_st = abs(x_range_re[0])
+        
     
         stable_region = Rectangle(
-        width=width_st, height=abs(y_range_max) + abs(y_range_min)+4,
+        width=width_st, height=abs(y_range_im[0])+abs(y_range_im[1]),
         color=BLUE, fill_opacity=0.2, stroke_opacity = 0
-        ).move_to(axis.n2p(0 + 0j), aligned_edge=RIGHT)
+        ).move_to(axis.n2p(0+0j),aligned_edge=RIGHT)
         Text_stab = Text("Stable", font_size=40).move_to(stable_region, aligned_edge=UP)
+        if width_st <=2:
+            Text_stab.shift(0.2*LEFT)
         stable = VGroup(stable_region, Text_stab)
         
-        pole_zero_plot = VGroup(axis, *zero_markers, *pole_markers, unstable, stable, axis_labels)
-    else: 
+        
+    elif system_type == 'discrete': 
         unit_circle = Circle(radius=1, color=WHITE)
         unit_circle.move_to(axis.n2p(0+0j))
         axis.add(unit_circle)
-        pole_zero_plot = VGroup(axis, *zero_markers, *pole_markers, re_label, im_label, unit_circle)
+
+        #stable region
+        stable_region = Circle(radius=1, stroke_opacity=0, fill_opacity=0.2, color=BLUE)
+        stable_region.move_to(axis.n2p(0+0j))
+        Text_stab = Text("Stable", font_size=35).move_to(stable_region, aligned_edge=UP)
+        Text_stab.shift(UP)
+
+        # unstable region
+        unstable_region = Rectangle(
+        width=axis.get_width()-re_label.get_width(),
+        height=axis.get_height()-im_label.get_width(),
+        color=RED, fill_opacity=0.2, stroke_opacity=0
+        ).move_to(axis.get_center()+re_label.get_width/2*LEFT)
+        Text_unst = Text("Unstable", font_size=35).move_to(axis.get_center() + 2.5*RIGHT+2.5*UP)
+
+        unstable_region.set_z_index(-1)  # Send to background
+        stable_region.set_z_index(1)  # Bring stable region to front
+
+        stable = VGroup(stable_region, Text_stab)
+        unstable = VGroup(unstable_region, Text_unst)
     
+    show_title = None
     if title:
-        title_text = Text(title).to_edge(UP)
-        pole_zero_plot.add(title_text)
-    
-    return pole_zero_plot
+        show_title = Text(title).next_to(axis, UP)
+
+    return axis, zeros, poles, stable, unstable, show_title
 

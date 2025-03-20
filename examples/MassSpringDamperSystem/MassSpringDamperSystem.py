@@ -17,16 +17,8 @@ class MassSpring(Scene):
         c = 2*zeta*np.sqrt(k*m)
         mass_size = 1.5
 
-        # Create "fixed world"
-        fixed_world = VGroup()
-        ceiling_line = Line(start=(-(L_ceiling/2),ceiling_height,0), end=((L_ceiling/2),ceiling_height,0))
-        diagonal_lines = VGroup(*[
-            Line(start=(-(L_ceiling/2)+0.5*i,ceiling_height,0), end=(-(L_ceiling/2-0.3)+0.5*i,ceiling_height+0.3
-            ,0))
-            for i in range(2*L_ceiling+1)
-        ])
-        fixed_world.add(ceiling_line, diagonal_lines)
-
+        # create fixed world
+        fixed_world = control.fixed_world(start=[-(L_ceiling/2),ceiling_height,0], end=[(L_ceiling/2), ceiling_height,0])
         #create mass
         mass = control.mass(pos=[0,y_eq,0], size=mass_size)
 
