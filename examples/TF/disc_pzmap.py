@@ -27,19 +27,10 @@ class pzmapdiscrete(MovingCameraScene):
         
         axis, zeros, poles, stable, unstable, show_title = control.pzmap(num, den, title="Pole-zero map of H(s)", x_range=[-4,4,1], y_range=[-3,3,1])
 
-        axis_width = axis.get_right()[0] - axis.get_left()[0]
-        axis_height = axis.get_top()[1] - axis.get_bottom()[1]
-        title_height = show_title.get_height() if show_title else 0  # Handle title being None
-        total_height = axis_height + title_height + 1  # Add padding
-        total_width = axis_width  # Add padding for both sides
-        
-        axis_center = axis.get_center()
-        title_center = show_title.get_center() if show_title else axis_center
-        center_of_axis_and_title = axis_center + title_height/2
-         # Take the maximum of width and height to ensure the whole scene fits
-        self.play(
-            self.camera.frame.animate.set_width(total_width).set_height(total_height).move_to(center_of_axis_and_title)
-        )
+        # camera zoom settings
+        width = axis.get_width()+1
+        height = axis.get_height()+2*show_title.get_height()+1
+        self.play(self.camera.frame.animate.set_width(width).set_height(height).move_to(axis.get_center()+0.5*UP))
 
         self.play(Create(axis))
         self.play(FadeIn(show_title))
@@ -48,3 +39,8 @@ class pzmapdiscrete(MovingCameraScene):
         self.wait(1)
         self.play(FadeIn(unstable))
         self.wait(1)
+
+        self.play(FadeIn(zeros))
+        self.wait(1)
+        self.play(FadeIn(poles))
+        self.wait(3)

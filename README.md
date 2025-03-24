@@ -1,15 +1,38 @@
-A Python library using Manim to visualize Control Theory concepts.
+Controltheorylib is a Python library designed for creating high-quality mathematical animations related to control theory using Manim. It helps visualize concepts such as transfer functions, Bode plots, Nyquist plots, state-space representations, and system dynamics. Example animations which implement the functions provided in this library can be found in the examples folder. 
+
+🚀 Installation
+
+....
+
+🔥 Features
+
+🎥 Seamless integration with Manim – Generate smooth mathematical animations for control theory.
+
+📊 Bode, Nyquist, and Root Locus Plots – Easily animate common control theory visualizations.
+
+⚙️ State-Space & Transfer Functions – Convert between system representations and animate system responses.
+
+🔧 Customizable Animations – Adjust colors, styles, and parameters for better visualization.
+
+📖 Usage
+
+Here’s a quick example:
+
+from controltheorylib import control
+
+pzplot = control.pzmap(den,num)
 
 
-This library provides animations to help understand fundamental concepts in Control Theory using Manim. The animations cover topics such as:
-Mass-Spring-damper Systems, ...
+For more details, check the documentation (add link if available).
 
-Example animations which implement the functions provided in this library can be found in the examples folder. 
+✨ Acknowledgments
+...
 
-The functions available in this library are as follows:
+📬 Contact
 
-create_spring() function: Creates a spring Mobject, possibility to choose between zigzag or helicial type. For implementation, see MassSpringDamperSystem.py 
+For questions or support, reach out via:
 
-create_mass() function: Creates a mass Mobject, possibility to choose between rectangular or circular type. For implementation, see MassSpringDamperSystem.py
+GitHub Issues: Open an issue
 
-create_damper() function: Creates a damper Mobject. For implementation, see MassSpringDamperSystem.py
+Email: j.r.k.stammen@student.tue.nl
+

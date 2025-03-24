@@ -370,14 +370,15 @@ def pzmap(num, den, x_range=None, y_range=None, title=None):
         stable_region = Circle(radius=1, stroke_opacity=0, fill_opacity=0.2, color=BLUE)
         stable_region.move_to(axis.n2p(0+0j))
         Text_stab = Text("Stable", font_size=35).move_to(stable_region, aligned_edge=UP)
-        Text_stab.shift(UP)
+        Text_stab.shift(0.5*UP)
 
         # unstable region
         unstable_region = Rectangle(
-        width=axis.get_width()-re_label.get_width(),
-        height=axis.get_height()-im_label.get_width(),
+        width=axis.get_width()-re_label.get_width()-0.3,
+        height=axis.get_height()-im_label.get_width()-0.3,
         color=RED, fill_opacity=0.2, stroke_opacity=0
-        ).move_to(axis.get_center()+re_label.get_width/2*LEFT)
+        ).move_to(axis, aligned_edge=LEFT)
+        unstable_region.shift(0.2*DOWN)
         Text_unst = Text("Unstable", font_size=35).move_to(axis.get_center() + 2.5*RIGHT+2.5*UP)
 
         unstable_region.set_z_index(-1)  # Send to background
@@ -392,3 +393,9 @@ def pzmap(num, den, x_range=None, y_range=None, title=None):
 
     return axis, zeros, poles, stable, unstable, show_title
 
+def show_pzmap(axis,zeros,poles,stable,unstable,show_title):
+    """
+    retuns map
+    """
+    show_pzmap = VGroup(axis, zeros, poles,stable, unstable, show_title)
+    return FadeIn(show_pzmap)

@@ -12,6 +12,9 @@ class Test_TF(Scene):
         den = z**2 + 0.25
 
         # Show pole-zero plot
-        pole_zero_plot = control.get_pole_zero_plot(num,den)
-        self.play(FadeIn(pole_zero_plot))
-        self.wait(3)
+        axis, zeros, poles, stable, unstable, _ = control.pzmap(num, den, x_range=[-3,3,1], y_range=[-3,3,1])
+
+        width = axis.get_width()+1
+        height = axis.get_height()+2*show_title.get_height()+1
+        self.play(self.camera.frame.animate.set_width(width).set_height(height).move_to(axis.get_center()+0.5*UP))
+
