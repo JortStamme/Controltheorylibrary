@@ -21,3 +21,5 @@ examples/Closedloop/media/
 examples/MassSpringDamperSystem/__pycache__/
 examples/MassSpringDamperSystem/media/
 
+examples/PoleZeroMap/__pycache__/
+examples/PoleZeroMap/media/
