@@ -7,13 +7,6 @@ The animation simulates a **mass-spring-damper system** in time-domain by:
 - Simulating motion using **Euler’s numerical method**.
 - Displaying a **real-time graph** of position, velocity, and acceleration.
 
-## 📽️ Features 
-
-- **Manim Animation**: A dynamic and interactive visual representation of the system.
-- **Symbolic Derivation**: Shows how the equation of motion is formulated.
-- **Numerical Solution (Euler’s Method)**: Solves for motion over time.
-- **Graphing System Response**: Plots displacement, velocity, and acceleration.
-
 ## Functions used from control library
 
 - **spring()**: The spring function is used to construct a helical spring  

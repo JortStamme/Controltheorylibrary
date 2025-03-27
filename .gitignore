@@ -1,0 +1,23 @@
+# ignore _pycache__
+__pycache__
+
+# ignore build folder
+build/lib/controltheorylib
+
+# ignore egg folder
+controltheorylib.egg-info
+
+# ignore dist folder
+dist
+
+#ignore __pycache and media folders test folder
+tests/__pycache__/
+tests/media/
+
+#ignore __pycahce and media folders in examples folder
+examples/Closedloop/__pycache__/
+examples/Closedloop/media/
+
+examples/MassSpringDamperSystem/__pycache__/
+examples/MassSpringDamperSystem/media/
+

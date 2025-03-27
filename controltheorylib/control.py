@@ -96,31 +96,42 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag')
         spring.add(helical_spring)  
     return spring
 
-# fixed_world function
 def fixed_world(start, end, spacing=0.5):
     """
-    Generate a fixed-world representation
-    :param start: Startpoint of the fixed world
-    :param end: Endpoint of the fixed world
-    :param spacing: horizontal spacing between diagonal lines
-    :return: A Manim VGroup representing the fixed world 
+    Generate a fixed-world representation that works for any direction.
+    
+    :param start: Startpoint of the fixed world (numpy array or tuple)
+    :param end: Endpoint of the fixed world (numpy array or tuple)
+    :param spacing: Spacing between diagonal lines
+    :return: A Manim VGroup representing the fixed world
     """
+    start = np.array(start, dtype=float)
+    end = np.array(end, dtype=float)
+    
+    # Compute main direction vector and unit vector
+    direction_vector = end - start
+    total_length = np.linalg.norm(direction_vector)
+    unit_dir = direction_vector / total_length if total_length != 0 else np.array([1, 0, 0])
+    
+    # Perpendicular vector for diagonal lines
+    perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
+    diagonal_dir = (unit_dir + perp_vector) / np.linalg.norm(unit_dir + perp_vector)  # Diagonal direction
+    
     # Create the main ceiling line
     ceiling_line = Line(start=start, end=end)
-
+    
     # Calculate number of diagonal lines based on spacing
-    num_lines = int((end[0]-start[0])/spacing)+1
-
+    num_lines = int(total_length / spacing) + 1
+    
     diagonal_lines = VGroup(*[
         Line(
-            start=(start[0]+i *spacing, start[1], start[2]),
-            end=(start[0]+i*spacing-0.3, start[1] + 0.3, start[2])
+            start=start + i * spacing * unit_dir,
+            end=start + i * spacing * unit_dir + 0.3 * diagonal_dir
         )
         for i in range(num_lines)
     ])
-
-    fixed_world = VGroup(ceiling_line, diagonal_lines)
-    return fixed_world
+    
+    return VGroup(ceiling_line, diagonal_lines)
 
 # Mass function
 def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
