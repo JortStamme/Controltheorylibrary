@@ -9,20 +9,10 @@ The animation simulates a **mass-spring-damper system** in time-domain by:
 
 ## Functions used from control library
 
-- **spring()**: The spring function is used to construct a helical spring  
-- **damper()**: The damper function is used to construct a damper
-- **mass()**: The mass function is used to construct a rectangular mass element
+- **spring()**: The spring function is used to construct a helical spring Mobject 
+- **damper()**: The damper function is used to construct a damper Mobject
+- **mass()**: The mass function is used to construct a rectangular mass element Mobject
 
-## 📌 Dependencies
-
-Ensure you have the following installed:
-
-- **Python 3.8+**
-- [Manim](https://docs.manim.community/en/stable/installation.html)
-- [NumPy](https://numpy.org/install/)
-- [ControlTheoryLib](https://pypi.org/project/controltheorylib/) (for visualization elements)
-
-Install them using:
-
-```sh
-pip install manim numpy controltheorylib
+## Adjustability
+Change the parameters to your liking, this wil automatically change all the visuals to your specific case 
+without the need to change the code itself.
