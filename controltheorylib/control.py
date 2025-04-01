@@ -3,6 +3,7 @@ import numpy as np
 import warnings
 from scipy import signal
 import sympy as sp
+from collections import OrderedDict
 
 # Spring function
 def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag'):
@@ -447,3 +448,185 @@ def show_pzmap(axis,zeros,poles,stable,unstable,show_title):
     """
     show_pzmap = VGroup(axis, zeros, poles,stable, unstable, show_title)
     return FadeIn(show_pzmap)
+
+
+__all__ = ['ControlSystem', 'ControlBlock', 'Connection', 'Disturbance']
+### Control loop functions
+class ControlBlock(VGroup):
+    def __init__(self, name, block_type, position, params=None):
+        super().__init__()
+        self.name = name
+        self.type = block_type
+        self.position = position
+        self.input_ports = {}
+        self.output_ports = {}
+        
+        # Create visual elements based on type
+        self.background = Rectangle(width=2, height=1, fill_opacity=0.2)
+        self.label = Text(name).scale(0.5)
+        
+        # Add ports based on block type
+        if block_type == "transfer_function":
+            self._create_transfer_function(params)
+        elif block_type == "summing_junction":
+            self._create_summing_junction(params)
+        
+        if block_type == "input":
+            self._create_input(params)
+        elif block_type == "transfer_function":
+            self._create_transfer_function(params)
+        
+        self.add(self.background, self.label)
+        self.move_to(position)
+    
+    def _create_input(self, params):
+        """Special setup for input/reference blocks"""
+        self.add_port("out", RIGHT)  # Only has output port
+
+    def _create_transfer_function(self, params):
+        # Add standard input/output ports
+        self.add_port("in", LEFT)
+        self.add_port("out", RIGHT)
+        
+    def add_port(self, name, direction):
+        """Adds a connection port to the block"""
+        port = Dot(radius=0.08).next_to(self.background, direction, buff=0)
+    
+        # Compare direction vectors properly
+        if np.array_equal(direction, LEFT):
+            self.input_ports[name] = port
+        else:
+            self.output_ports[name] = port
+        
+        self.add(port)
+
+    def _create_summing_junction(self, params):
+        self.background = Circle(radius=0.5, fill_opacity=0.2)
+        self.add_port("in1", LEFT)
+        self.add_port("in2", DOWN)
+        self.add_port("out", RIGHT)
+        
+        plus1 = Text("+").scale(0.4).move_to(self.background)
+        plus2 = Text("+").scale(0.4).next_to(self.input_ports["in1"], RIGHT, buff=0.1)
+        self.add(plus1, plus2)
+        self.label.next_to(self.background, UP, buff=0.1)
+
+class Connection(VMobject):
+    def __init__(self, source_block, output_port, dest_block, input_port):
+        super().__init__()
+        self.source_block = source_block
+        self.dest_block = dest_block
+        self.output_port = output_port
+        self.input_port = input_port
+        
+        # Get the actual port positions
+        self.source = source_block.output_ports[output_port]
+        self.destination = dest_block.input_ports[input_port]
+        
+        # Create the path with arrow
+        self.path = self._create_connection_path()
+        self.add(self.path)
+        
+    def _create_connection_path(self):
+        start = self.source.get_center()
+        end = self.destination.get_center()
+        
+        # Create the path
+        if abs(start[1] - end[1]) < 0.5:  # Mostly horizontal
+            path = Line(start, end, stroke_width=2)
+        else:
+            # Create curved path
+            cp1 = start + RIGHT * 1.5
+            cp2 = end + LEFT * 1.5
+            path = CubicBezier(start, cp1, cp2, end, stroke_width=2)
+        
+        # Add arrow tip
+        path.add_tip(
+            tip_shape=ArrowTriangleFilledTip,
+            tip_length=0.15,
+            at_start=False
+        )
+        return path
+    
+class Disturbance(VGroup):
+    def __init__(self, target_block, input_port, position="top"):
+        super().__init__()
+        self.target = target_block
+        self.port_name = input_port
+        
+        # Create disturbance arrow
+        self.arrow = Arrow(ORIGIN, DOWN, buff=0.1)
+        self.label = Text("Disturbance").scale(0.4)
+        
+        # Position based on parent block
+        target_port = target_block.input_ports[input_port]
+        if position == "top":
+            self.arrow.next_to(target_port, UP, buff=0)
+            self.label.next_to(self.arrow, UP)
+        # Other positioning cases...
+        
+        self.add(self.arrow, self.label)
+
+class ControlSystem:
+    def __init__(self):
+        self.blocks = OrderedDict()  # Preserves insertion order
+        self.connections = []
+        self.disturbances = []
+        
+    def add_block(self, name, block_type, position, params=None):
+        """Adds a new block to the system"""
+        new_block = ControlBlock(name, block_type, position, params)
+        self.blocks[name] = new_block
+        return new_block
+        
+    def connect(self, source_block, output_port, dest_block, input_port):
+        """Connects blocks with automatic routing"""
+        if output_port not in source_block.output_ports:
+            raise ValueError(f"Source block '{source_block.name}' has no output port named '{output_port}'")
+        if input_port not in dest_block.input_ports:
+            raise ValueError(f"Destination block '{dest_block.name}' has no input port named '{input_port}'")
+            
+        connection = Connection(source_block, output_port, dest_block, input_port)
+        self.connections.append(connection)
+
+    def add_disturbance(self, target_block, input_port, position="top"):
+        """Adds disturbance input to a block"""
+        disturbance = Disturbance(target_block, input_port, position)
+        self.disturbances.append(disturbance)
+        return disturbance
+        
+    def insert_between(self, new_block, source_block, dest_block):
+        """Inserts a block between two existing blocks"""
+        # Find and remove the old connection
+        old_conn = self._find_connection(source_block, dest_block)
+        if old_conn:
+            self.connections.remove(old_conn)
+            # Create new connections
+            self.connect(source_block, old_conn.output_port, new_block, "in")
+            self.connect(new_block, "out", dest_block, old_conn.input_port)
+    
+    def get_all_components(self):
+        """Returns a VGroup containing all system components"""
+        all_components = VGroup()
+        
+        # Add all blocks
+        for block in self.blocks.values():
+            all_components.add(block)
+            
+        # Add all connections
+        for connection in self.connections:
+            all_components.add(connection)
+            
+        # Add all disturbances
+        for disturbance in self.disturbances:
+            all_components.add(disturbance)
+            
+        return all_components
+    
+    def _find_connection(self, source_block, dest_block):
+        """Helper method to find connection between two blocks"""
+        for conn in self.connections:
+            if (conn.source_block == source_block and 
+            conn.dest_block == dest_block):
+               return conn
+        return None

@@ -1,35 +1,31 @@
 from manim import *
-from controltheorylib import control
+from controltheorylib.control import ControlSystem
 import sympy as sp
 
-class closedloop(MovingCameraScene):
+class ControlSystemScene(Scene):
     def construct(self):
-        s = sp.symbols('s')
+        cs = ControlSystem()
 
-        #plant
-        #plantTF = MathTex(r"H(s)=\frac{\frac{k_t}{rR_m}}{ms^2+\frac{k_t^2}{r^2R_m}s}")
-        #plantrect = Rectangle(width=5, height=2.5)
-        #plant_text = MathTex("Plant").next_to(plantrect, UP, buff=0.2)
-        #plantTF.move_to(plantrect.get_center())
-        #self.add(plantrect, plantTF, plant_text)
+        # Create blocks
+        ref = cs.add_block("Reference", "input", LEFT*3)
+        controller = cs.add_block("Controller", "transfer_function", LEFT)
+        plant = cs.add_block("Plant", "transfer_function", RIGHT*2)
+        
+        # Connect them
+        cs.connect(ref, "out", controller, "in")
+        cs.connect(controller, "out", plant, "in")
+        
+        # Add disturbance
+        cs.add_disturbance(plant, "in", position="top")
+        
+        # Render
+        self.play(Create(cs.get_all_components()))
+        self.wait()
+        
+        # Insert new block
+        filter = cs.add_block("Filter", "transfer_function", UP)
+        cs.insert_between(filter, controller, plant)
+        self.play(Create(filter))
+        self.wait()
 
-        #Controller
-        #controllerTF = MathTex("C(s) = P")
-       #controllerrect = Rectangle(width=5, height=2.5).next_to(plantrect,LEFT,buff=3)
-        #control_text = MathTex("COntroller").next_to(controllerrect,UP, buff=0.2)
-        #controllerTF.move_to(controllerrect.get_center())
-        #self.add(controllerrect,controllerTF,control_text)
 
-        #Arrow 
-       # cp_arrow = Arrow(start=controllerrect.get_(), end=plantrect.get_end())
-       # self.add(cp_arrow)
-        fw = control.fixed_world(start=[-1,-1,0], end=[-1,1,0], spacing=0.4)
-        arr = DoubleArrow(start=[-1,0,0], end=[2,0,0]).shift(0.2*LEFT)
-        text = MathTex("u(t)").next_to(arr, UP)
-        mass = control.mass().next_to(arr,RIGHT)
-        mass.shift(0.2*LEFT)
-        line = Line(start=mass.get_center()+UP, end=mass.get_center()+1.5*UP)
-        arr2 = Arrow(start=line.get_center(), end=line.get_center()+2*RIGHT)
-        arr2.shift(0.22*LEFT)
-        text2 = MathTex("x(t)").next_to(arr2, UP)
-        self.add(fw, arr, text, mass, line, arr2, text2)
