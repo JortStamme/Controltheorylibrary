@@ -23,8 +23,6 @@ When the dependicies have succesfully been installed:
 
 + 📊 Bode, Nyquist, and Root Locus Plots – Easily animate common control theory visualizations.
 
-+ ⚙️ State-Space & Transfer Functions – Convert between system representations and animate system responses.
-
 + 🔧 Customizable Animations – Adjust colors, styles, and parameters for better visualization.
 
 
