@@ -6,10 +6,8 @@ The core philosophy behind Controltheorylib is to make control theory concepts m
 
 ## Getting started 🚀
 ### Installation Dependicies
-+ Manim Community v0.19.0 or newer versions, see https://docs.manim.community/en/stable/installation.html
-+ Python 3.13.2 or newer versions, see https://www.python.org/downloads/windows/
-+ pip
-+ 
+To install the dependicies, when in the root directory, type the following in your system terminal or command prompt:
+'pip install -r requirements.txt'
 
 ### Windows
 Here is a step-by-step guide for downloading the controltheorylib package when all other dependicies have been installed
