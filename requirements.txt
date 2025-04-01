@@ -1,0 +1,4 @@
+manim
+numpy
+scipy
+sympy
