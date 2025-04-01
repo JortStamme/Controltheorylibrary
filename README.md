@@ -6,19 +6,16 @@ The core philosophy behind Controltheorylib is to make control theory concepts m
 
 ## Getting started 🚀
 ### Installation Dependicies
-+ Manim Community v0.19.0 or newer versions, see https://docs.manim.community/en/stable/installation.html
-+ Python 3.13.2 or newer versions, see https://www.python.org/downloads/windows/
-+ pip
-+ 
+Make sure you are in the root directory.
+To install the dependicies, type the following line of code in your system terminal or command prompt:
 
-### Windows
-Here is a step-by-step guide for downloading the controltheorylib package when all other dependicies have been installed
-1. Clone the repository
-2. Make sure you are in the root directory: .....\Controltheorylib
-3. Navigate to the python terminal and type:
-4. pip install wheel
-5. python setup.py bdist_wheel
-6. pip install dist\controltheorylib-0.1.0-py3-none-any.whl
+`pip install -r requirements.txt`
+
+When the dependicies have succesfully been installed:
+1. Navigate to the python terminal and type:
+2. `pip install wheel`
+3. `python setup.py bdist_wheel`
+4. `pip install dist\controltheorylib-0.1.0-py3-none-any.whl`
 
  ## Features
 
