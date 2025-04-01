@@ -96,13 +96,15 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag')
         spring.add(helical_spring)  
     return spring
 
-def fixed_world(start, end, spacing=0.5):
+def fixed_world(start, end, spacing=None, mirror="no", line_or="right"):
     """
     Generate a fixed-world representation that works for any direction.
     
     :param start: Startpoint of the fixed world (numpy array or tuple)
     :param end: Endpoint of the fixed world (numpy array or tuple)
     :param spacing: Spacing between diagonal lines
+    :param mirror: If "yes", mirrors the fixed world orientation
+    :param line_or: Orientation of diagonal lines ("right" or "left")
     :return: A Manim VGroup representing the fixed world
     """
     start = np.array(start, dtype=float)
@@ -113,15 +115,49 @@ def fixed_world(start, end, spacing=0.5):
     total_length = np.linalg.norm(direction_vector)
     unit_dir = direction_vector / total_length if total_length != 0 else np.array([1, 0, 0])
     
+    if spacing is None:
+        if total_length <= 0.5:
+            spacing = total_length  # Only start and end points for very short lines
+        else:
+            # Calculate number of segments needed (including both ends)
+            num_segments = max(2, round(total_length / 0.5))
+            spacing = total_length / (num_segments - 1)
+        
     # Perpendicular vector for diagonal lines
     perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
-    diagonal_dir = (unit_dir + perp_vector) / np.linalg.norm(unit_dir + perp_vector)  # Diagonal direction
     
-    # Create the main ceiling line
+    # Calculate diagonal direction
+    if line_or == "right":
+        diagonal_dir = (unit_dir + perp_vector) / np.linalg.norm(unit_dir + perp_vector)
+    elif line_or == "left":
+        diagonal_dir = -(unit_dir - perp_vector) / np.linalg.norm(unit_dir + perp_vector)
+    
+    # Normalize the diagonal direction
+    diagonal_dir_norm = np.linalg.norm(diagonal_dir)
+    if diagonal_dir_norm > 0:
+        diagonal_dir = diagonal_dir / diagonal_dir_norm
+    
+    # Apply mirroring if needed (properly accounting for the original angle)
+    if mirror == "yes":
+        # Instead of just flipping y, we need to mirror across the main line
+        # Calculate the reflection matrix for the main line direction
+        u = unit_dir[0]
+        v = unit_dir[1]
+        reflection_matrix = np.array([
+            [2*u**2-1, 2*u*v, 0],
+            [2*u*v, 2*v**2-1, 0],
+            [0, 0, 1]
+        ])
+        diagonal_dir = reflection_matrix @ diagonal_dir
+
+    # Create the main line
     ceiling_line = Line(start=start, end=end)
     
-    # Calculate number of diagonal lines based on spacing
-    num_lines = int(total_length / spacing) + 1
+    if total_length == 0:
+        positions = [0]
+    else:
+        num_lines = max(2, int(round(total_length / spacing)) + 1)
+        positions = np.linspace(0, total_length, num_lines)
     
     diagonal_lines = VGroup(*[
         Line(
@@ -130,8 +166,9 @@ def fixed_world(start, end, spacing=0.5):
         )
         for i in range(num_lines)
     ])
-    
+
     return VGroup(ceiling_line, diagonal_lines)
+
 
 # Mass function
 def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
