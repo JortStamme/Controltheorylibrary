@@ -7,7 +7,8 @@ The core philosophy behind Controltheorylib is to make control theory concepts m
 ## Getting started 🚀
 ### Installation Dependicies
 To install the dependicies, when in the root directory, type the following in your system terminal or command prompt:
-'pip install -r requirements.txt'
+
+`pip install -r requirements.txt`
 
 ### Windows
 Here is a step-by-step guide for downloading the controltheorylib package when all other dependicies have been installed
