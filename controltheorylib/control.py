@@ -4,6 +4,9 @@ import warnings
 from scipy import signal
 import sympy as sp
 from collections import OrderedDict
+from manim import TexTemplate
+my_template = TexTemplate()
+my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 
 # Spring function
 def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag'):
@@ -450,6 +453,7 @@ def show_pzmap(axis,zeros,poles,stable,unstable,show_title):
     return FadeIn(show_pzmap)
 
 
+
 __all__ = ['ControlSystem', 'ControlBlock', 'Connection', 'Disturbance']
 ### Control loop functions
 class ControlBlock(VGroup):
@@ -461,109 +465,195 @@ class ControlBlock(VGroup):
         self.input_ports = {}
         self.output_ports = {}
         
-        # Create visual elements based on type
-        self.background = Rectangle(width=2, height=1, fill_opacity=0.2)
-        self.label = Text(name).scale(0.5)
+        # Default parameters (different for summing junctions vs other blocks)
+        default_params = {
+            "use_mathtex": False,
+            "fill_opacity": 0.2,
+            "label_scale": 0.5,
+            "math_font_size": 45,
+            "text_font_size": 45,
+            "tex_template": None
+        }
         
-        # Add ports based on block type
-        if block_type == "transfer_function":
-            self._create_transfer_function(params)
-        elif block_type == "summing_junction":
-            self._create_summing_junction(params)
-        
-        if block_type == "input":
-            self._create_input(params)
-        elif block_type == "transfer_function":
-            self._create_transfer_function(params)
-        
-        self.add(self.background, self.label)
-        self.move_to(position)
-    
-    def _create_input(self, params):
-        """Special setup for input/reference blocks"""
-        self.add_port("out", RIGHT)  # Only has output port
+        # Type-specific defaults
+        if block_type == "summing_junction":
+            default_params.update({
+                "size": 0.8,  # Diameter for circles
+                "input1_dir": LEFT,
+                "input2_dir": DOWN,
+                "output_dir": RIGHT,
+                "input1_sign": "+",
+                "input2_sign": "+"
+            })
+        else:  # transfer_function, input, etc.
+            default_params.update({
+                "width": 2.0,
+                "height": 1.0
+            })
+            
+        self.params = default_params | (params or {})  # Merge with user params
 
-    def _create_transfer_function(self, params):
-        # Add standard input/output ports
+        if self.params["use_mathtex"] or (isinstance(name, str) and "$" in name):
+            self.label = MathTex(
+                name,
+                font_size=self.params["math_font_size"],
+                tex_template=self.params["tex_template"]
+            )
+        else:
+            self.label = Text(
+                str(name),
+                font_size=self.params["text_font_size"]
+            )
+        self.label.scale(self.params["label_scale"])
+
+        # Create background shape
+        if block_type == "summing_junction":
+            self.background = Circle(
+                radius=self.params["size"]/2,
+                fill_opacity=self.params["fill_opacity"], color=WHITE
+            )
+        else:
+            self.background = Rectangle(
+                width=self.params["width"],
+                height=self.params["height"],
+                fill_opacity=self.params["fill_opacity"]
+            )
+        
+         # Create background and add components
+        self.add(self.background, self.label)
+
+        # Initialize block-specific components
+        {
+            "input": self._create_input,
+            "transfer_function": self._create_transfer_function,
+            "summing_junction": self._create_summing_junction
+        }[block_type]()
+        
+        self.move_to(position)
+
+    def _create_input(self):
+        self.add_port("out", RIGHT)
+
+    def _create_transfer_function(self):
         self.add_port("in", LEFT)
         self.add_port("out", RIGHT)
-        
-    def add_port(self, name, direction):
-        """Adds a connection port to the block"""
-        port = Dot(radius=0.08).next_to(self.background, direction, buff=0)
+
+    def _create_summing_junction(self):
+       """Create summing junction with customizable ports"""
+    # Create ports using the correct parameter names
+       self.add_port("in1", self.params["input1_dir"])
+       self.add_port("in2", self.params["input2_dir"])
+       self.add_port("out", self.params["output_dir"])
     
-        # Compare direction vectors properly
-        if np.array_equal(direction, LEFT):
+    # Add signs if not hidden
+       if not self.params.get("hide_labels", False):
+        # Create mapping between ports and their signs
+        port_sign_mapping = [
+            ("in1", "input1_sign"),
+            ("in2", "input2_sign")
+        ]
+        
+        for port, sign_param in port_sign_mapping:
+            tex = MathTex(self.params[sign_param]).scale(0.7)
+            # Get direction from the correct parameter
+            dir_param = sign_param.replace("_sign", "_dir")
+            direction = self.params[dir_param]
+            tex.next_to(
+                self.input_ports[port],
+                -direction,  # Opposite side
+                buff=0.1
+            )
+            self.add(tex)
+
+
+    def add_port(self, name, direction):
+        """Adds a port with size scaled to block type"""
+        port_size = 0.08
+            
+        port = Dot(radius=port_size, color=BLUE).next_to(
+            self.background, 
+            direction, 
+            buff=0
+        )
+        
+        # Classify port
+        if any(np.array_equal(direction, d) for d in [LEFT, UP, DOWN]):
             self.input_ports[name] = port
         else:
             self.output_ports[name] = port
-        
         self.add(port)
 
-    def _create_summing_junction(self, params):
-        self.background = Circle(radius=0.5, fill_opacity=0.2)
-        self.add_port("in1", LEFT)
-        self.add_port("in2", DOWN)
-        self.add_port("out", RIGHT)
-        
-        plus1 = Text("+").scale(0.4).move_to(self.background)
-        plus2 = Text("+").scale(0.4).next_to(self.input_ports["in1"], RIGHT, buff=0.1)
-        self.add(plus1, plus2)
-        self.label.next_to(self.background, UP, buff=0.1)
-
-class Connection(VMobject):
-    def __init__(self, source_block, output_port, dest_block, input_port):
+class Connection(VGroup):
+    def __init__(self, source_block, output_port, dest_block, input_port, label_tex=None,label_font_size=35):
         super().__init__()
         self.source_block = source_block
         self.dest_block = dest_block
-        self.output_port = output_port
-        self.input_port = input_port
         
-        # Get the actual port positions
-        self.source = source_block.output_ports[output_port]
-        self.destination = dest_block.input_ports[input_port]
+        # Get port positions
+        start = source_block.output_ports[output_port].get_center()
+        end = dest_block.input_ports[input_port].get_center()
         
-        # Create the path with arrow
-        self.path = self._create_connection_path()
-        self.add(self.path)
+        # Create arrow
+        self.arrow = Arrow(
+            start, 
+            end,
+            stroke_width=3,
+            tip_length=0.25,
+            max_tip_length_to_length_ratio=0.5,
+            buff=0.05,
+            color=BLUE
+        )
         
-    def _create_connection_path(self):
-        start = self.source.get_center()
-        end = self.destination.get_center()
-        
-        # Create the path
-        if abs(start[1] - end[1]) < 0.5:  # Mostly horizontal
-            path = Line(start, end, stroke_width=2)
-        else:
-            # Create curved path
+        # For curved connections
+        if abs(start[1] - end[1]) > 0.5:
             cp1 = start + RIGHT * 1.5
             cp2 = end + LEFT * 1.5
-            path = CubicBezier(start, cp1, cp2, end, stroke_width=2)
+            self.arrow.put_start_and_end_on(start, end)
+            self.arrow.add_cubic_bezier_curve(cp1, cp2)
         
-        # Add arrow tip
-        path.add_tip(
-            tip_shape=ArrowTriangleFilledTip,
-            tip_length=0.15,
-            at_start=False
-        )
-        return path
-    
+        # Add label if provided
+        if label_tex:
+            self.label = MathTex(label_tex, font_size=label_font_size)
+            # Position label above the middle of the arrow
+            self.label.next_to(self.arrow.get_center(), UP, buff=0.2)
+            self.add(self.label)
+        
+        self.path = self.arrow
+        self.add(self.arrow)
+
 class Disturbance(VGroup):
-    def __init__(self, target_block, input_port, position="top"):
+    def __init__(self, target_block, input_port, label_tex="d(t)", position="top", **kwargs):
         super().__init__()
         self.target = target_block
         self.port_name = input_port
         
-        # Create disturbance arrow
-        self.arrow = Arrow(ORIGIN, DOWN, buff=0.1)
-        self.label = Text("Disturbance").scale(0.4)
+        # Default settings (override with kwargs)
+        settings = {
+            "arrow_length": 1,
+            "label_scale": 0.8,
+            "color": RED
+        } | kwargs
         
-        # Position based on parent block
+        # Create arrow
+        self.arrow = Arrow(
+            ORIGIN, DOWN * settings["arrow_length"],
+            buff=0.05, color=settings["color"]
+        )
+        
+        # Create label (MathTex or Text)
+        if isinstance(label_tex, str) and r"" in label_tex:
+            self.label = MathTex(label_tex, font_size=35).scale(settings["label_scale"])
+        else:
+            self.label = Text(label_tex, font_size=35).scale(settings["label_scale"])
+        
+        # Position relative to target block
         target_port = target_block.input_ports[input_port]
         if position == "top":
             self.arrow.next_to(target_port, UP, buff=0)
             self.label.next_to(self.arrow, UP)
-        # Other positioning cases...
+        elif position == "left":
+            self.arrow.next_to(target_port, LEFT, buff=0)
+            self.label.next_to(self.arrow, LEFT)
         
         self.add(self.arrow, self.label)
 
@@ -579,22 +669,59 @@ class ControlSystem:
         self.blocks[name] = new_block
         return new_block
         
-    def connect(self, source_block, output_port, dest_block, input_port):
-        """Connects blocks with automatic routing"""
+    def connect(self, source_block, output_port, dest_block, input_port, style="default", label_tex=None, label_font_size=30):
+        """Connect blocks with arrow and optional label
+    
+        Args:
+        style: "default", "dashed", or "bold"
+        label_tex: LaTeX string for label (optional)
+        label_font_size: Font size for label (default 30)
+        """
+    # Input validation
         if output_port not in source_block.output_ports:
-            raise ValueError(f"Source block '{source_block.name}' has no output port named '{output_port}'")
+            raise ValueError(f"Source block '{source_block.name}' has no output port '{output_port}'")
         if input_port not in dest_block.input_ports:
-            raise ValueError(f"Destination block '{dest_block.name}' has no input port named '{input_port}'")
-            
-        connection = Connection(source_block, output_port, dest_block, input_port)
+            raise ValueError(f"Destination block '{dest_block.name}' has no input port '{input_port}'")
+    
+    # Create connection with arrow
+        connection = Connection(
+        source_block, 
+        output_port, 
+        dest_block, 
+        input_port,
+        label_tex=label_tex,
+        label_font_size=label_font_size
+        )
+    
+    # Apply style if specified
+        if style == "dashed":
+            connection.arrow.set_stroke(dash_length=0.15)
+        elif style == "bold":
+            connection.arrow.set_stroke(width=3.5)
+    
         self.connections.append(connection)
+        return connection
 
-    def add_disturbance(self, target_block, input_port, position="top"):
-        """Adds disturbance input to a block"""
-        disturbance = Disturbance(target_block, input_port, position)
+    def add_disturbance(self, target_block, input_port, label_tex="d(t)", position="top", **kwargs):
+        """Adds disturbance input to a block
+    
+        Args:
+        target_block: The block to attach the disturbance to
+        input_port: Which input port to attach to
+        label_tex: Label text (supports LaTeX with $...$)
+        position: "top" or "left" placement
+        **kwargs: Additional styling parameters
+        """
+        disturbance = Disturbance(
+        target_block, 
+        input_port, 
+        label_tex=label_tex,
+        position=position,
+        **kwargs
+        )
         self.disturbances.append(disturbance)
         return disturbance
-        
+
     def insert_between(self, new_block, source_block, dest_block):
         """Inserts a block between two existing blocks"""
         # Find and remove the old connection
@@ -606,21 +733,26 @@ class ControlSystem:
             self.connect(new_block, "out", dest_block, old_conn.input_port)
     
     def get_all_components(self):
-        """Returns a VGroup containing all system components"""
+        """Ensures summing junctions render last."""
         all_components = VGroup()
-        
-        # Add all blocks
+    
+    # Add non-summing-junction blocks
         for block in self.blocks.values():
-            all_components.add(block)
-            
-        # Add all connections
+            if block.type != "summing_junction":
+                all_components.add(block)
+    
+    # Add connections and disturbances
         for connection in self.connections:
             all_components.add(connection)
-            
-        # Add all disturbances
         for disturbance in self.disturbances:
             all_components.add(disturbance)
-            
+    
+    # Add summing junctions LAST (with z-index hack)
+        for block in self.blocks.values():
+            if block.type == "summing_junction":
+                block.set_z_index(100)  # Force to top
+                all_components.add(block)
+    
         return all_components
     
     def _find_connection(self, source_block, dest_block):
@@ -630,3 +762,21 @@ class ControlSystem:
             conn.dest_block == dest_block):
                return conn
         return None
+    
+    def animate_signal(self, scene, start_block, end_block, run_time=2):
+        """Animates signal flow between blocks with a moving dot"""
+        connection = self._find_connection(start_block, end_block)
+        if not connection:
+            raise ValueError(f"No connection between {start_block.name} and {end_block.name}")
+    
+    # Create signal dot
+        signal = Dot(color=YELLOW, radius=0.08)
+        signal.move_to(connection.path.get_start())
+    
+    # Animate along path
+        scene.play(
+        MoveAlongPath(signal, connection.path),
+        run_time=run_time,
+        rate_func=linear
+        )
+        scene.remove(signal)
