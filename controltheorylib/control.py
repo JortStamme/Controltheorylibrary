@@ -732,27 +732,131 @@ class ControlSystem:
             self.connect(source_block, old_conn.output_port, new_block, "in")
             self.connect(new_block, "out", dest_block, old_conn.input_port)
     
-    def get_all_components(self):
-        """Ensures summing junctions render last."""
-        all_components = VGroup()
+    def add_input(self, target_block, input_port, label_tex=None, length=2, **kwargs):
+        """Adds an input arrow to a block."""
+        end = target_block.input_ports[input_port].get_center()
+        start = end + LEFT * length  # Default: comes from the left
     
-    # Add non-summing-junction blocks
+        arrow = Arrow(
+            start, end,
+            stroke_width=3,
+            tip_length=0.25,
+            buff=0.05,
+            color=BLUE,
+            **kwargs
+        )
+    
+        input_group = VGroup(arrow)
+    
+        if label_tex:
+            label = MathTex(label_tex, font_size=30)
+            label.next_to(arrow, UP, buff=0.2)
+            input_group.add(label)
+        
+        self.inputs = getattr(self, 'inputs', []) + [input_group]
+        return input_group
+    
+    def add_output(self, source_block, output_port, length=2, label_tex=None, **kwargs):
+        """Adds an output arrow from a block"""
+        start = source_block.output_ports[output_port].get_center()
+        end = start + RIGHT * length
+    
+        arrow = Arrow(
+            start, end,
+            stroke_width=3,
+            tip_length=0.25,
+            buff=0.05,
+            color=BLUE,
+            **kwargs
+        )
+    
+        output = VGroup(arrow)
+    
+        if label_tex:
+            label = MathTex(label_tex, font_size=30)
+            label.next_to(arrow, UP, buff=0.2)
+            output.add(label)
+        
+        self.outputs = getattr(self, 'outputs', []) + [output]
+        return output
+    
+    def add_feedback_path(self, source_block, output_port, dest_block, input_port, 
+                         vertical_distance=2, horizontal_distance=None, label_tex=None):
+        """Adds a feedback path with right-angle turns using Arrow.
+        
+        Args:
+            vertical_distance: Vertical drop distance (default: 2)
+            horizontal_distance: Manual override for horizontal distance. 
+                               If None, calculates automatically (default: None)
+        """
+        # Calculate path points
+        start = source_block.output_ports[output_port].get_center() + RIGHT * 1
+        mid1 = start + DOWN * vertical_distance
+        
+        # Calculate automatic horizontal distance if not specified
+        if horizontal_distance is None:
+            target_x = dest_block.input_ports[input_port].get_center()[0]
+            current_x = mid1[0]
+            horizontal_distance = abs(current_x - target_x) # 10% margin
+            
+        mid2 = mid1 + LEFT * horizontal_distance
+        end = dest_block.input_ports[input_port].get_center()
+        
+        # Create path segments
+        segment1 = Line(start, mid1)
+        segment2 = Line(mid1, mid2)
+        segment3 = Line(mid2, end)
+        
+        # Combine with arrow tip on last segment
+        feedback_arrow = VGroup(
+            segment1,
+            segment2,
+            segment3.add_tip(tip_length=0.2)  # Only last segment gets arrow tip
+        )
+        feedback_arrow.set_stroke(color=BLUE, width=3)
+
+        # Create complete feedback group
+        feedback = VGroup(feedback_arrow)
+        
+        # Add label if specified
+        if label_tex:
+            label = MathTex(label_tex, font_size=30)
+            label.next_to(mid2, DOWN, buff=0.2)
+            feedback.add(label)
+            
+        # Store feedback path
+        self.feedbacks = getattr(self, 'feedbacks', []) + [feedback]
+        return feedback
+    
+    def get_all_components(self):
+        """Modified to include all system components"""
+        all_components = VGroup()
+        
+        # Add non-summing-junction blocks first
         for block in self.blocks.values():
             if block.type != "summing_junction":
                 all_components.add(block)
-    
-    # Add connections and disturbances
+        
+        # Add connections and disturbances
         for connection in self.connections:
             all_components.add(connection)
         for disturbance in self.disturbances:
             all_components.add(disturbance)
-    
-    # Add summing junctions LAST (with z-index hack)
+        
+        # Add summing junctions last (z-index hack)
         for block in self.blocks.values():
             if block.type == "summing_junction":
-                block.set_z_index(100)  # Force to top
+                block.set_z_index(100)
                 all_components.add(block)
-    
+        
+        # Add inputs, outputs and feedbacks if they exist
+        for input_arrow in getattr(self, 'inputs', []):
+            all_components.add(input_arrow)
+        for output_arrow in getattr(self, 'outputs', []):
+            all_components.add(output_arrow)
+        for feedback in getattr(self, 'feedbacks', []):
+            all_components.add(feedback)
+        
         return all_components
     
     def _find_connection(self, source_block, dest_block):
@@ -763,20 +867,125 @@ class ControlSystem:
                return conn
         return None
     
-    def animate_signal(self, scene, start_block, end_block, run_time=2):
-        """Animates signal flow between blocks with a moving dot"""
+    def animate_signal(self, scene, start_block, end_block, run_time=0.5, repeat=0, 
+                  color=YELLOW, radius=0.08, trail_length=0, pulse=False):
+        """
+        Optimized signal animation with all features
+        """
         connection = self._find_connection(start_block, end_block)
         if not connection:
             raise ValueError(f"No connection between {start_block.name} and {end_block.name}")
-    
-    # Create signal dot
-        signal = Dot(color=YELLOW, radius=0.08)
+
+        signal = Dot(color=color, radius=radius)
         signal.move_to(connection.path.get_start())
     
-    # Animate along path
-        scene.play(
-        MoveAlongPath(signal, connection.path),
-        run_time=run_time,
-        rate_func=linear
-        )
+        trail = None
+        if trail_length > 0:
+            trail = VGroup(*[signal.copy().set_opacity(0) for _ in range(trail_length)])
+            scene.add(trail)
+    
+        if pulse:
+            signal.add_updater(lambda d, dt: d.set_width(radius*2*(1 + 0.1*np.sin(scene.time*2))))
+
+        max_cycles = 5 if repeat == -1 else repeat  # Safety limit
+    
+        scene.add(signal)
+        for _ in range(max_cycles if repeat else 1):
+            if trail_length > 0:
+                def update_trail(t):
+                    for i in range(len(t)-1, 0, -1):
+                        t[i].move_to(t[i-1])
+                    t[0].move_to(signal)
+                    for i, dot in enumerate(t):
+                        dot.set_opacity((i+1)/len(t))
+            trail.add_updater(update_trail)
+        
+            scene.play(
+                MoveAlongPath(signal, connection.path),
+                run_time=run_time,
+                rate_func=linear
+            )
+        
+            if trail_length > 0:
+                trail.remove_updater(update_trail)
+            signal.move_to(connection.path.get_start())
+    
+    # Safe cleanup
         scene.remove(signal)
+        if trail_length > 0 and trail:
+            scene.remove(trail)
+        if pulse:
+            signal.clear_updaters()
+
+    def animate_cascading_signals(self, scene, *blocks,
+                                  spawn_interval=0.5,
+                                  signal_speed=0.8,
+                                  signal_count=5,
+                                  color=YELLOW,
+                                  radius=0.12):
+        """
+        Creates smooth cascading signals using updaters.
+
+        Args:
+            scene: Manim scene instance
+            *blocks: Blocks to animate through (in order)
+            spawn_interval: Time between new signal spawns (seconds)
+            signal_speed: Time to travel between two blocks (seconds)
+            signal_count: Total number of signals to spawn
+            color: Signal dot color
+            radius: Signal dot size
+        """
+        if len(blocks) < 2:
+            raise ValueError("Need at least 2 blocks")
+
+        # Pre-calculate all paths
+        paths = []
+        for i in range(len(blocks) - 1):
+            conn = self._find_connection(blocks[i], blocks[i + 1])
+            if not conn:
+                raise ValueError(f"No connection between {blocks[i].name} and {blocks[i + 1].name}")
+            paths.append(conn.path.copy())
+
+        def create_signal():
+            """Creates a new signal that moves through the paths."""
+            signal = Dot(color=color, radius=radius)
+            signal.move_to(paths[0].get_start())
+            scene.add(signal)
+
+            timer = ValueTracker(0)
+
+            def update_signal(mob):
+                """Moves the signal along the predefined paths and removes it at the end."""
+                progress = timer.get_value()
+                total_length = sum(path.get_length() for path in paths)
+
+                distance_covered = progress * total_length
+                current_length = 0
+
+                for path in paths:
+                    path_length = path.get_length()
+                    if distance_covered <= current_length + path_length:
+                        segment_progress = (distance_covered - current_length) / path_length
+                        mob.move_to(path.point_from_proportion(segment_progress))
+                        return
+                    current_length += path_length
+
+                # If we reach here, the signal is at the last block, so remove it
+                mob.clear_updaters()
+                scene.remove(mob)
+
+            signal.add_updater(update_signal)
+
+            return signal, timer
+
+        # Sequentially spawn and animate signals
+        for i in range(signal_count):
+            signal, timer = create_signal()
+            scene.play(
+                timer.animate.set_value(1).set_run_time(len(paths) * signal_speed),
+                run_time=len(paths) * signal_speed
+            )
+            scene.wait(spawn_interval)
+
+        # Ensure the last signal gets removed after all have spawned
+        scene.wait(len(paths) * signal_speed)
