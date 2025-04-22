@@ -1,6 +1,11 @@
 from manim import *
 from controltheorylib.control import BodePlot
 
+config.pixel_height = 1080
+config.pixel_width = 1920
+config.frame_height = 80
+config.frame_width = 19
+
 class BodePlotExample(Scene):
     def construct(self):
         # Create a transfer function (example: second order system)
@@ -15,10 +20,9 @@ class BodePlotExample(Scene):
             magnitude_yrange=(-30, 10),
             phase_yrange=(-180, 0)
         )
-        
+
         # Center the plot
         bode.center()
-        
         # Add to scene
         self.play(Create(bode))
         
