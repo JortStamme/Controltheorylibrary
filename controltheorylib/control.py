@@ -469,54 +469,87 @@ class ControlBlock(VGroup):
         default_params = {
             "use_mathtex": False,
             "fill_opacity": 0.2,
-            "label_scale": 0.5,
-            "math_font_size": 45,
-            "text_font_size": 45,
-            "tex_template": None
+            "label_scale": None,
+            "math_font_size": None,
+            "text_font_size": None,
+            "tex_template": None,
+            "color": WHITE,
+            "label_color": None,
+            "block_width": 2.0,
+            "block_height": 1.0,
+            "summing_size": 0.8,
+            "width_font_ratio": 0.3,
+            "height_font_ratio": 0.5
+
         }
         
         # Type-specific defaults
+        type_params = {}
         if block_type == "summing_junction":
-            default_params.update({
-                "size": 0.8,  # Diameter for circles
+            type_params.update({
                 "input1_dir": LEFT,
                 "input2_dir": DOWN,
                 "output_dir": RIGHT,
                 "input1_sign": "+",
-                "input2_sign": "+"
-            })
-        else:  # transfer_function, input, etc.
-            default_params.update({
-                "width": 2.0,
-                "height": 1.0
+                "input2_sign": "+",
+                "hide_labels": True,
+                "width_font_ratio": 0.3, 
+                "height_font_ratio": 0.3
             })
             
-        self.params = default_params | (params or {})  # Merge with user params
+        self.params = default_params | type_params | (params or {})  # Merge with user params
+
+        # Calculate automatic font sizes if not specified
+        if block_type == "summing_junction":
+            size = self.params["summing_size"]
+            auto_font_size = size * 45  # Base scaling for circles
+        else:
+            width = self.params["block_width"]
+            height = self.params["block_height"]
+            auto_font_size = min(width * self.params["width_font_ratio"], 
+                                height * self.params["height_font_ratio"]) * 75
+            
+        # Set font sizes if not explicitly provided
+        if self.params["math_font_size"] is None:
+            self.params["math_font_size"] = auto_font_size
+        if self.params["text_font_size"] is None:
+            self.params["text_font_size"] = auto_font_size
+
+        # Calculate label scale if not specified
+        if self.params["label_scale"] is None:
+            self.params["label_scale"] = auto_font_size / 90
+
+        if self.params["label_color"] is None:
+            self.params["label_color"] = self.params["color"]
 
         if self.params["use_mathtex"] or (isinstance(name, str) and "$" in name):
             self.label = MathTex(
                 name,
                 font_size=self.params["math_font_size"],
-                tex_template=self.params["tex_template"]
+                tex_template=self.params["tex_template"],
+                color=self.params["label_color"]
             )
         else:
             self.label = Text(
                 str(name),
-                font_size=self.params["text_font_size"]
+                font_size=self.params["text_font_size"],
+                color=self.params["label_color"]
             )
         self.label.scale(self.params["label_scale"])
 
         # Create background shape
         if block_type == "summing_junction":
             self.background = Circle(
-                radius=self.params["size"]/2,
-                fill_opacity=self.params["fill_opacity"], color=WHITE
+                radius=self.params["summing_size"]/2,
+                fill_opacity=self.params["fill_opacity"], 
+                color=self.params["color"]
             )
         else:
             self.background = Rectangle(
-                width=self.params["width"],
-                height=self.params["height"],
-                fill_opacity=self.params["fill_opacity"]
+                width=self.params["block_width"],
+                height=self.params["block_height"],
+                fill_opacity=self.params["fill_opacity"],
+                color=self.params["color"]
             )
         
          # Create background and add components
@@ -546,7 +579,7 @@ class ControlBlock(VGroup):
        self.add_port("out", self.params["output_dir"])
     
     # Add signs if not hidden
-       if not self.params.get("hide_labels", False):
+       if not self.params["hide_labels"]:
         # Create mapping between ports and their signs
         port_sign_mapping = [
             ("in1", "input1_sign"),
@@ -568,7 +601,7 @@ class ControlBlock(VGroup):
 
     def add_port(self, name, direction):
         """Adds a port with size scaled to block type"""
-        port_size = 0.08
+        port_size = 0.0005
             
         port = Dot(radius=port_size, color=BLUE).next_to(
             self.background, 
@@ -584,7 +617,8 @@ class ControlBlock(VGroup):
         self.add(port)
 
 class Connection(VGroup):
-    def __init__(self, source_block, output_port, dest_block, input_port, label_tex=None,label_font_size=35):
+    def __init__(self, source_block, output_port, dest_block, input_port, label_tex=None,label_font_size=35,
+                 color=WHITE, **kwargs):
         super().__init__()
         self.source_block = source_block
         self.dest_block = dest_block
@@ -600,8 +634,9 @@ class Connection(VGroup):
             stroke_width=3,
             tip_length=0.25,
             max_tip_length_to_length_ratio=0.5,
-            buff=0.05,
-            color=BLUE
+            buff=0.02,
+            color=color,
+            **kwargs
         )
         
         # For curved connections
@@ -613,7 +648,7 @@ class Connection(VGroup):
         
         # Add label if provided
         if label_tex:
-            self.label = MathTex(label_tex, font_size=label_font_size)
+            self.label = MathTex(label_tex, font_size=label_font_size,color=color)
             # Position label above the middle of the arrow
             self.label.next_to(self.arrow.get_center(), UP, buff=0.2)
             self.add(self.label)
@@ -669,7 +704,8 @@ class ControlSystem:
         self.blocks[name] = new_block
         return new_block
         
-    def connect(self, source_block, output_port, dest_block, input_port, style="default", label_tex=None, label_font_size=30):
+    def connect(self, source_block, output_port, dest_block, input_port, style="default", label_tex=None, label_font_size=30,
+                color=WHITE, **kwargs):
         """Connect blocks with arrow and optional label
     
         Args:
@@ -690,7 +726,9 @@ class ControlSystem:
         dest_block, 
         input_port,
         label_tex=label_tex,
-        label_font_size=label_font_size
+        label_font_size=label_font_size,
+        color=color,
+        **kwargs
         )
     
     # Apply style if specified
@@ -732,7 +770,7 @@ class ControlSystem:
             self.connect(source_block, old_conn.output_port, new_block, "in")
             self.connect(new_block, "out", dest_block, old_conn.input_port)
     
-    def add_input(self, target_block, input_port, label_tex=None, length=2, **kwargs):
+    def add_input(self, target_block, input_port, label_tex=None, length=2, color=WHITE, **kwargs):
         """Adds an input arrow to a block."""
         end = target_block.input_ports[input_port].get_center()
         start = end + LEFT * length  # Default: comes from the left
@@ -742,21 +780,21 @@ class ControlSystem:
             stroke_width=3,
             tip_length=0.25,
             buff=0.05,
-            color=BLUE,
+            color=color,
             **kwargs
         )
     
         input_group = VGroup(arrow)
     
         if label_tex:
-            label = MathTex(label_tex, font_size=30)
+            label = MathTex(label_tex, font_size=30, color=color)
             label.next_to(arrow, UP, buff=0.2)
             input_group.add(label)
         
         self.inputs = getattr(self, 'inputs', []) + [input_group]
         return input_group
     
-    def add_output(self, source_block, output_port, length=2, label_tex=None, **kwargs):
+    def add_output(self, source_block, output_port, length=2, label_tex=None, color=WHITE, **kwargs):
         """Adds an output arrow from a block"""
         start = source_block.output_ports[output_port].get_center()
         end = start + RIGHT * length
@@ -766,14 +804,14 @@ class ControlSystem:
             stroke_width=3,
             tip_length=0.25,
             buff=0.05,
-            color=BLUE,
+            color=color,
             **kwargs
         )
     
         output = VGroup(arrow)
     
         if label_tex:
-            label = MathTex(label_tex, font_size=30)
+            label = MathTex(label_tex, font_size=30, color=color)
             label.next_to(arrow, UP, buff=0.2)
             output.add(label)
         
@@ -781,7 +819,7 @@ class ControlSystem:
         return output
     
     def add_feedback_path(self, source_block, output_port, dest_block, input_port, 
-                         vertical_distance=2, horizontal_distance=None, label_tex=None):
+                         vertical_distance=2, horizontal_distance=None, label_tex=None, color=WHITE, **kwargs):
         """Adds a feedback path with right-angle turns using Arrow.
         
         Args:
@@ -790,30 +828,29 @@ class ControlSystem:
                                If None, calculates automatically (default: None)
         """
         # Calculate path points
-        start = source_block.output_ports[output_port].get_center() + RIGHT * 1
+        start = source_block.output_ports[output_port].get_center() + RIGHT
+        end = dest_block.input_ports[input_port].get_center()
+
         mid1 = start + DOWN * vertical_distance
         
         # Calculate automatic horizontal distance if not specified
         if horizontal_distance is None:
-            target_x = dest_block.input_ports[input_port].get_center()[0]
-            current_x = mid1[0]
-            horizontal_distance = abs(current_x - target_x) # 10% margin
+            horizontal_distance = abs(mid1[0] - end[0])
             
         mid2 = mid1 + LEFT * horizontal_distance
-        end = dest_block.input_ports[input_port].get_center()
         
         # Create path segments
-        segment1 = Line(start, mid1)
-        segment2 = Line(mid1, mid2)
-        segment3 = Line(mid2, end)
+        segment1 = Line(start, mid1, color=color, **kwargs)
+        segment2 = Line(mid1, mid2, color=color, **kwargs)
+        segment3 = Arrow(start=mid2, end=end, tip_length=0.2, buff=0, color=color, **kwargs)
         
         # Combine with arrow tip on last segment
         feedback_arrow = VGroup(
             segment1,
             segment2,
-            segment3.add_tip(tip_length=0.2)  # Only last segment gets arrow tip
+            segment3
         )
-        feedback_arrow.set_stroke(color=BLUE, width=3)
+        feedback_arrow.set_stroke(color=color, width=3)
 
         # Create complete feedback group
         feedback = VGroup(feedback_arrow)
@@ -917,52 +954,108 @@ class ControlSystem:
         if pulse:
             signal.clear_updaters()
 
-    def animate_cascading_signals(self, scene, *blocks,
-                                  spawn_interval=0.5,
-                                  signal_speed=0.8,
-                                  signal_count=5,
-                                  color=YELLOW,
-                                  radius=0.12):
+    def animate_signals(self, scene, *blocks,
+                                spawn_interval=0.5,
+                                signal_speed=0.8,
+                                signal_count=5,
+                                color=YELLOW,
+                                radius=0.12,
+                                include_input=True,
+                                include_output=True,
+                                include_feedback=True):
         """
-        Creates smooth cascading signals using updaters.
-
-        Args:
-            scene: Manim scene instance
-            *blocks: Blocks to animate through (in order)
-            spawn_interval: Time between new signal spawns (seconds)
-            signal_speed: Time to travel between two blocks (seconds)
-            signal_count: Total number of signals to spawn
-            color: Signal dot color
-            radius: Signal dot size
+        Creates smooth cascading signals with precise feedback path connection
+        starting 1 unit right from output start.
         """
-        if len(blocks) < 2:
-            raise ValueError("Need at least 2 blocks")
-
         # Pre-calculate all paths
         paths = []
+        
+        # 1. Add input path
+        if include_input and hasattr(self, 'inputs'):
+            for input_path in self.inputs:
+                if isinstance(input_path[0], Arrow):
+                    paths.append(input_path[0].copy())
+        
+        # 2. Add main block connections
         for i in range(len(blocks) - 1):
             conn = self._find_connection(blocks[i], blocks[i + 1])
-            if not conn:
-                raise ValueError(f"No connection between {blocks[i].name} and {blocks[i + 1].name}")
-            paths.append(conn.path.copy())
+            if conn:
+                paths.append(conn.path.copy())
+        
+        # 3. Handle output and feedback connection
+        if include_output and hasattr(self, 'outputs'):
+            for output_path in self.outputs:
+                if isinstance(output_path[0], Arrow):
+                    output_copy = output_path[0].copy()
+                    
+                    if include_feedback:
+                        # Split output at feedback connection point (1 unit right from start)
+                        split_point = output_copy.get_start() + RIGHT * 1
+                        
+                        # Create first segment (before feedback branches off)
+                        first_segment = Line(
+                            output_copy.get_start(),
+                            split_point
+                        )
+                        paths.append(first_segment)
+                        
+                        # Create remaining output segment (after feedback branches off)
+                        remaining_segment = Line(
+                            split_point,
+                            output_copy.get_end()
+                        )
+                        paths.append(remaining_segment)
+                    else:
+                        paths.append(output_copy)
+        
+        # 4. Add feedback path with precise connection
+        if include_feedback and hasattr(self, 'feedbacks'):
+            for feedback_path in self.feedbacks:
+                if len(feedback_path[0]) >= 3:
+                    # Reconstruct feedback path ensuring it starts at split_point
+                    feedback_points = []
+                    
+                    # First point should be the split point (1 unit right from output start)
+                    if hasattr(self, 'outputs') and len(self.outputs) > 0:
+                        output_start = self.outputs[0][0].get_start()
+                        feedback_points.append(output_start + RIGHT * 1)
+                    
+                    # Add remaining points from feedback segments
+                    for segment in feedback_path[0]:
+                        if isinstance(segment, Line):
+                            feedback_points.append(segment.get_end())
+                    
+                    if len(feedback_points) > 1:
+                        feedback_curve = VMobject()
+                        feedback_curve.set_points_as_corners(feedback_points)
+                        paths.append(feedback_curve)
+
+        # Filter out invalid paths
+        valid_paths = []
+        for path in paths:
+            try:
+                if hasattr(path, 'get_length') and path.get_length() > 0.1:  # Minimum length threshold
+                    valid_paths.append(path)
+            except:
+                continue
+
+        if not valid_paths:
+            raise ValueError("No valid paths found to animate")
 
         def create_signal():
-            """Creates a new signal that moves through the paths."""
             signal = Dot(color=color, radius=radius)
-            signal.move_to(paths[0].get_start())
+            signal.move_to(valid_paths[0].get_start())
             scene.add(signal)
 
             timer = ValueTracker(0)
 
             def update_signal(mob):
-                """Moves the signal along the predefined paths and removes it at the end."""
                 progress = timer.get_value()
-                total_length = sum(path.get_length() for path in paths)
-
+                total_length = sum(p.get_length() for p in valid_paths)
                 distance_covered = progress * total_length
                 current_length = 0
 
-                for path in paths:
+                for path in valid_paths:
                     path_length = path.get_length()
                     if distance_covered <= current_length + path_length:
                         segment_progress = (distance_covered - current_length) / path_length
@@ -970,22 +1063,19 @@ class ControlSystem:
                         return
                     current_length += path_length
 
-                # If we reach here, the signal is at the last block, so remove it
                 mob.clear_updaters()
                 scene.remove(mob)
 
             signal.add_updater(update_signal)
-
             return signal, timer
 
-        # Sequentially spawn and animate signals
+        # Animate signals
         for i in range(signal_count):
             signal, timer = create_signal()
             scene.play(
-                timer.animate.set_value(1).set_run_time(len(paths) * signal_speed),
-                run_time=len(paths) * signal_speed
+                timer.animate.set_value(1).set_run_time(len(valid_paths) * signal_speed),
+                run_time=len(valid_paths) * signal_speed
             )
             scene.wait(spawn_interval)
 
-        # Ensure the last signal gets removed after all have spawned
-        scene.wait(len(paths) * signal_speed)
+        scene.wait(len(valid_paths) * signal_speed)
