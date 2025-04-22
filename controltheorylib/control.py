@@ -5,6 +5,7 @@ from scipy import signal
 import sympy as sp
 from collections import OrderedDict
 from manim import TexTemplate
+
 my_template = TexTemplate()
 my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 
@@ -1079,3 +1080,190 @@ class ControlSystem:
             scene.wait(spawn_interval)
 
         scene.wait(len(valid_paths) * signal_speed)
+
+### Bode plots
+
+class BodePlot(VGroup):
+    def __init__(self, system, freq_range=(0.1, 1000), magnitude_yrange=(-40, 40), phase_yrange=(-180, 180), **kwargs):
+        """
+        Create a Bode plot visualization for a given system.
+        
+        Parameters:
+        - system: scipy.signal.lti or transfer function coefficients
+        - freq_range: tuple (min_freq, max_freq) in rad/s
+        - magnitude_yrange: tuple (min_db, max_db) for magnitude plot
+        - phase_yrange: tuple (min_deg, max_deg) for phase plot
+        """
+        super().__init__(**kwargs)
+        
+        # Store parameters
+        self.system = system
+        self.freq_range = freq_range
+        self.magnitude_yrange = magnitude_yrange
+        self.phase_yrange = phase_yrange
+        
+        # Create the plot axes
+        self.create_axes()
+        
+        # Calculate and plot the Bode response
+        self.calculate_bode_data()
+        self.plot_bode_response()
+    
+    def create_axes(self):
+        """Create the Bode plot axes with readable tick labels."""
+
+        decade_exponents = np.arange(
+            np.ceil(np.log10(self.freq_range[0])),
+            np.floor(np.log10(self.freq_range[1])) + 1
+        )
+
+        x_axis_config = {
+            "font_size": 15,
+            "include_numbers": False,
+        }
+
+        y_axis_config_mag = {
+            "numbers_to_include": np.arange(
+                self.magnitude_yrange[0],
+                self.magnitude_yrange[1] + 10,
+                10
+            ),
+            "font_size": 15,
+            "include_numbers": True,
+        }
+
+        y_axis_config_phase = {
+            "numbers_to_include": np.arange(
+                self.phase_yrange[0],
+                self.phase_yrange[1] + 45,
+                45
+            ),
+            "font_size": 15,
+            "include_numbers": True,
+        }
+
+        self.mag_axes = Axes(
+            x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+            y_range=self.magnitude_yrange,
+            x_length=6,
+            y_length=3,
+            axis_config={"color": BLUE},
+            x_axis_config=x_axis_config,
+            y_axis_config=y_axis_config_mag,
+        ).shift(UP * 1.5)
+
+        self.phase_axes = Axes(
+            x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+            y_range=self.phase_yrange,
+            x_length=6,
+            y_length=3,
+            axis_config={"color": BLUE},
+            x_axis_config=x_axis_config,
+            y_axis_config=y_axis_config_phase,
+        ).shift(DOWN * 1.5)
+
+        # Add 10^x labels manually
+        labels = VGroup()
+        for axes in [self.mag_axes, self.phase_axes]:
+            for exp in decade_exponents:
+                x = np.log10(10 ** exp)
+                tick = axes.x_axis.n2p(x)
+                label = MathTex(f"10^{{{int(exp)}}}", font_size=20).next_to(tick, DOWN, buff=0.15)
+                labels.add(label)
+
+        mag_label = Text("Magnitude (dB)", font_size=15).next_to(self.mag_axes.y_axis, UP)
+        phase_label = Text("Phase (deg)", font_size=15).next_to(self.phase_axes.y_axis, UP)
+        freq_label = Text("Frequency (rad/s)", font_size=15).next_to(self.phase_axes.x_axis, DOWN, buff=0.5)
+
+        self.add(self.mag_axes, self.phase_axes, labels, mag_label, phase_label, freq_label)
+
+    def calculate_bode_data(self):
+        """Calculate the Bode plot data using scipy.signal."""
+        # Generate frequency points (logarithmically spaced)
+        w = np.logspace(
+            np.log10(self.freq_range[0]),
+            np.log10(self.freq_range[1]),
+            1000
+        )
+        
+        # Calculate frequency response
+        if isinstance(self.system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+            # scipy LTI system
+            w, mag, phase = signal.bode(self.system, w)
+        else:
+            # Assume it's a transfer function coefficients (numerator, denominator)
+            tf = signal.TransferFunction(*self.system)
+            w, mag, phase = signal.bode(tf, w)
+        
+        self.frequencies = w
+        self.magnitudes = mag
+        self.phases = phase
+    
+    def plot_bode_response(self):
+        """Create the Bode plot curves."""
+        # Convert frequencies to log scale for plotting
+        log_w = np.log10(self.frequencies)
+        
+        # Create magnitude plot
+        mag_points = [
+            self.mag_axes.coords_to_point(x, y)
+            for x, y in zip(log_w, self.magnitudes)
+        ]
+        self.mag_plot = VMobject().set_points_as_corners(mag_points)
+        self.mag_plot.set_color(GREEN)
+        
+        # Create phase plot
+        phase_points = [
+            self.phase_axes.coords_to_point(x, y)
+            for x, y in zip(log_w, self.phases)
+        ]
+        self.phase_plot = VMobject().set_points_as_corners(phase_points)
+        self.phase_plot.set_color(RED)
+        
+        self.add(self.mag_plot, self.phase_plot)
+    
+    def get_critical_points(self):
+        """Identify critical points (resonance, crossover, etc.)"""
+        # Find gain crossover (where magnitude crosses 0 dB)
+        crossover_idx = np.argmin(np.abs(self.magnitudes))
+        crossover_freq = self.frequencies[crossover_idx]
+        crossover_mag = self.magnitudes[crossover_idx]
+        crossover_phase = self.phases[crossover_idx]
+        
+        # Find phase crossover (where phase crosses -180°)
+        phase_cross_idx = np.argmin(np.abs(self.phases + 180))
+        phase_cross_freq = self.frequencies[phase_cross_idx]
+        phase_cross_phase = self.phases[phase_cross_idx]
+        
+        return {
+            'gain_crossover': (crossover_freq, crossover_mag, crossover_phase),
+            'phase_crossover': (phase_cross_freq, None, phase_cross_phase)
+        }
+    
+    def highlight_critical_points(self):
+        """Return animations for highlighting critical points."""
+        critical_points = self.get_critical_points()
+    
+        # Highlight gain crossover
+        freq, mag, phase = critical_points['gain_crossover']
+        log_freq = np.log10(freq)
+    
+        # Magnitude plot marker
+        mag_point = self.mag_axes.c2p(log_freq, mag)
+        mag_dot = Dot(mag_point, color=YELLOW)
+        mag_label = MathTex(f"f_c = {freq:.2f} rad/s", font_size=24)
+        mag_label.next_to(mag_dot, UP)
+    
+    # Phase plot marker
+        phase_point = self.phase_axes.c2p(log_freq, phase)
+        phase_dot = Dot(phase_point, color=YELLOW)
+        phase_label = MathTex(f"\\phi = {phase:.1f}^\\circ", font_size=24)
+        phase_label.next_to(phase_dot, UP)
+    
+    # Return creation animations
+        return [
+            Create(mag_dot),
+            Create(phase_dot),
+            Write(mag_label),
+            Write(phase_label),
+        ], [mag_dot, phase_dot, mag_label, phase_label]
