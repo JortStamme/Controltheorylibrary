@@ -1213,49 +1213,79 @@ class BodePlot(VGroup):
         mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
         phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
 
-        # Add grid lines
-        freq_labels = VGroup()
+        # Main decade ticks (0.1,1,10)
+        main_ticks = [10**exp for exp in np.arange(min_exp, max_exp + 1)]
+        main_log_ticks = np.log10(main_ticks)
 
-        zero_phase_point = self.phase_axes.c2p(0, 0)  # (x,y) of 0 phase at left edge
-        min_phase_point = self.phase_axes.c2p(0, self.phase_yrange[0])  # (x,y) of min phase
-
-        phase_drop_distance = zero_phase_point[1] - min_phase_point[1]
-        for x_val, exp in zip(log_ticks, decade_exponents):
-            tick_point = self.phase_axes.x_axis.n2p(x_val)
-            label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
-            label.next_to(tick_point, DOWN, buff=phase_drop_distance+0.15)
-            freq_labels.add(label)
+         # Intermediate ticks (0.2, 0.3, ..., 0.9, 2, 3, ..., etc.)
+        intermediate_ticks = []
+        for exp in np.arange(min_exp, max_exp):
+            intermediates = np.arange(1, 10) * 10**exp
+            intermediate_ticks.extend(intermediates)
+        intermediate_log_ticks = np.log10(intermediate_ticks)
+    
+        # Combine all ticks and filter by frequency range
+        all_ticks = np.concatenate([main_ticks, intermediate_ticks])
+        all_log_ticks = np.log10(all_ticks)
+        valid_mask = (all_ticks >= self.freq_range[0]) & (all_ticks <= self.freq_range[1])
+        all_log_ticks = all_log_ticks[valid_mask]
 
         mag_grid_lines = VGroup()
         phase_grid_lines = VGroup()
     
-        # Magnitude grid lines
-        for x_val in log_ticks:
-            start = self.mag_axes.c2p(x_val, self.magnitude_yrange[0])
-            end = self.mag_axes.c2p(x_val, self.magnitude_yrange[1])
-            mag_grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
+        #Main grid lines (solid lines at decades)
+        for x_val in main_log_ticks:
+            # Magnitude plot
+            mag_start = self.mag_axes.c2p(x_val, self.magnitude_yrange[0])
+            mag_end = self.mag_axes.c2p(x_val, self.magnitude_yrange[1])
+            mag_grid_lines.add(Line(mag_start, mag_end, color=GREY, stroke_width=1, stroke_opacity=0.7))
     
-        # Magnitude horizontal lines at dB ticks
+            # Phase plot
+            phase_start = self.phase_axes.c2p(x_val, self.phase_yrange[0])
+            phase_end = self.phase_axes.c2p(x_val, self.phase_yrange[1])
+            phase_grid_lines.add(Line(phase_start, phase_end, color=GREY, stroke_width=1, stroke_opacity=0.7))
+    
+        # Intermediate grids (dashed lines)
+        intermediate_log_ticks = np.setdiff1d(all_log_ticks, main_log_ticks)
+        for x_val in intermediate_log_ticks:
+            # Magnitude plot
+            mag_start = self.mag_axes.c2p(x_val, self.magnitude_yrange[0])
+            mag_end = self.mag_axes.c2p(x_val, self.magnitude_yrange[1])
+            mag_grid_lines.add(DashedLine(mag_start, mag_end, color=GREY, dash_length=0.05,stroke_width=0.5, stroke_opacity=0.8))
+        
+            # Phase plot
+            phase_start = self.phase_axes.c2p(x_val, self.phase_yrange[0])
+            phase_end = self.phase_axes.c2p(x_val, self.phase_yrange[1])
+            phase_grid_lines.add(DashedLine(phase_start, phase_end, color=GREY, dash_length=0.05, stroke_width=0.5, stroke_opacity=0.8))
+
+        # Horizontal grid lines 
+        # Magnitude horizontal lines
         for y_val in np.arange(self.magnitude_yrange[0], self.magnitude_yrange[1]+1, 10):
             start = self.mag_axes.c2p(self.mag_axes.x_range[0], y_val)
             end = self.mag_axes.c2p(self.mag_axes.x_range[1], y_val)
             mag_grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
 
-        # Phase grid lines
-        for x_val in log_ticks:
-            start = self.phase_axes.c2p(x_val, self.phase_yrange[0])
-            end = self.phase_axes.c2p(x_val, self.phase_yrange[1])
-            phase_grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
-    
-        # Phase horizontal lines at degree ticks
+        # Phase horizontal lines 
         for y_val in np.arange(self.phase_yrange[0], self.phase_yrange[1]+1, 45):
             start = self.phase_axes.c2p(self.phase_axes.x_range[0], y_val)
             end = self.phase_axes.c2p(self.phase_axes.x_range[1], y_val)
             phase_grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
+                
+        # Frequency labels
+        freq_labels = VGroup()
+        zero_phase_point = self.phase_axes.c2p(0, 0)  # (x,y) of 0 phase at left edge
+        min_phase_point = self.phase_axes.c2p(0, self.phase_yrange[0])  # (x,y) of min phase
 
+        phase_drop_distance = zero_phase_point[1] - min_phase_point[1]
+        for x_val, exp in zip(main_log_ticks, decade_exponents):
+            tick_point = self.phase_axes.x_axis.n2p(x_val)
+            label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
+            label.next_to(tick_point, DOWN, buff=phase_drop_distance+0.15)
+            freq_labels.add(label)
+        
         # Add titles
         mag_ylabel = Text("Magnitude (dB)", font_size=26).next_to(mag_box, LEFT, buff=-0.5).rotate(PI/2)
-        phase_ylabel = Text("Phase (degrees)", font_size=26).next_to(phase_box, LEFT, buff=-0.5).rotate(PI/2)
+        phase_ylabel = Text("Phase (deg)", font_size=26).next_to(phase_box, LEFT, buff=-0.5).rotate(PI/2)
         freq_xlabel = Text("Frequency (rad/s)", font_size=24).next_to(phase_box, DOWN, buff=0.4)
 
         self.add(
