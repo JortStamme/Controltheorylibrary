@@ -1180,16 +1180,9 @@ class BodePlot(VGroup):
             y_range=self.magnitude_yrange,
             x_length=12,
             y_length=3.5,
-            axis_config={"color": WHITE, "stroke_width": 2, 
+            axis_config={"color": WHITE, "stroke_width": 1, 
                          "include_tip":False, "include_ticks":False},
-            y_axis_config={
-                "numbers_to_include": np.arange(
-                    self.magnitude_yrange[0],
-                    self.magnitude_yrange[1],
-                    10
-                ),
-                "font_size": 20,
-            },
+            y_axis_config={"font_size": 25},
         ).shift(UP*2)
 
         self.phase_axes = Axes(
@@ -1197,21 +1190,31 @@ class BodePlot(VGroup):
             y_range=self.phase_yrange,
             x_length=12,
             y_length=3.5,
-            axis_config={"color": WHITE, "stroke_width": 2, 
+            axis_config={"color": WHITE, "stroke_width": 1, 
                          "include_tip":False, "include_ticks":False},
-            y_axis_config={
-                "numbers_to_include": np.arange(
-                    self.phase_yrange[0],
-                    self.phase_yrange[1],
-                    45
-                ),
-                "font_size": 20,
-            },
+            y_axis_config={"font_size": 25},
         ).next_to(self.mag_axes, DOWN, buff=0.5)
 
         # Add boxes around plots
         mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
         phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
+        
+            # Add y-value labels on the left side of each box
+        mag_y_labels = VGroup()
+        for y_val in np.arange(self.magnitude_yrange[0], self.magnitude_yrange[1]+1, 10):
+            point = self.mag_axes.c2p(self.mag_axes.x_range[0], y_val)
+            label = MathTex(f"{int(y_val)}", font_size=25)
+            label.next_to(mag_box.get_left(), LEFT, buff=0.1)
+            label.move_to([label.get_x(), point[1],0])  # Align vertically with the grid line
+            mag_y_labels.add(label)
+
+        phase_y_labels = VGroup()
+        for y_val in np.arange(self.phase_yrange[0], self.phase_yrange[1]+1, 45):
+            point = self.phase_axes.c2p(self.phase_axes.x_range[0], y_val)
+            label = MathTex(f"{int(y_val)}", font_size=25)
+            label.next_to(phase_box.get_left(), LEFT, buff=0.1)
+            label.move_to([label.get_x(), point[1],0])  # Align vertically with the grid line
+            phase_y_labels.add(label)
 
         # Main decade ticks (0.1,1,10)
         main_ticks = [10**exp for exp in np.arange(min_exp, max_exp + 1)]
@@ -1275,24 +1278,26 @@ class BodePlot(VGroup):
         freq_labels = VGroup()
         zero_phase_point = self.phase_axes.c2p(0, 0)  # (x,y) of 0 phase at left edge
         min_phase_point = self.phase_axes.c2p(0, self.phase_yrange[0])  # (x,y) of min phase
+        phase_box_bottom = phase_box.get_bottom()[1]
 
         phase_drop_distance = zero_phase_point[1] - min_phase_point[1]
         for x_val, exp in zip(main_log_ticks, decade_exponents):
             tick_point = self.phase_axes.x_axis.n2p(x_val)
-            label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
-            label.next_to(tick_point, DOWN, buff=phase_drop_distance+0.15)
+            label = MathTex(f"10^{{{int(exp)}}}", font_size=25)
+            label.move_to([tick_point[0]+0.1, phase_box_bottom-0.2,0])
             freq_labels.add(label)
         
         # Add titles
         mag_ylabel = Text("Magnitude (dB)", font_size=26).next_to(mag_box, LEFT, buff=-0.5).rotate(PI/2)
-        phase_ylabel = Text("Phase (deg)", font_size=26).next_to(phase_box, LEFT, buff=-0.5).rotate(PI/2)
+        phase_ylabel = Text("Phase (deg)", font_size=26).next_to(phase_box, LEFT, buff=-0.2).rotate(PI/2)
         freq_xlabel = Text("Frequency (rad/s)", font_size=24).next_to(phase_box, DOWN, buff=0.4)
 
         self.add(
             self.mag_axes, self.phase_axes,
             mag_box, phase_box,
             mag_grid_lines,phase_grid_lines, freq_labels,
-            mag_ylabel, phase_ylabel, freq_xlabel
+            mag_ylabel, phase_ylabel, freq_xlabel, mag_y_labels,
+            phase_y_labels
         )
 
     def calculate_bode_data(self):
