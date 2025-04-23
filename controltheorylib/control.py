@@ -1084,8 +1084,8 @@ class ControlSystem:
 ### Bode plots
 
 class BodePlot(VGroup):
-    def __init__(self, system, freq_range=(0.1, 1000), magnitude_yrange=(-40, 40), 
-                 phase_yrange=(-180, 180), **kwargs):
+    def __init__(self, system, freq_range=None, magnitude_yrange=None, 
+                 phase_yrange=None, **kwargs):
         """
         Create a Bode plot visualization for a given system.
         
@@ -1096,10 +1096,12 @@ class BodePlot(VGroup):
         - phase_yrange: tuple (min_deg, max_deg) for phase plot
         """
         super().__init__(**kwargs)
-        self.system = system
-        self.freq_range = freq_range
-        self.magnitude_yrange = magnitude_yrange
-        self.phase_yrange = phase_yrange
+        self.system = self._ensure_tf(system)
+
+        auto_ranges = self._auto_determine_ranges()
+        self.freq_range = freq_range if freq_range is not None else auto_ranges['freq_range']
+        self.magnitude_yrange = magnitude_yrange if magnitude_yrange is not None else auto_ranges['mag_range']
+        self.phase_yrange = phase_yrange if phase_yrange is not None else auto_ranges['phase_range']
         
         self.create_axes()
         self.calculate_bode_data()
@@ -1107,6 +1109,62 @@ class BodePlot(VGroup):
         
         # Center by default
         self.center()
+
+    def _ensure_tf(self, system):
+        """Convert system to TransferFunction if needed"""
+        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+            return system
+        return signal.TransferFunction(*system)
+    
+    def _auto_determine_ranges(self):
+        """Automatically determine plot ranges based on system poles/zeros and Bode data."""
+        # Get poles and zeros
+        if isinstance(self.system, signal.TransferFunction):
+            poles = self.system.poles
+            zeros = self.system.zeros
+        else:
+            poles = self.system.to_tf().poles
+            zeros = self.system.to_tf().zeros
+
+        # Filter out infinite and zero frequencies
+        finite_poles = poles[np.isfinite(poles) & (poles != 0)]
+        finite_zeros = zeros[np.isfinite(zeros) & (zeros != 0)]
+
+        # Step 1: Determine freq range based on features
+        all_features = np.abs(np.concatenate([finite_poles, finite_zeros]))
+        if len(all_features) > 0:
+            min_freq = 10 ** (np.floor(np.log10(np.min(all_features))))
+            max_freq = 10 ** (np.ceil(np.log10(np.max(all_features))) + 1)
+        else:
+            min_freq, max_freq = 0.1, 100
+
+        # Handle integrators (poles at 0)
+        if any(poles == 0):
+            min_freq = min(0.001, min_freq)
+
+        # Handle differentiators (zeros at 0)
+        if any(zeros == 0):
+            max_freq = max(1000, max_freq)
+
+        # Step 2: Calculate Bode response in determined frequency range
+        w_focus = np.logspace(np.log10(min_freq), np.log10(max_freq), 1000)
+        _, mag_focus, phase_focus = signal.bode(self.system, w_focus)
+
+        # Step 3: Determine phase range from Bode data
+        phase_min = max(-360, np.floor(np.min(phase_focus) / 45) * 45 - 45)
+        phase_max = min(360, np.ceil(np.max(phase_focus) / 45) * 45 + 45)
+
+        # Step 4: Determine magnitude range from same range
+        mag_padding = 5  # dB padding
+        mag_min = np.floor(np.min(mag_focus) / 5) * 5 - mag_padding
+        mag_max = np.ceil(np.max(mag_focus) / 5) * 5 + mag_padding
+
+        return {
+            'freq_range': (float(min_freq), float(max_freq)),
+            'mag_range': (float(mag_min), float(mag_max)),
+            'phase_range': (float(phase_min), float(phase_max))
+        }
+
 
     def create_axes(self):
         """Create the Bode plot axes with labeled ticks only at powers of 10."""
@@ -1132,7 +1190,7 @@ class BodePlot(VGroup):
                 ),
                 "font_size": 20,
             },
-        ).shift(UP * 2.5)
+        ).shift(UP * 2)
 
         self.phase_axes = Axes(
             x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
@@ -1154,16 +1212,15 @@ class BodePlot(VGroup):
         # Add boxes around plots
         mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
         phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
-
-        # Add decade labels
-        labels = VGroup()
-        for axes in [self.mag_axes, self.phase_axes]:
-            for x_val, exp in zip(log_ticks, decade_exponents):
-                tick_point = axes.x_axis.n2p(x_val)
-                label = MathTex(f"10^{{{int(exp)}}}", font_size=20).next_to(tick_point, DOWN, buff=0.15)
-                labels.add(label)
-
+        phase_box_height = phase_box.height
         # Add grid lines
+        freq_labels = VGroup()
+        for x_val, exp in zip(log_ticks, decade_exponents):
+            tick_point = self.phase_axes.x_axis.n2p(x_val)
+            label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
+            label.next_to(tick_point, DOWN, buff=phase_box_height+0.1)
+            freq_labels.add(label)
+
         grid_lines = VGroup()
         for axes in [self.mag_axes, self.phase_axes]:
             for x_val in log_ticks:
@@ -1184,7 +1241,7 @@ class BodePlot(VGroup):
         self.add(
             self.mag_axes, self.phase_axes,
             mag_box, phase_box,
-            grid_lines, labels,
+            grid_lines, freq_labels,
             mag_ylabel, phase_ylabel, freq_xlabel
         )
 

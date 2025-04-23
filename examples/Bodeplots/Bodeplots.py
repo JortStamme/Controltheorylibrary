@@ -14,12 +14,7 @@ class BodePlotExample(Scene):
         system = (num, den)
         
         # Create Bode plot
-        bode = BodePlot(
-            system,
-            freq_range=(0.1, 10),
-            magnitude_yrange=(-30, 10),
-            phase_yrange=(-180, 0)
-        )
+        bode = BodePlot(system)
 
         # Center the plot
         bode.center()
