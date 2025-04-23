@@ -1151,8 +1151,8 @@ class BodePlot(VGroup):
         _, mag_focus, phase_focus = signal.bode(self.system, w_focus)
 
         # Step 3: Determine phase range from Bode data
-        phase_min = max(-360, np.floor(np.min(phase_focus) / 45) * 45 - 45)
-        phase_max = min(360, np.ceil(np.max(phase_focus) / 45) * 45 + 45)
+        phase_min = max(-360, np.floor(np.min(phase_focus) / 45) * 45 - 5)
+        phase_max = min(360, np.ceil(np.max(phase_focus) / 45) * 45 + 5)
 
         # Step 4: Determine magnitude range from same range
         mag_padding = 5  # dB padding
@@ -1185,12 +1185,12 @@ class BodePlot(VGroup):
             y_axis_config={
                 "numbers_to_include": np.arange(
                     self.magnitude_yrange[0],
-                    self.magnitude_yrange[1] + 10,
+                    self.magnitude_yrange[1],
                     10
                 ),
                 "font_size": 20,
             },
-        ).shift(UP * 2)
+        ).shift(UP*2)
 
         self.phase_axes = Axes(
             x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
@@ -1202,36 +1202,56 @@ class BodePlot(VGroup):
             y_axis_config={
                 "numbers_to_include": np.arange(
                     self.phase_yrange[0],
-                    self.phase_yrange[1] + 45,
+                    self.phase_yrange[1],
                     45
                 ),
                 "font_size": 20,
             },
-        ).shift(DOWN * 2)
+        ).next_to(self.mag_axes, DOWN, buff=0.5)
 
         # Add boxes around plots
         mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
         phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
-        phase_box_height = phase_box.height
+
         # Add grid lines
         freq_labels = VGroup()
+
+        zero_phase_point = self.phase_axes.c2p(0, 0)  # (x,y) of 0 phase at left edge
+        min_phase_point = self.phase_axes.c2p(0, self.phase_yrange[0])  # (x,y) of min phase
+
+        phase_drop_distance = zero_phase_point[1] - min_phase_point[1]
         for x_val, exp in zip(log_ticks, decade_exponents):
             tick_point = self.phase_axes.x_axis.n2p(x_val)
             label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
-            label.next_to(tick_point, DOWN, buff=phase_box_height+0.1)
+            label.next_to(tick_point, DOWN, buff=phase_drop_distance+0.15)
             freq_labels.add(label)
 
-        grid_lines = VGroup()
-        for axes in [self.mag_axes, self.phase_axes]:
-            for x_val in log_ticks:
-                start = axes.c2p(x_val, axes.y_range[0])
-                end = axes.c2p(x_val, axes.y_range[1])
-                grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
-            
-            for y_val in np.arange(axes.y_range[0], axes.y_range[1]+1, 10):
-                start = axes.c2p(axes.x_range[0], y_val)
-                end = axes.c2p(axes.x_range[1], y_val)
-                grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
+        mag_grid_lines = VGroup()
+        phase_grid_lines = VGroup()
+    
+        # Magnitude grid lines
+        for x_val in log_ticks:
+            start = self.mag_axes.c2p(x_val, self.magnitude_yrange[0])
+            end = self.mag_axes.c2p(x_val, self.magnitude_yrange[1])
+            mag_grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
+    
+        # Magnitude horizontal lines at dB ticks
+        for y_val in np.arange(self.magnitude_yrange[0], self.magnitude_yrange[1]+1, 10):
+            start = self.mag_axes.c2p(self.mag_axes.x_range[0], y_val)
+            end = self.mag_axes.c2p(self.mag_axes.x_range[1], y_val)
+            mag_grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
+
+        # Phase grid lines
+        for x_val in log_ticks:
+            start = self.phase_axes.c2p(x_val, self.phase_yrange[0])
+            end = self.phase_axes.c2p(x_val, self.phase_yrange[1])
+            phase_grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
+    
+        # Phase horizontal lines at degree ticks
+        for y_val in np.arange(self.phase_yrange[0], self.phase_yrange[1]+1, 45):
+            start = self.phase_axes.c2p(self.phase_axes.x_range[0], y_val)
+            end = self.phase_axes.c2p(self.phase_axes.x_range[1], y_val)
+            phase_grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
 
         # Add titles
         mag_ylabel = Text("Magnitude (dB)", font_size=26).next_to(mag_box, LEFT, buff=-0.5).rotate(PI/2)
@@ -1241,7 +1261,7 @@ class BodePlot(VGroup):
         self.add(
             self.mag_axes, self.phase_axes,
             mag_box, phase_box,
-            grid_lines, freq_labels,
+            mag_grid_lines,phase_grid_lines, freq_labels,
             mag_ylabel, phase_ylabel, freq_xlabel
         )
 
