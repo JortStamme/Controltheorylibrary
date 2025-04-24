@@ -10,7 +10,7 @@ my_template = TexTemplate()
 my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 
 # Spring function
-def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag'):
+def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag', color=WHITE):
     """
     Generate a spring animation object for Manim that adapts to any given start and end points.
 
@@ -19,6 +19,7 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag')
     :param num_coils: Number of coils in the spring.
     :param coil_width: The width of the coils.
     :param type: Spring type ('zigzag' or 'helical').
+    :param color: Changes color of the spring
     :return: A Manim VGroup representing the spring
     """
 
@@ -53,18 +54,18 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag')
     if type == 'zigzag':
     
     # Vertical segments at the top and bottom
-        bottom_vertical = Line(start, start+unit_dir*0.2)
-        top_vertical = Line(end, end-unit_dir*0.2)
+        bottom_vertical = Line(start, start+unit_dir*0.2, color=color)
+        top_vertical = Line(end, end-unit_dir*0.2, color=color)
     
     # Small diagonals at the start and end
-        small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width)
+        small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width, color=color)
     
         coil_spacing = (total_length-0.6)/num_coils
     # Zigzag pattern
         conn_diag_lines_left = VGroup(*[
             Line(
                 end-unit_dir*(0.4+i*coil_spacing)-perp_vector*coil_width,
-                end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width
+                end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width, color=color
             )
         for i in range(num_coils)
      ])
@@ -72,11 +73,11 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag')
         conn_diag_lines_right = VGroup(*[
             Line(
             end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width,
-            end-unit_dir*(0.4+(i+1)*coil_spacing)-perp_vector*coil_width
+            end-unit_dir*(0.4+(i+1)*coil_spacing)-perp_vector*coil_width, color=color
             )
         for i in range(num_coils-1)
      ])
-        small_start_diag = Line(conn_diag_lines_left[-1].get_end(), start+unit_dir*0.2)
+        small_start_diag = Line(conn_diag_lines_left[-1].get_end(), start+unit_dir*0.2, color=color)
 
         spring.add(top_vertical, small_end_diag, small_start_diag, bottom_vertical,
                conn_diag_lines_left,conn_diag_lines_right)
@@ -96,12 +97,12 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.5, type='zigzag')
         y_rot = x*unit_dir[1]-y*perp_vector[1]
 
         points = np.array([x_rot+start[0], y_rot+start[1], np.zeros(num_pts)]).T
-        helical_spring = VMobject().set_points_as_corners(points)
+        helical_spring = VMobject().set_points_as_corners(points).set_stroke(color=color)
         
         spring.add(helical_spring)  
     return spring
 
-def fixed_world(start, end, spacing=None, mirror="no", line_or="right"):
+def fixed_world(start, end, spacing=None, mirror="no", line_or="right", color=WHITE):
     """
     Generate a fixed-world representation that works for any direction.
     
@@ -144,7 +145,6 @@ def fixed_world(start, end, spacing=None, mirror="no", line_or="right"):
     
     # Apply mirroring if needed (properly accounting for the original angle)
     if mirror == "yes":
-        # Instead of just flipping y, we need to mirror across the main line
         # Calculate the reflection matrix for the main line direction
         u = unit_dir[0]
         v = unit_dir[1]
@@ -156,7 +156,7 @@ def fixed_world(start, end, spacing=None, mirror="no", line_or="right"):
         diagonal_dir = reflection_matrix @ diagonal_dir
 
     # Create the main line
-    ceiling_line = Line(start=start, end=end)
+    ceiling_line = Line(start=start, end=end, color=color)
     
     if total_length == 0:
         positions = [0]
@@ -168,7 +168,7 @@ def fixed_world(start, end, spacing=None, mirror="no", line_or="right"):
         Line(
             start=start + i * spacing * unit_dir,
             end=start + i * spacing * unit_dir + 0.3 * diagonal_dir
-        )
+        , color=color)
         for i in range(num_lines)
     ])
 
@@ -176,7 +176,7 @@ def fixed_world(start, end, spacing=None, mirror="no", line_or="right"):
 
 
 # Mass function
-def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
+def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect',color=WHITE, text="m"):
     """
     Generate a mass animation object.
     :param pos: Position of centre of mass object.
@@ -199,13 +199,13 @@ def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
         font_size = 50*(size/1.5)
 
     mass = VGroup()
-    text = MathTex("m", font_size=font_size)
+    text = MathTex(text, font_size=font_size, color=color)
 
     # Create shape
     if type == 'rect':
-        shape = Rectangle(width=size, height=size)
+        shape = Rectangle(width=size, height=size,color=color)
     else:  # type == "circ"
-        shape = Circle(radius=size/2, color=WHITE)
+        shape = Circle(radius=size/2, color=color)
 
     # Positioning
     shape.move_to(pos)
@@ -215,7 +215,7 @@ def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect'):
     return mass
 
 # Damper function
-def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None):
+def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None,color=WHITE):
     """
     Generate a damper animation object.
     
@@ -262,12 +262,12 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None):
     left_wall = Line(hor_damper.get_end(), hor_damper.get_end()+(unit_dir*box_height))
     left_closing = Line(left_wall.get_end(), left_wall.get_end()-perp_vector*(width/2-0.05))
     right_closing = Line(right_wall.get_end(), right_wall.get_end()+perp_vector*(width/2-0.05))
-    damper_box = VGroup(hor_damper, left_wall, right_wall, damp_vertical_bottom,left_closing, right_closing)
     
+    damper_box = VGroup(hor_damper, left_wall, right_wall, damp_vertical_bottom,left_closing, right_closing)
     damper_rod = VGroup(damp_vertical_top,damp_hor_top)
 
     # Combine all components to form the damper
-    return VGroup(damper_box,damper_rod)
+    return VGroup(damper_box,damper_rod).set_stroke(color=color)
 
 
 def pzmap(num, den, x_range=None, y_range=None, title=None):
@@ -515,6 +515,8 @@ class ControlBlock(VGroup):
             self.params["math_font_size"] = auto_font_size
         if self.params["text_font_size"] is None:
             self.params["text_font_size"] = auto_font_size
+        else:
+            self.params["text_font_size"] = self.params["text_font_size"]
 
         # Calculate label scale if not specified
         if self.params["label_scale"] is None:
@@ -1303,11 +1305,11 @@ class BodePlot(VGroup):
         total_phase_shift = (len(zeros) - len(poles)) * 90
         if rhp_poles or rhp_zeros:
             phase_min = min(-360, total_phase_shift - 180)
-            phase_max = max(0, total_phase_shift + 180)
+            phase_max = max(-90+phase_padding, total_phase_shift)
         else:
             phase_min = -180
             phase_max = 180
-            
+
         return {
             'freq_range': (float(min_freq), float(max_freq)),
             'mag_range': (float(mag_min), float(mag_max)),

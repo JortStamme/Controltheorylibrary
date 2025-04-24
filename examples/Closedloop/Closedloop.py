@@ -16,14 +16,14 @@ class ControlSystemScene(Scene):
          })
         ref = cs.add_input(sum_block, "in1", label_tex=r"r(s)")
         controller = cs.add_block(r"K_p(1+Ds)", "transfer_function", 1.5*LEFT, 
-                                  {"use_mathtex":True, "color":BLUE, "block_width":3, "block_height":3})
+                                  {"use_mathtex":True, "color":BLUE})
         sum_block2 = cs.add_block("", "summing_junction", RIGHT, params={
         "input1_dir": LEFT,   
         "input2_dir": UP,     
         "input2_sign": "+",   
         "input1_sign": "+"
          })
-        plant = cs.add_block("Plant", "transfer_function", RIGHT*3.5, {"color":GREEN})
+        plant = cs.add_block("Plant", "transfer_function", RIGHT*3.5, {"color":GREEN,"text_font_size":40})
         output = cs.add_output(plant, "out", label_tex=r"y(s)", color=GREEN)
         feedback = cs.add_feedback_path(plant, "out", sum_block, "in2")
         
