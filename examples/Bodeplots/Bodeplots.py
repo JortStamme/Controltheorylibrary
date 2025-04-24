@@ -1,34 +1,24 @@
 from manim import *
 from controltheorylib.control import BodePlot
 
-config.pixel_height = 1080
-config.pixel_width = 1920
-config.frame_height = 80
-config.frame_width = 19
-
 class BodePlotExample(Scene):
     def construct(self):
-        # Create a transfer function (example: second order system)
-        num = [25, 25]
-        den = [1, -0.8, 25]  # s² + 0.5s + 1
-        system = (num, den)
-        
-        # Create Bode plot
-        bode = BodePlot(system)
 
-        # Center the plot
-        bode.center()
-        # Add to scene
+        num = [25,25] #1
+        den = [1,-0.8,25] # s^3 + 2s^2+0.5s + 1
+        system = (num, den)
+
+        bode = BodePlot(system)
+        bode.title(r"H(s)=\frac{1}{s^3+2s^2+0.5s+1}", font_size=30, color=BLUE, use_math_tex=True)
+
         self.add(bode)
-        #self.play(Create(bode))
-        
+
         # Highlight critical points
-        #highlight_anims, markers = bode.highlight_critical_points()
-        #self.play(*highlight_anims)
+        highlight_anims, markers = bode.highlight_critical_points()
+        self.play(*highlight_anims)
         
-        #self.wait(2)
+        self.wait(3)
         
-        # Clean up by removing markers
-        #self.play(*[FadeOut(m) for m in markers])
-        
-        #self.wait(1)
+        #Clean up by removing markers
+        self.play(*[FadeOut(m) for m in markers])
+        self.wait(1)
