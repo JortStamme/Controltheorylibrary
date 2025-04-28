@@ -1286,7 +1286,7 @@ class BodePlot(VGroup):
         # Step 1: Determine freq range based on features
         all_features = np.abs(np.concatenate([finite_poles, finite_zeros]))
         if len(all_features) > 0:
-            min_freq = 10 ** (np.floor(np.log10(np.min(all_features))))
+            min_freq = 10 ** (np.floor(np.log10(np.min(all_features)))-1)
             max_freq = 10 ** (np.ceil(np.log10(np.max(all_features))) + 1)
         else:
             min_freq, max_freq = 0.1, 100
@@ -1308,9 +1308,8 @@ class BodePlot(VGroup):
             phase_max = max(0, np.ceil(np.max(phase_focus)/45)*45 + 5)
 
         # Step 3: Determine phase range from Bode data
-        phase_padding = 5
-        phase_min = max(-360, np.floor(np.min(phase_focus) / 45) * 45 - phase_padding)
-        phase_max = min(360, np.ceil(np.max(phase_focus) / 45) * 45 + phase_padding)
+        phase_min = max(-360, np.floor(np.min(phase_focus) / 45)*45)
+        phase_max = min(360, np.ceil(np.max(phase_focus) / 45)*45)
 
         # Step 4: Determine magnitude range from same range
         mag_padding = 5  # dB padding
@@ -1357,10 +1356,7 @@ class BodePlot(VGroup):
         total_phase_shift = (len(zeros) - len(poles)) * 90
         if rhp_poles or rhp_zeros:
             phase_min = min(-360, total_phase_shift - 180)
-            phase_max = max(-90+phase_padding, total_phase_shift)
-        else:
-            phase_min = -180
-            phase_max = 180
+            phase_max = max(-90, total_phase_shift)
 
         return {
             'freq_range': (float(min_freq), float(max_freq)),
