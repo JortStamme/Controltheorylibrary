@@ -1153,23 +1153,26 @@ class BodePlot(VGroup):
             
             mag_group.shift(1.8*UP)
             phase_group.next_to(mag_group, DOWN, buff=0.4).align_to(mag_group, LEFT)
-        
-            components_to_add.extend([mag_group, phase_group])
+            self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
+            self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
+            components_to_add.extend([mag_group, phase_group, self.freq_labels, self.freq_xlabel])
         elif self._show_magnitude:
             # Only magnitude - center it and move frequency labels
             self.mag_axes.y_length=5
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
             mag_group.move_to(ORIGIN)
             # Move frequency labels to bottom of magnitude plot
-            for label in self.freq_labels:
-                label.move_to([label.get_x(), self.mag_axes.get_bottom()[1]-0.2, 0])
-            components_to_add.append(mag_group)
+            self.freq_labels.next_to(self.mag_axes, DOWN, buff=0.2)
+            self.freq_xlabel.next_to(self.mag_axes,DOWN,buff=0.4)
+            components_to_add.append([mag_group, self.freq_labels, self.freq_xlabel])
 
         elif self._show_phase:
             # Only phase - center it
             phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
             phase_group.move_to(ORIGIN)
-            components_to_add.append(phase_group)
+            self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
+            self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
+            components_to_add.append([phase_group, self.freq_labels, self.freq_xlabel])
             # Handle title
 
         if self._title:
@@ -1312,15 +1315,15 @@ class BodePlot(VGroup):
         phase_max = min(360, np.ceil(np.max(phase_focus) / 45)*45)
 
         # Step 4: Determine magnitude range from same range
-        mag_padding = 5  # dB padding
-        mag_min = np.floor(np.min(mag_focus) / 5) * 5 - mag_padding
-        mag_max = np.ceil(np.max(mag_focus) / 5) * 5 + mag_padding
+        mag_padding = 0  # dB padding
+        mag_min = np.floor(np.min(mag_focus)/5)*5 - mag_padding
+        mag_max = np.ceil(np.max(mag_focus)/5)*5 + mag_padding
         
         mag_span = mag_max - mag_min
         if mag_span <= 30:
         # Round to nearest 5
-            mag_min = np.floor(mag_min / 5) * 5
-            mag_max = np.ceil(mag_max / 5) * 5
+            mag_min = np.floor(mag_min/5)*5
+            mag_max = np.ceil(mag_max/5)*5
         elif mag_span <= 60:
         # Round to nearest 10
             mag_min = np.floor(mag_min / 10) * 10
@@ -1436,7 +1439,7 @@ class BodePlot(VGroup):
                                         self.phase_yrange[1]-self.phase_yrange[0])
         phase_grid_lines = self.create_grid_lines(self.phase_axes, self.phase_yrange)
         phase_ylabel = Text("Phase (deg)", font_size=20).next_to(phase_box, LEFT, buff=0).rotate(PI/2)
-        freq_xlabel = Text("Frequency (rad/s)", font_size=20).next_to(phase_box, DOWN, buff=0.4)
+        self.freq_xlabel = Text("Frequency (rad/s)", font_size=20).next_to(phase_box, DOWN, buff=0.4)
         
         # Add vertical grid lines for phase plot
         phase_vert_grid = self.create_vertical_grid(self.phase_axes)
@@ -1446,7 +1449,7 @@ class BodePlot(VGroup):
         
         #Phase compmonents
         self.phase_components = VGroup(phase_box, phase_y_labels, phase_grid_lines, 
-                                  phase_ylabel, freq_xlabel, phase_vert_grid, self.freq_labels)
+                                  phase_ylabel, phase_vert_grid)
         
     def create_vertical_grid(self, axes):
         """Create vertical grid lines for frequency decades."""
