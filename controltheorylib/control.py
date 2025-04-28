@@ -1108,35 +1108,78 @@ class BodePlot(VGroup):
         self.magnitude_yrange = magnitude_yrange if magnitude_yrange is not None else auto_ranges['mag_range']
         self.phase_yrange = phase_yrange if phase_yrange is not None else auto_ranges['phase_range']
         
-        self.create_axes()
-        self.calculate_bode_data()
-        self.plot_bode_response()
-        
-        #inittialize title attributes
         self._title = None
         self._title_font_size = 40  # Default font size
         self._use_math_tex = False  # Default to normal text
         self._has_title = False
-        # Center by default
+
+        # by default show both plots
+        self._show_magnitude = True
+        self._show_phase = True
+
+        #Create all components
+        self.create_axes()
+        self.calculate_bode_data()
+        self.plot_bode_response()
+
+        # Position everything properly
+        self.update_plot_visibility()
 
     def show_magnitude(self, show=True):
-        """Show or hide the magnitude plot."""
+        """Show or hide the magnitude plot and all its components."""
         self._show_magnitude = show
-        if show:
-            self.add(self.mag_axes, self.mag_plot)
-        elif self.mag_axes in self:
-            self.remove(self.mag_axes, self.mag_plot)
+        self.update_plot_visibility()
         return self
 
     def show_phase(self, show=True):
-        """Show or hide the phase plot."""
+        """Show or hide the phase plot and all its components."""
         self._show_phase = show
-        if show:
-            self.add(self.phase_axes, self.phase_plot)
-        elif self.phase_axes in self:
-            self.remove(self.phase_axes, self.phase_plot)
+        self.update_plot_visibility()
         return self
-    
+
+    def update_plot_visibility(self):
+        """Update the visibility and positioning of all plot components."""
+        # Clear everything first
+        for mobject in self.submobjects.copy():
+            self.remove(mobject)
+        
+        components_to_add = []
+
+        # Handle different display configurations
+        if self._show_magnitude and self._show_phase:
+            # Both plots - standard layout
+            mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
+            phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
+            
+            mag_group.move_to(ORIGIN).shift(1.5*UP)
+            phase_group.next_to(mag_group, DOWN, buff=0.3)
+        
+            components_to_add.extend([mag_group, phase_group])
+        elif self._show_magnitude:
+            # Only magnitude - center it and move frequency labels
+            mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
+            mag_group.move_to(ORIGIN)
+            # Move frequency labels to bottom of magnitude plot
+            for label in self.freq_labels:
+                label.move_to([label.get_x(), self.mag_axes.get_bottom()[1]-0.2, 0])
+            components_to_add.append(mag_group)
+
+        elif self._show_phase:
+            # Only phase - center it
+            phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
+            phase_group.move_to(ORIGIN)
+            components_to_add.append(phase_group)
+            # Handle title
+            
+        if self._title:
+            if self._show_magnitude:
+                self._title.next_to(self.mag_axes, UP, buff=0.3)
+            else:
+                self._title.next_to(self.phase_axes, UP, buff=0.3)
+            components_to_add.append(self._title)
+
+        self.add(*components_to_add)
+
     def title(self, text, font_size=40, color=WHITE, use_math_tex=False):
         """
         Add a title to the Bode plot.
@@ -1160,9 +1203,8 @@ class BodePlot(VGroup):
         else:
             self._title = Text(text, font_size=font_size, color=color)
         
-        # Position the title above the magnitude plot
-        self._title.next_to(self.mag_axes, UP, buff=0.3)
-        self.add(self._title)
+        # Update title position based on which plots are shown
+        self.update_plot_visibility()
 
         return self
       
@@ -1350,7 +1392,7 @@ class BodePlot(VGroup):
                         "include_tip":False, "include_ticks":False},
             y_axis_config={"font_size": 25},
         )
-        self.mag_axes.shift(1.5*UP)
+
         
         self.phase_axes = Axes(
             x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
@@ -1361,7 +1403,6 @@ class BodePlot(VGroup):
                         "include_tip":False, "include_ticks":False},
             y_axis_config={"font_size": 25},
         )
-        self.phase_axes.next_to(self.mag_axes, DOWN, buff=0.3)
 
         # Add boxes and labels only for the visible plots
         self.add_plot_components()
@@ -1374,15 +1415,13 @@ class BodePlot(VGroup):
         decade_ticks = [10**exp for exp in decade_exponents]
     
         # Create frequency labels (these are the same for both plots)
-        freq_labels = VGroup()
-        box_bottom = self.phase_axes.get_bottom()[1]
-    
+        self.freq_labels = VGroup()
         for exp in decade_exponents:
             x_val = np.log10(10**exp)
             tick_point = self.phase_axes.x_axis.n2p(x_val)
             label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
-            label.move_to([tick_point[0]+0.1, box_bottom-0.2, 0])
-            freq_labels.add(label)
+            label.move_to([tick_point[0]+0.1, self.phase_axes.get_bottom()[1]-0.2, 0])
+            self.freq_labels.add(label)
     
         # magnitude plot components
         mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
@@ -1410,10 +1449,7 @@ class BodePlot(VGroup):
         
         #Phase compmonents
         self.phase_components = VGroup(phase_box, phase_y_labels, phase_grid_lines, 
-                                  phase_ylabel, freq_xlabel, phase_vert_grid, freq_labels)
-
-        self.add(self.mag_axes, self.mag_components,
-            self.phase_axes, self.phase_components)
+                                  phase_ylabel, freq_xlabel, phase_vert_grid, self.freq_labels)
         
     def create_vertical_grid(self, axes):
         """Create vertical grid lines for frequency decades."""
@@ -1529,7 +1565,7 @@ class BodePlot(VGroup):
         self.phase_plot.set_color(BLUE).set_stroke(width=2)
 
         # add both plots
-        self.add(self.mag_plot, self.phase_plot)
+        #self.add(self.mag_plot, self.phase_plot)
 
     def get_critical_points(self):
         """Identify critical points (resonance, crossover, etc.)"""
