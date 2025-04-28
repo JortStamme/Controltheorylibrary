@@ -12,7 +12,7 @@ my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 # Spring function
 def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag', color=WHITE):
     """
-    Generate a spring animation object for Manim that adapts to any given start and end points.
+    Generate a spring animation object that adapts to any given start and end points.
 
     :param start: Start point of the spring.
     :param end: End point of the spring.
@@ -49,7 +49,6 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag',
     perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
     
     spring = VGroup()
-    #coil_spacing = (total_length - 0.6) / num_coils if type == 'zigzag' else total_length / num_coils
 
     if type == 'zigzag':
     
@@ -104,7 +103,7 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag',
 
 def fixed_world(start, end, spacing=None, mirror="no", line_or="right", color=WHITE):
     """
-    Generate a fixed-world representation that works for any direction.
+    Generate a fixed-world representation
     
     :param start: Startpoint of the fixed world (numpy array or tuple)
     :param end: Endpoint of the fixed world (numpy array or tuple)
@@ -179,10 +178,11 @@ def fixed_world(start, end, spacing=None, mirror="no", line_or="right", color=WH
 def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect',color=WHITE, text="m"):
     """
     Generate a mass animation object.
-    :param pos: Position of centre of mass object.
+    :param pos: Position of centre of mass of the object.
     :param type: Mass type, 'rect' for rectangular or 'circ' for circular.
     :param size: Size of the mass element.
-    :param font_size: Font size of the text "m".
+    :param text: Text inside the object.
+    :param font_size: Font size of the text.
     :return: A Manim VGroup representing the mass.
     """
     # Validate inputs
@@ -250,11 +250,11 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None,color=WHITE):
     perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
 
     # Vertical parts of the damper
-    damp_vertical_top = Line(end, end-(unit_dir*(total_length-box_height*0.75)))
+    damp_vertical_top = Line(end, end-(unit_dir*(total_length-box_height*0.75)), color=color)
     damp_vertical_bottom = Line(start, start+unit_dir*0.2)
     
     # Horizontal part of the damper
-    damp_hor_top = Line(damp_vertical_top.get_end()-(perp_vector*(width/2-0.02)), damp_vertical_top.get_end()+(perp_vector*(width/2-0.02)))
+    damp_hor_top = Line(damp_vertical_top.get_end()-(perp_vector*(width/2-0.02)), damp_vertical_top.get_end()+(perp_vector*(width/2-0.02)), color=color)
     
     # Box for damper
     hor_damper = Line(damp_vertical_bottom.get_end()- (perp_vector*width)/2, damp_vertical_bottom.get_end()+ (perp_vector*width)/2 )  
@@ -263,13 +263,13 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None,color=WHITE):
     left_closing = Line(left_wall.get_end(), left_wall.get_end()-perp_vector*(width/2-0.05))
     right_closing = Line(right_wall.get_end(), right_wall.get_end()+perp_vector*(width/2-0.05))
     
-    damper_box = VGroup(hor_damper, left_wall, right_wall, damp_vertical_bottom,left_closing, right_closing)
-    damper_rod = VGroup(damp_vertical_top,damp_hor_top)
+    damper_box = VGroup(hor_damper, left_wall, right_wall, damp_vertical_bottom,left_closing, right_closing).set_stroke(color=color)
+    damper_rod = VGroup(damp_vertical_top,damp_hor_top).set_stroke(color=color)
 
     # Combine all components to form the damper
-    return VGroup(damper_box,damper_rod).set_stroke(color=color)
+    return VGroup(damper_box,damper_rod)
 
-
+#Pole-zero map function
 def pzmap(num, den, x_range=None, y_range=None, title=None):
     """
     Creates a Manim VGroup containing the pole-zero plot with enhanced visualization features.
@@ -446,17 +446,17 @@ def pzmap(num, den, x_range=None, y_range=None, title=None):
 
     return axis, zeros, poles, stable, unstable, show_title
 
+#Show total pole-zero map function
 def show_pzmap(axis,zeros,poles,stable,unstable,show_title):
     """
-    retuns map
+    retuns Pole-zero map
     """
     show_pzmap = VGroup(axis, zeros, poles,stable, unstable, show_title)
     return FadeIn(show_pzmap)
 
 
-
+#Control loop system classes
 __all__ = ['ControlSystem', 'ControlBlock', 'Connection', 'Disturbance']
-### Control loop functions
 class ControlBlock(VGroup):
     def __init__(self, name, block_type, position, params=None):
         super().__init__()
@@ -466,7 +466,7 @@ class ControlBlock(VGroup):
         self.input_ports = {}
         self.output_ports = {}
         
-        # Default parameters (different for summing junctions vs other blocks)
+        # Default parameters
         default_params = {
             "use_mathtex": False,
             "fill_opacity": 0.2,
@@ -652,7 +652,6 @@ class Connection(VGroup):
         # Add label if provided
         if label_tex:
             self.label = MathTex(label_tex, font_size=label_font_size,color=color)
-            # Position label above the middle of the arrow
             self.label.next_to(self.arrow.get_center(), UP, buff=0.2)
             self.add(self.label)
         
@@ -665,7 +664,7 @@ class Disturbance(VGroup):
         self.target = target_block
         self.port_name = input_port
         
-        # Default settings (override with kwargs)
+        # Default settings
         settings = {
             "arrow_length": 1,
             "label_scale": 0.8,
@@ -1083,8 +1082,7 @@ class ControlSystem:
 
         scene.wait(len(valid_paths) * signal_speed)
 
-### Bode plots
-
+# Bode plot classes
 class BodePlot(VGroup):
     def __init__(self, system, freq_range=None, magnitude_yrange=None, 
                  phase_yrange=None, show= 'both', **kwargs):
