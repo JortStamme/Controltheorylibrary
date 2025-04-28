@@ -1085,7 +1085,7 @@ class ControlSystem:
 # Bode plot classes
 class BodePlot(VGroup):
     def __init__(self, system, freq_range=None, magnitude_yrange=None, 
-                 phase_yrange=None, show= 'both', **kwargs):
+                 phase_yrange=None, **kwargs):
         """
         Create a Bode plot visualization for a given system.
         
@@ -1098,12 +1098,10 @@ class BodePlot(VGroup):
         - freq_range: tuple (min_freq, max_freq) in rad/s
         - magnitude_yrange: tuple (min_db, max_db) for magnitude plot
         - phase_yrange: tuple (min_deg, max_deg) for phase plot
-        - show: What to display ('both', 'magnitude', or 'phase')
         """
         super().__init__(**kwargs)
         self.system = self._parse_system_input(system)
         self.system = self._ensure_tf(self.system)
-        self.show = show.lower()
         
         auto_ranges = self._auto_determine_ranges()
         self.freq_range = freq_range if freq_range is not None else auto_ranges['freq_range']
@@ -1121,7 +1119,24 @@ class BodePlot(VGroup):
         self._has_title = False
         # Center by default
 
+    def show_magnitude(self, show=True):
+        """Show or hide the magnitude plot."""
+        self._show_magnitude = show
+        if show:
+            self.add(self.mag_axes, self.mag_plot)
+        elif self.mag_axes in self:
+            self.remove(self.mag_axes, self.mag_plot)
+        return self
 
+    def show_phase(self, show=True):
+        """Show or hide the phase plot."""
+        self._show_phase = show
+        if show:
+            self.add(self.phase_axes, self.phase_plot)
+        elif self.phase_axes in self:
+            self.remove(self.phase_axes, self.phase_plot)
+        return self
+    
     def title(self, text, font_size=40, color=WHITE, use_math_tex=False):
         """
         Add a title to the Bode plot.
@@ -1145,13 +1160,9 @@ class BodePlot(VGroup):
         else:
             self._title = Text(text, font_size=font_size, color=color)
         
-        # Position the title above the plot 
-        if self.show in ['both', 'magnitude']:
-            self._title.next_to(self.mag_axes, UP, buff=0.3)
-            self.add(self._title)
-        elif self.show == 'phase':
-            self._title.next_to(self.phase_axes, UP, buff=0.3)
-            self.add(self._title)
+        # Position the title above the magnitude plot
+        self._title.next_to(self.mag_axes, UP, buff=0.3)
+        self.add(self._title)
 
         return self
       
@@ -1330,33 +1341,27 @@ class BodePlot(VGroup):
         phase_step = 15 if phase_span <= 90 else (30 if phase_span <= 180 else 45)
 
         # Create axes based on what we need to show
-        if self.show in ['both', 'magnitude']:
-            self.mag_axes = Axes(
-                x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-                y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
-                x_length=12,
-                y_length=3,
-                axis_config={"color": WHITE, "stroke_width": 1, 
-                            "include_tip":False, "include_ticks":False},
-                y_axis_config={"font_size": 25},
-            )
-            if self.show == 'both':
-                self.mag_axes.shift(1.5*UP)
+        self.mag_axes = Axes(
+            x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+            y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
+            x_length=12,
+            y_length=3,
+            axis_config={"color": WHITE, "stroke_width": 1, 
+                        "include_tip":False, "include_ticks":False},
+            y_axis_config={"font_size": 25},
+        )
+        self.mag_axes.shift(1.5*UP)
         
-        if self.show in ['both', 'phase']:
-            self.phase_axes = Axes(
-                x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-                y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
-                x_length=12,
-                y_length=3,
-                axis_config={"color": WHITE, "stroke_width": 1, 
-                            "include_tip":False, "include_ticks":False},
-                y_axis_config={"font_size": 25},
-            )
-            if self.show == 'both':
-                self.phase_axes.next_to(self.mag_axes, DOWN, buff=0.3)
-            elif self.show == 'phase':
-                self.phase_axes.shift(UP*0.5)  # Center vertically if showing only phase
+        self.phase_axes = Axes(
+            x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+            y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
+            x_length=12,
+            y_length=3,
+            axis_config={"color": WHITE, "stroke_width": 1, 
+                        "include_tip":False, "include_ticks":False},
+            y_axis_config={"font_size": 25},
+        )
+        self.phase_axes.next_to(self.mag_axes, DOWN, buff=0.3)
 
         # Add boxes and labels only for the visible plots
         self.add_plot_components()
@@ -1370,45 +1375,46 @@ class BodePlot(VGroup):
     
         # Create frequency labels (these are the same for both plots)
         freq_labels = VGroup()
-        box = self.phase_axes if hasattr(self, 'phase_axes') else self.mag_axes
-        box_bottom = box.get_bottom()[1] if hasattr(box, 'get_bottom') else 0
+        box_bottom = self.phase_axes.get_bottom()[1]
     
         for exp in decade_exponents:
             x_val = np.log10(10**exp)
-            tick_point = box.x_axis.n2p(x_val)
+            tick_point = self.phase_axes.x_axis.n2p(x_val)
             label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
             label.move_to([tick_point[0]+0.1, box_bottom-0.2, 0])
             freq_labels.add(label)
     
-        # Add components for magnitude plot if visible
-        if hasattr(self, 'mag_axes'):
-            mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
-            mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange, 
-                                         self.magnitude_yrange[1]-self.magnitude_yrange[0])
-            mag_grid_lines = self.create_grid_lines(self.mag_axes, self.magnitude_yrange)
-            mag_ylabel = Text("Magnitude (dB)", font_size=20).next_to(mag_box, LEFT, buff=-0.3).rotate(PI/2)
+        # magnitude plot components
+        mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
+        mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange, 
+                                        self.magnitude_yrange[1]-self.magnitude_yrange[0])
+        mag_grid_lines = self.create_grid_lines(self.mag_axes, self.magnitude_yrange)
+        mag_ylabel = Text("Magnitude (dB)", font_size=20).next_to(mag_box, LEFT, buff=-0.3).rotate(PI/2)
         
-            # Add vertical grid lines for magnitude plot
-            mag_vert_grid = self.create_vertical_grid(self.mag_axes)
-        
-            self.add(self.mag_axes, mag_box, mag_y_labels, mag_grid_lines, 
-                mag_vert_grid, mag_ylabel)
+        # Add vertical grid lines for magnitude plot
+        mag_vert_grid = self.create_vertical_grid(self.mag_axes)
 
         # Add components for phase plot if visible
-        if hasattr(self, 'phase_axes'):
-            phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
-            phase_y_labels = self.create_y_labels(self.phase_axes, self.phase_yrange,
-                                            self.phase_yrange[1]-self.phase_yrange[0])
-            phase_grid_lines = self.create_grid_lines(self.phase_axes, self.phase_yrange)
-            phase_ylabel = Text("Phase (deg)", font_size=20).next_to(phase_box, LEFT, buff=0).rotate(PI/2)
-            freq_xlabel = Text("Frequency (rad/s)", font_size=20).next_to(phase_box, DOWN, buff=0.4)
+        phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
+        phase_y_labels = self.create_y_labels(self.phase_axes, self.phase_yrange,
+                                        self.phase_yrange[1]-self.phase_yrange[0])
+        phase_grid_lines = self.create_grid_lines(self.phase_axes, self.phase_yrange)
+        phase_ylabel = Text("Phase (deg)", font_size=20).next_to(phase_box, LEFT, buff=0).rotate(PI/2)
+        freq_xlabel = Text("Frequency (rad/s)", font_size=20).next_to(phase_box, DOWN, buff=0.4)
         
-            # Add vertical grid lines for phase plot
-            phase_vert_grid = self.create_vertical_grid(self.phase_axes)
+        # Add vertical grid lines for phase plot
+        phase_vert_grid = self.create_vertical_grid(self.phase_axes)
         
-            self.add(self.phase_axes, phase_box, phase_y_labels, phase_grid_lines,
-                phase_vert_grid, phase_ylabel, freq_xlabel, freq_labels)
+        # Magnitude components
+        self.mag_components = VGroup(mag_box, mag_y_labels, mag_grid_lines, mag_ylabel, mag_vert_grid)
+        
+        #Phase compmonents
+        self.phase_components = VGroup(phase_box, phase_y_labels, phase_grid_lines, 
+                                  phase_ylabel, freq_xlabel, phase_vert_grid, freq_labels)
 
+        self.add(self.mag_axes, self.mag_components,
+            self.phase_axes, self.phase_components)
+        
     def create_vertical_grid(self, axes):
         """Create vertical grid lines for frequency decades."""
         min_exp = np.floor(np.log10(self.freq_range[0]))
@@ -1512,17 +1518,18 @@ class BodePlot(VGroup):
         """Create the Bode plot curves for the visible plots."""
         log_w = np.log10(self.frequencies)
         
-        if hasattr(self, 'mag_axes'):
-            mag_points = [self.mag_axes.coords_to_point(x, y) for x, y in zip(log_w, self.magnitudes)]
-            self.mag_plot = VMobject().set_points_as_corners(mag_points)
-            self.mag_plot.set_color(BLUE).set_stroke(width=2)
-            self.add(self.mag_plot)
+        # Magnitude plot
+        mag_points = [self.mag_axes.coords_to_point(x, y) for x, y in zip(log_w, self.magnitudes)]
+        self.mag_plot = VMobject().set_points_as_corners(mag_points)
+        self.mag_plot.set_color(BLUE).set_stroke(width=2)
         
-        if hasattr(self, 'phase_axes'):
-            phase_points = [self.phase_axes.coords_to_point(x, y) for x, y in zip(log_w, self.phases)]
-            self.phase_plot = VMobject().set_points_as_corners(phase_points)
-            self.phase_plot.set_color(BLUE).set_stroke(width=2)
-            self.add(self.phase_plot)
+        # Phase plot
+        phase_points = [self.phase_axes.coords_to_point(x, y) for x, y in zip(log_w, self.phases)]
+        self.phase_plot = VMobject().set_points_as_corners(phase_points)
+        self.phase_plot.set_color(BLUE).set_stroke(width=2)
+
+        # add both plots
+        self.add(self.mag_plot, self.phase_plot)
 
     def get_critical_points(self):
         """Identify critical points (resonance, crossover, etc.)"""
