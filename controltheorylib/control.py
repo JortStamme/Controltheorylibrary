@@ -1151,8 +1151,8 @@ class BodePlot(VGroup):
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
             phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
             
-            mag_group.move_to(ORIGIN).shift(1.8*UP)
-            phase_group.next_to(mag_group, DOWN, buff=0.3)
+            mag_group.shift(1.8*UP)
+            phase_group.next_to(mag_group, DOWN, buff=0.4).align_to(mag_group, LEFT)
         
             components_to_add.extend([mag_group, phase_group])
         elif self._show_magnitude:
