@@ -9,8 +9,6 @@ class Bode(Scene):
         system = (num, den)
 
         bode = BodePlot(system)
-        bode.title(r"H(s)=\frac{25(s+1)}{0.8s+25}", font_size=30, color=BLUE, use_math_tex=True)
-        bode.show_phase(False)
         self.add(bode)
 
         # Highlight critical points

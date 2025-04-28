@@ -1151,12 +1151,13 @@ class BodePlot(VGroup):
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
             phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
             
-            mag_group.move_to(ORIGIN).shift(1.5*UP)
+            mag_group.move_to(ORIGIN).shift(1.8*UP)
             phase_group.next_to(mag_group, DOWN, buff=0.3)
         
             components_to_add.extend([mag_group, phase_group])
         elif self._show_magnitude:
             # Only magnitude - center it and move frequency labels
+            self.mag_axes.y_length=5
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
             mag_group.move_to(ORIGIN)
             # Move frequency labels to bottom of magnitude plot
@@ -1170,7 +1171,7 @@ class BodePlot(VGroup):
             phase_group.move_to(ORIGIN)
             components_to_add.append(phase_group)
             # Handle title
-            
+
         if self._title:
             if self._show_magnitude:
                 self._title.next_to(self.mag_axes, UP, buff=0.3)
@@ -1388,7 +1389,7 @@ class BodePlot(VGroup):
             y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
             x_length=12,
             y_length=3,
-            axis_config={"color": WHITE, "stroke_width": 1, 
+            axis_config={"color": GREY, "stroke_width": 1, "stroke_opacity":0.7,
                         "include_tip":False, "include_ticks":False},
             y_axis_config={"font_size": 25},
         )
@@ -1399,7 +1400,7 @@ class BodePlot(VGroup):
             y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
             x_length=12,
             y_length=3,
-            axis_config={"color": WHITE, "stroke_width": 1, 
+            axis_config={"color": GREY, "stroke_width": 1, "stroke_opacity":0.7, 
                         "include_tip":False, "include_ticks":False},
             y_axis_config={"font_size": 25},
         )
@@ -1479,7 +1480,7 @@ class BodePlot(VGroup):
                 start = axes.c2p(x_val, y_range[0])
                 end = axes.c2p(x_val, y_range[1])
                 vert_grid.add(DashedLine(start, end, color=GREY, dash_length=0.05, 
-                                   stroke_width=0.5, stroke_opacity=0.8))
+                                   stroke_width=0.5, stroke_opacity=0.7))
     
         return vert_grid
 
