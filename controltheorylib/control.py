@@ -1256,21 +1256,20 @@ class BodePlot(VGroup):
             self.components_to_add.extend([mag_group, phase_group, self.freq_labels, self.freq_xlabel])
         elif self._show_magnitude:
             # Only magnitude - center it and move frequency labels
-            self.mag_axes.y_length = 5
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
-            mag_group.move_to(ORIGIN)
+            #mag_group.move_to(ORIGIN)
             # Move frequency labels to bottom of magnitude plot
             self.freq_labels.next_to(self.mag_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.mag_axes,DOWN,buff=0.4)
-            self.components_to_add.append([mag_group, self.freq_labels, self.freq_xlabel])
+            self.components_to_add.extend([mag_group, self.freq_labels, self.freq_xlabel])
 
         elif self._show_phase:
             # Only phase - center it
             phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
-            phase_group.move_to(ORIGIN)
+            #phase_group.move_to(ORIGIN)
             self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            self.components_to_add.append([phase_group, self.freq_labels, self.freq_xlabel])
+            self.components_to_add.extend([phase_group, self.freq_labels, self.freq_xlabel])
             # Handle title
 
         if self._title:
@@ -1336,6 +1335,8 @@ class BodePlot(VGroup):
                 y_axis_config={"font_size": 25},
             )
         # Add boxes and labels only for the visible plots
+        self.calculate_bode_data()
+        self.plot_bode_response()
         self.add_plot_components()
 
     def add_plot_components(self):
