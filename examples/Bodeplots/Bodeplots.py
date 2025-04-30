@@ -5,10 +5,12 @@ class Bode(Scene):
     def construct(self):
 
         num = [1] #1
-        den = [1,10,20] # s^3 + 2s^2+0.5s + 1
+        den = [1,1] # s+1
         system = (num, den)
 
         bode = BodePlot(system)
+        bode.grid_on()
+        bode.grid_off()
         self.add(bode)
 
         # Highlight critical points

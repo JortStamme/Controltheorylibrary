@@ -1102,6 +1102,7 @@ class BodePlot(VGroup):
         super().__init__(**kwargs)
         self.system = self._parse_system_input(system)
         self.system = self._ensure_tf(self.system)
+        self._show_grid = False # Grid off by default
         
         auto_ranges = self._auto_determine_ranges()
         self.freq_range = freq_range if freq_range is not None else auto_ranges['freq_range']
@@ -1116,6 +1117,8 @@ class BodePlot(VGroup):
         # by default show both plots
         self._show_magnitude = True
         self._show_phase = True
+        self._original_mag_pos = 1.8*UP
+        self._original_phase_pos = 0.4*DOWN
 
         #Create all components
         self.create_axes()
@@ -1125,93 +1128,7 @@ class BodePlot(VGroup):
         # Position everything properly
         self.update_plot_visibility()
 
-    def show_magnitude(self, show=True):
-        """Show or hide the magnitude plot and all its components."""
-        self._show_magnitude = show
-        self.update_plot_visibility()
-        return self
-
-    def show_phase(self, show=True):
-        """Show or hide the phase plot and all its components."""
-        self._show_phase = show
-        self.update_plot_visibility()
-        return self
-
-    def update_plot_visibility(self):
-        """Update the visibility and positioning of all plot components."""
-        # Clear everything first
-        for mobject in self.submobjects.copy():
-            self.remove(mobject)
-        
-        components_to_add = []
-
-        # Handle different display configurations
-        if self._show_magnitude and self._show_phase:
-            # Both plots - standard layout
-            mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
-            phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
-            
-            mag_group.shift(1.8*UP)
-            phase_group.next_to(mag_group, DOWN, buff=0.4).align_to(mag_group, LEFT)
-            self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
-            self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            components_to_add.extend([mag_group, phase_group, self.freq_labels, self.freq_xlabel])
-        elif self._show_magnitude:
-            # Only magnitude - center it and move frequency labels
-            self.mag_axes.y_length=5
-            mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
-            mag_group.move_to(ORIGIN)
-            # Move frequency labels to bottom of magnitude plot
-            self.freq_labels.next_to(self.mag_axes, DOWN, buff=0.2)
-            self.freq_xlabel.next_to(self.mag_axes,DOWN,buff=0.4)
-            components_to_add.append([mag_group, self.freq_labels, self.freq_xlabel])
-
-        elif self._show_phase:
-            # Only phase - center it
-            phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
-            phase_group.move_to(ORIGIN)
-            self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
-            self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            components_to_add.append([phase_group, self.freq_labels, self.freq_xlabel])
-            # Handle title
-
-        if self._title:
-            if self._show_magnitude:
-                self._title.next_to(self.mag_axes, UP, buff=0.3)
-            else:
-                self._title.next_to(self.phase_axes, UP, buff=0.3)
-            components_to_add.append(self._title)
-
-        self.add(*components_to_add)
-
-    def title(self, text, font_size=40, color=WHITE, use_math_tex=False):
-        """
-        Add a title to the Bode plot.
-        
-        Parameters:
-        - text: The title text (string)
-        - font_size: Font size (default: 40)
-        - use_math_tex: Whether to render as MathTex (default: False)
-        """
-        self._title_font_size = font_size
-        self._use_math_tex = use_math_tex
-        self._has_title = True  # Mark that a title exists
-        
-        # Remove existing title if present
-        if self._title is not None:
-            self.remove(self._title)
-        
-        # Create new title
-        if use_math_tex:
-            self._title = MathTex(text, font_size=font_size, color=color)
-        else:
-            self._title = Text(text, font_size=font_size, color=color)
-        
-        # Update title position based on which plots are shown
-        self.update_plot_visibility()
-
-        return self
-      
+    # Check transfer function
     def _parse_system_input(self, system):
         """Parse different input formats for the system specification."""
         # If already a scipy system object or coefficient lists
@@ -1268,104 +1185,116 @@ class BodePlot(VGroup):
             return system
         return signal.TransferFunction(*system)
     
-    def _auto_determine_ranges(self):
-        """Automatically determine plot ranges based on system poles/zeros and Bode data."""
-        # Get poles and zeros
-        if isinstance(self.system, signal.TransferFunction):
-            poles = self.system.poles
-            zeros = self.system.zeros
-        else:
-            poles = self.system.to_tf().poles
-            zeros = self.system.to_tf().zeros
+    # Check which bode plots to show
+    def show_magnitude(self, show=True):
+        """Show or hide the magnitude plot and all its components."""
+        self._show_magnitude = show
+        self.update_plot_visibility()
+        return self
 
-        # Filter out infinite and zero frequencies
-        finite_poles = poles[np.isfinite(poles) & (poles != 0)]
-        finite_zeros = zeros[np.isfinite(zeros) & (zeros != 0)]
+    def show_phase(self, show=True):
+        """Show or hide the phase plot and all its components."""
+        self._show_phase = show
+        self.update_plot_visibility()
+        return self
+    
+    # Check whether grid should be turned on or off
+    def grid_on(self):
+        """Turn on the grid lines."""
+        self._show_grid = True
+        # Recreate the plot components to update grid visibility
+        #self.create_axes()
+        self.create_axes()
+        self.add_plot_components()
+        self.update_plot_visibility()
+        return self
 
-        # Handle integrators (poles at 0)
-        integrators = np.isclose(poles, 0, atol=1e-8)
-        differentiators = np.isclose(zeros, 0, atol=1e-8)
-
-        # Step 1: Determine freq range based on features
-        all_features = np.abs(np.concatenate([finite_poles, finite_zeros]))
-        if len(all_features) > 0:
-            min_freq = 10 ** (np.floor(np.log10(np.min(all_features)))-1)
-            max_freq = 10 ** (np.ceil(np.log10(np.max(all_features))) + 1)
-        else:
-            min_freq, max_freq = 0.1, 100
-
-        # Handle integrators (poles at 0)
-        if any(poles == 0):
-            min_freq = min(0.001, min_freq)
-
-        # Handle differentiators (zeros at 0)
-        if any(zeros == 0):
-            max_freq = max(1000, max_freq)
-
-        # Step 2: Calculate Bode response in determined frequency range
-        w_focus = np.logspace(np.log10(min_freq), np.log10(max_freq), 1000)
-        _, mag_focus, phase_focus = signal.bode(self.system, w_focus)
+    def grid_off(self):
+        """Turn off the grid lines."""
+        self._show_grid = False
+        # Recreate the plot components to update grid visibility
+        self.create_axes()
+        return self
+    
+    def update_plot_visibility(self):
+        """Update the visibility and positioning of all plot components."""
+        # Clear everything first
+        for mobject in self.submobjects.copy():
+            self.remove(mobject)
         
-        if any(np.isclose(self.system.poles, 0)):
-            phase_min = -360
-            phase_max = max(0, np.ceil(np.max(phase_focus)/45)*45 + 5)
+        self.components_to_add = []
 
-        # Step 3: Determine phase range from Bode data
-        phase_min = max(-360, np.floor(np.min(phase_focus) / 45)*45)
-        phase_max = min(360, np.ceil(np.max(phase_focus) / 45)*45)
+        # Handle different display configurations
+        if self._show_magnitude and self._show_phase:
+            # Both plots - standard layout
+            mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
+            phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
+            
+            if not self._show_grid:
+                mag_group.move_to(self._original_mag_pos)
+            else:
+                mag_group.move_to(ORIGIN)
 
-        # Step 4: Determine magnitude range from same range
-        mag_padding = 0  # dB padding
-        mag_min = np.floor(np.min(mag_focus)/5)*5 - mag_padding
-        mag_max = np.ceil(np.max(mag_focus)/5)*5 + mag_padding
+            phase_group.next_to(mag_group, DOWN, buff=0.4).align_to(mag_group, LEFT)
+            self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
+            self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
+            self.components_to_add.extend([mag_group, phase_group, self.freq_labels, self.freq_xlabel])
+        elif self._show_magnitude:
+            # Only magnitude - center it and move frequency labels
+            self.mag_axes.y_length = 5
+            mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
+            mag_group.move_to(ORIGIN)
+            # Move frequency labels to bottom of magnitude plot
+            self.freq_labels.next_to(self.mag_axes, DOWN, buff=0.2)
+            self.freq_xlabel.next_to(self.mag_axes,DOWN,buff=0.4)
+            self.components_to_add.append([mag_group, self.freq_labels, self.freq_xlabel])
+
+        elif self._show_phase:
+            # Only phase - center it
+            phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
+            phase_group.move_to(ORIGIN)
+            self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
+            self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
+            self.components_to_add.append([phase_group, self.freq_labels, self.freq_xlabel])
+            # Handle title
+
+        if self._title:
+            if self._show_magnitude:
+                self._title.next_to(self.mag_axes, UP, buff=0.3)
+            else:
+                self._title.next_to(self.phase_axes, UP, buff=0.3)
+            self.components_to_add.append(self._title)
+
+        self.add(*self.components_to_add)
+
+    # Check whether a title should be added
+    def title(self, text, font_size=40, color=WHITE, use_math_tex=False):
+        """
+        Add a title to the Bode plot.
         
-        mag_span = mag_max - mag_min
-        if mag_span <= 30:
-        # Round to nearest 5
-            mag_min = np.floor(mag_min/5)*5
-            mag_max = np.ceil(mag_max/5)*5
-        elif mag_span <= 60:
-        # Round to nearest 10
-            mag_min = np.floor(mag_min / 10) * 10
-            mag_max = np.ceil(mag_max / 10) * 10
+        Parameters:
+        - text: The title text (string)
+        - font_size: Font size (default: 40)
+        - use_math_tex: Whether to render as MathTex (default: False)
+        """
+        self._title_font_size = font_size
+        self._use_math_tex = use_math_tex
+        self._has_title = True  # Mark that a title exists
+        
+        # Remove existing title if present
+        if self._title is not None:
+            self.remove(self._title)
+        
+        # Create new title
+        if use_math_tex:
+            self._title = MathTex(text, font_size=font_size, color=color)
         else:
-        # Round to nearest 20
-            mag_min = np.floor(mag_min / 20) * 20
-            mag_max = np.ceil(mag_max / 20) * 20
-    
-    # Adjust phase range to be divisible by our potential step sizes
-        phase_span = phase_max - phase_min
-        if phase_span <= 90:
-        # Round to nearest 15
-            phase_min = np.floor(phase_min / 15) * 15
-            phase_max = np.ceil(phase_max / 15) * 15
-        elif phase_span <= 180:
-        # Round to nearest 30
-            phase_min = np.floor(phase_min / 30) * 30
-            phase_max = np.ceil(phase_max / 30) * 30
-        else:
-        # Round to nearest 45
-            phase_min = np.floor(phase_min / 45) * 45
-            phase_max = np.ceil(phase_max / 45) * 45
+            self._title = Text(text, font_size=font_size, color=color)
+        
+        # Update title position based on which plots are shown
+        self.update_plot_visibility()
 
-        # Count RHP poles/zeros to predict phase range
-        poles = self.system.poles if hasattr(self.system, 'poles') else np.roots(self.system.den)
-        zeros = self.system.zeros if hasattr(self.system, 'zeros') else np.roots(self.system.num)
-    
-        rhp_poles = sum(np.real(poles) > 0)
-        rhp_zeros = sum(np.real(zeros) > 0)
-    
-        # Base phase range (adjusted for RHP dynamics)
-        total_phase_shift = (len(zeros) - len(poles)) * 90
-        if rhp_poles or rhp_zeros:
-            phase_min = min(-360, total_phase_shift - 180)
-            phase_max = max(-90, total_phase_shift)
-
-        return {
-            'freq_range': (float(min_freq), float(max_freq)),
-            'mag_range': (float(mag_min), float(mag_max)),
-            'phase_range': (float(phase_min), float(phase_max))
-        }
+        return self
 
     def create_axes(self):
         """Create the Bode plot axes with dynamic step sizing."""
@@ -1377,29 +1306,27 @@ class BodePlot(VGroup):
 
         # Calculate dynamic step sizes
         mag_span = self.magnitude_yrange[1] - self.magnitude_yrange[0]
-        phase_span = self.phase_yrange[1] - self.phase_yrange[0]
+        phase_span = abs(self.phase_yrange[1]-self.phase_yrange[0])
         
         mag_step = 5 if mag_span <= 30 else (10 if mag_span <= 60 else 20)
-        phase_step = 15 if phase_span <= 90 else (30 if phase_span <= 180 else 45)
+        phase_step = 15 if phase_span <= 45 else (45 if phase_span <= 90 else 90)
 
         # Create axes based on what we need to show
         self.mag_axes = Axes(
             x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
             y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
-            x_length=12,
-            y_length=3,
-            axis_config={"color": GREY, "stroke_width": 1, "stroke_opacity":0.7,
+            x_length=12, y_length=3,
+            axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity":0.7,
                         "include_tip":False, "include_ticks":False},
             y_axis_config={"font_size": 25},
         )
-
         
         self.phase_axes = Axes(
             x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
             y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
             x_length=12,
             y_length=3,
-            axis_config={"color": GREY, "stroke_width": 1, "stroke_opacity":0.7, 
+            axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity":0.7, 
                         "include_tip":False, "include_ticks":False},
             y_axis_config={"font_size": 25},
         )
@@ -1432,6 +1359,8 @@ class BodePlot(VGroup):
         
         # Add vertical grid lines for magnitude plot
         mag_vert_grid = self.create_vertical_grid(self.mag_axes)
+        mag_horiz_ticks = self.create_horizontal_ticks(self.mag_axes, self.magnitude_yrange)
+        mag_vert_ticks = self.create_vertical_ticks(self.mag_axes)
 
         # Add components for phase plot if visible
         phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
@@ -1443,29 +1372,106 @@ class BodePlot(VGroup):
         
         # Add vertical grid lines for phase plot
         phase_vert_grid = self.create_vertical_grid(self.phase_axes)
-        
+        phase_horiz_ticks = self.create_horizontal_ticks(self.phase_axes, self.phase_yrange)
+        phase_vert_ticks = self.create_vertical_ticks(self.phase_axes)
+
         # Magnitude components
-        self.mag_components = VGroup(mag_box, mag_y_labels, mag_grid_lines, mag_ylabel, mag_vert_grid)
+        self.mag_components = VGroup(mag_box, mag_y_labels, mag_grid_lines, mag_ylabel, mag_vert_grid, mag_horiz_ticks, mag_vert_ticks)
         
         #Phase compmonents
         self.phase_components = VGroup(phase_box, phase_y_labels, phase_grid_lines, 
-                                  phase_ylabel, phase_vert_grid)
+                                  phase_ylabel, phase_vert_grid, phase_vert_ticks, phase_horiz_ticks)
         
+    def create_horizontal_ticks(self, axes, y_range):
+        """Create small horizontal tick marks on the y-axis."""
+        ticks = VGroup()
+        span = y_range[1] - y_range[0]
+        step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
+           15 if span <= 90 else (30 if span <= 180 else 45)
+    
+        tick_length = 0.1  # Length of the tick marks
+    
+        for y_val in np.arange(y_range[0], y_range[1]+1, step):
+            # Left side ticks
+            left_point = axes.c2p(axes.x_range[0], y_val)
+            left_tick_start = [left_point[0], left_point[1], 0]
+            left_tick_end = [left_point[0] + tick_length, left_point[1], 0]
+            ticks.add(Line(left_tick_start, left_tick_end, color=WHITE, stroke_width=1.2))
+        
+            # Right side ticks
+            right_point = axes.c2p(axes.x_range[1], y_val)
+            right_tick_start = [right_point[0]-tick_length, right_point[1], 0]
+            right_tick_end = [right_point[0], right_point[1], 0]
+            ticks.add(Line(right_tick_start, right_tick_end, color=WHITE, stroke_width=1.2))
+    
+        return ticks
+    def create_vertical_ticks(self, axes):
+        """Create small vertical tick marks on the x-axis at both decades and intermediate log positions."""
+        ticks = VGroup()
+        min_exp = np.floor(np.log10(self.freq_range[0]))
+        max_exp = np.ceil(np.log10(self.freq_range[1]))
+    
+        # Major ticks at decades (10^n)
+        decade_exponents = np.arange(min_exp, max_exp + 1)
+        main_log_ticks = np.log10([10**exp for exp in decade_exponents])
+    
+        # Intermediate ticks (2×10^n, 3×10^n, ..., 9×10^n)
+        intermediate_log_ticks = []
+        for exp in np.arange(min_exp, max_exp):
+            intermediates = np.arange(2, 10) * 10**exp
+            intermediate_log_ticks.extend(np.log10(intermediates))
+    
+        tick_length_major = 0.15  # Longer ticks for decades
+        tick_length_minor = 0.08  # Shorter ticks for intermediates
+        y_range = self.magnitude_yrange if axes == self.mag_axes else self.phase_yrange
+    
+        # Function to create ticks at given x positions
+        def create_ticks_at(x_vals, length):
+            for x_val in x_vals:
+                if x_val < axes.x_range[0] or x_val > axes.x_range[1]:
+                    continue  # Skip ticks outside visible range
+            
+                # Bottom ticks
+                bottom_point = axes.c2p(x_val, y_range[0])
+                bottom_tick_start = [bottom_point[0], bottom_point[1], 0]
+                bottom_tick_end = [bottom_point[0], bottom_point[1] + length, 0]
+                ticks.add(Line(bottom_tick_start, bottom_tick_end, 
+                         color=WHITE, stroke_width=1))
+            
+                # Top ticks
+                top_point = axes.c2p(x_val, y_range[1])
+                top_tick_start = [top_point[0], top_point[1]-length, 0]
+                top_tick_end = [top_point[0], top_point[1], 0]
+                ticks.add(Line(top_tick_start, top_tick_end, 
+                       color=WHITE, stroke_width=1))
+    
+    # Create major decade ticks (longer)
+        create_ticks_at(main_log_ticks, tick_length_major)
+    
+    # Create intermediate ticks (shorter)
+        create_ticks_at(intermediate_log_ticks, tick_length_minor)
+    
+        return ticks
+
     def create_vertical_grid(self, axes):
         """Create vertical grid lines for frequency decades."""
+
+        vert_grid = VGroup()
+        if not self._show_grid:  # Return empty group if grid is off
+            return vert_grid
+        
         min_exp = np.floor(np.log10(self.freq_range[0]))
         max_exp = np.ceil(np.log10(self.freq_range[1]))
         decade_exponents = np.arange(min_exp, max_exp + 1)
         main_log_ticks = np.log10([10**exp for exp in decade_exponents])
     
-        vert_grid = VGroup()
         y_range = self.magnitude_yrange if axes == self.mag_axes else self.phase_yrange
     
         for x_val in main_log_ticks:
             # Solid line at main decades
             start = axes.c2p(x_val, y_range[0])
             end = axes.c2p(x_val, y_range[1])
-            vert_grid.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.7))
+            vert_grid.add(Line(start, end, color=GREY, stroke_width=0.5, stroke_opacity=0.7))
     
         # Add intermediate ticks (dashed lines)
         intermediate_ticks = []
@@ -1501,6 +1507,9 @@ class BodePlot(VGroup):
     def create_grid_lines(self, axes, y_range):
         """Create grid lines for either magnitude or phase plot."""
         grid_lines = VGroup()
+        if not self._show_grid:  # Return empty group if grid is off
+            return grid_lines
+        
         span = y_range[1] - y_range[0]
         step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
                15 if span <= 90 else (30 if span <= 180 else 45)
@@ -1513,6 +1522,113 @@ class BodePlot(VGroup):
         
         return grid_lines
     
+    # Determine the ranges of interest whenever ranges are not specified
+    def _auto_determine_ranges(self):
+        """Automatically determine plot ranges based on system poles/zeros and Bode data."""
+        # Get poles and zeros
+        if isinstance(self.system, signal.TransferFunction):
+            poles = self.system.poles
+            zeros = self.system.zeros
+        else:
+            poles = self.system.to_tf().poles
+            zeros = self.system.to_tf().zeros
+
+        # Filter out infinite and zero frequencies
+        finite_poles = poles[np.isfinite(poles) & (poles != 0)]
+        finite_zeros = zeros[np.isfinite(zeros) & (zeros != 0)]
+
+        # Handle integrators (poles at 0)
+        integrators = np.isclose(poles, 0, atol=1e-8)
+        differentiators = np.isclose(zeros, 0, atol=1e-8)
+
+        # Step 1: Determine freq range based on features
+        all_features = np.abs(np.concatenate([finite_poles, finite_zeros]))
+        if len(all_features) > 0:
+            min_freq = 10**(np.floor(np.log10(np.min(all_features)))-2)
+            max_freq = 10**(np.ceil(np.log10(np.max(all_features)))+2)
+        else:
+            min_freq, max_freq = 0.1, 100
+
+        # Handle integrators (poles at 0)
+        if any(poles == 0):
+            min_freq = min(0.001, min_freq)
+
+        # Handle differentiators (zeros at 0)
+        if any(zeros == 0):
+            max_freq = max(1000, max_freq)
+
+        # Step 2: Calculate Bode response in determined frequency range
+        w_focus = np.logspace(np.log10(min_freq), np.log10(max_freq), 1000)
+        _, mag_focus, phase_focus = signal.bode(self.system, w_focus)
+        
+        if any(np.isclose(self.system.poles, 0)):
+            phase_min = -360
+            phase_max = max(0, np.ceil(np.max(phase_focus)/45)*45 + 5)
+
+        # Step 3: Determine phase range from Bode data
+        phase_min = max(-360, np.floor(np.min(phase_focus) / 45)*45)
+        phase_max = min(360, np.ceil(np.max(phase_focus) / 45)*45)
+
+        # Step 4: Determine magnitude range from same range
+        mag_padding = 0  # dB padding
+        mag_min = np.floor(np.min(mag_focus)/5)*5 - mag_padding
+        mag_max = np.ceil(np.max(mag_focus)/5)*5 + mag_padding
+        
+        mag_span = mag_max - mag_min
+        if mag_span <= 30:
+        # Round to nearest 5
+            mag_min = np.floor(mag_min/5)*5
+            mag_max = np.ceil(mag_max/5)*5
+        elif mag_span <=60:
+        #Round to nearest 10
+            mag_min = np.floor(mag_min/10)*10
+            mag_max = np.ceil(mag_max/10)*10
+        else:
+        # Round to nearest 20
+            mag_min = np.floor(mag_min/20)*20
+            mag_max = np.ceil(mag_max/20)*20
+        # Ensure we don't have excessive empty space
+        #if mag_min < np.min(mag_focus)-10:  # Don't allow more than 10dB below minimum
+            #mag_min = np.floor(np.min(mag_focus)/5)*5 -5
+    
+        #if mag_max > np.max(mag_focus) + 10:  # Don't allow more than 10dB above maximum
+            #mag_max = np.ceil(np.max(mag_focus)/5)*5 + 5
+
+        # Adjust phase range to be divisible by our potential step sizes
+        phase_span = phase_max - phase_min
+        if phase_span <= 90:
+        # Round to nearest 15
+            phase_min = np.floor(phase_min / 15) * 15
+            phase_max = np.ceil(phase_max / 15) * 15
+        elif phase_span <= 180:
+        # Round to nearest 30
+            phase_min = np.floor(phase_min / 30) * 30
+            phase_max = np.ceil(phase_max / 30) * 30
+        else:
+        # Round to nearest 45
+            phase_min = np.floor(phase_min / 45) * 45
+            phase_max = np.ceil(phase_max / 45) * 45
+
+        # Count RHP poles/zeros to predict phase range
+        poles = self.system.poles if hasattr(self.system, 'poles') else np.roots(self.system.den)
+        zeros = self.system.zeros if hasattr(self.system, 'zeros') else np.roots(self.system.num)
+    
+        rhp_poles = sum(np.real(poles) > 0)
+        rhp_zeros = sum(np.real(zeros) > 0)
+    
+        # Base phase range (adjusted for RHP dynamics)
+        total_phase_shift = (len(zeros) - len(poles)) * 90
+        if rhp_poles or rhp_zeros:
+            phase_min = min(-360, total_phase_shift - 180)
+            phase_max = max(-90, total_phase_shift)
+
+        return {
+            'freq_range': (float(min_freq), float(max_freq)),
+            'mag_range': (float(mag_min), float(mag_max)),
+            'phase_range': (float(phase_min), float(phase_max))
+        }
+    
+    # calculate the bode data using Scipy.signal
     def calculate_bode_data(self):
         """Calculate the Bode plot data using scipy.signal."""
         w = np.logspace(
@@ -1550,6 +1666,7 @@ class BodePlot(VGroup):
         self.magnitudes = mag
         self.phases = phase
 
+    # Plot the actual data
     def plot_bode_response(self):
         """Create the Bode plot curves for the visible plots."""
         log_w = np.log10(self.frequencies)
