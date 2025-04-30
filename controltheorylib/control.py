@@ -1103,7 +1103,12 @@ class BodePlot(VGroup):
         self.system = self._parse_system_input(system)
         self.system = self._ensure_tf(self.system)
         self._show_grid = False # Grid off by default
-        
+
+        self.tick_style = {
+            "color": WHITE,
+            "stroke_width": 1.2
+        }
+
         auto_ranges = self._auto_determine_ranges()
         self.freq_range = freq_range if freq_range is not None else auto_ranges['freq_range']
         self.magnitude_yrange = magnitude_yrange if magnitude_yrange is not None else auto_ranges['mag_range']
@@ -1120,6 +1125,11 @@ class BodePlot(VGroup):
         self._original_mag_pos = 1.8*UP
         self._original_phase_pos = 0.4*DOWN
 
+        #self.mag_grid = VGroup()
+        #self.phase_grid = VGroup()
+        #self.mag_vert_grid = VGroup()
+        #self.phase_vert_grid = VGroup()
+
         #Create all components
         self.create_axes()
         self.calculate_bode_data()
@@ -1129,13 +1139,14 @@ class BodePlot(VGroup):
         self.update_plot_visibility()
 
     # Check transfer function
+    
     def _parse_system_input(self, system):
         """Parse different input formats for the system specification."""
         # If already a scipy system object or coefficient lists
         if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace, tuple, list)):
             return system
             
-        # Handle symbolic expressions
+            # Handle symbolic expressions
         if isinstance(system, str):
             # Try to split numerator and denominator if string contains '/'
             if '/' in system:
@@ -1159,7 +1170,7 @@ class BodePlot(VGroup):
         s = sp.symbols('s')
         
         try:
-        # Parse strings if needed
+            # Parse strings if needed
             if isinstance(num_expr, str):
                 num_expr = num_expr.replace('^', '**')
                 num_expr = sp.sympify(num_expr)
@@ -1189,12 +1200,16 @@ class BodePlot(VGroup):
     def show_magnitude(self, show=True):
         """Show or hide the magnitude plot and all its components."""
         self._show_magnitude = show
+        self.create_axes()
+        self.add_plot_components()
         self.update_plot_visibility()
         return self
 
     def show_phase(self, show=True):
         """Show or hide the phase plot and all its components."""
         self._show_phase = show
+        self.create_axes()
+        self.add_plot_components()
         self.update_plot_visibility()
         return self
     
@@ -1202,20 +1217,23 @@ class BodePlot(VGroup):
     def grid_on(self):
         """Turn on the grid lines."""
         self._show_grid = True
-        # Recreate the plot components to update grid visibility
-        #self.create_axes()
-        self.create_axes()
-        self.add_plot_components()
-        self.update_plot_visibility()
+        self._update_grid_visibility()
         return self
 
     def grid_off(self):
         """Turn off the grid lines."""
         self._show_grid = False
-        # Recreate the plot components to update grid visibility
-        self.create_axes()
+        self._update_grid_visibility()
         return self
-    
+
+    def _update_grid_visibility(self):
+        """Directly control the stored grid components"""
+        opacity = 1 if self._show_grid else 0
+        self.mag_grid.set_opacity(opacity)
+        self.mag_vert_grid.set_opacity(opacity)
+        self.phase_grid.set_opacity(opacity)
+        self.phase_vert_grid.set_opacity(opacity)
+
     def update_plot_visibility(self):
         """Update the visibility and positioning of all plot components."""
         # Clear everything first
@@ -1230,10 +1248,7 @@ class BodePlot(VGroup):
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
             phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
             
-            if not self._show_grid:
-                mag_group.move_to(self._original_mag_pos)
-            else:
-                mag_group.move_to(ORIGIN)
+            mag_group.shift(1.8*UP)
 
             phase_group.next_to(mag_group, DOWN, buff=0.4).align_to(mag_group, LEFT)
             self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
@@ -1267,6 +1282,239 @@ class BodePlot(VGroup):
 
         self.add(*self.components_to_add)
 
+    def create_axes(self):
+        """Create the Bode plot axes with dynamic step sizing."""
+        min_exp = np.floor(np.log10(self.freq_range[0]))
+        max_exp = np.ceil(np.log10(self.freq_range[1]))
+        decade_exponents = np.arange(min_exp, max_exp + 1)
+        decade_ticks = [10 ** exp for exp in decade_exponents]
+        log_ticks = np.log10(decade_ticks)
+
+        # Calculate dynamic step sizes
+        mag_span = self.magnitude_yrange[1] - self.magnitude_yrange[0]
+        phase_span = abs(self.phase_yrange[1] - self.phase_yrange[0])
+        
+        mag_step =  5 if mag_span <= 30 else (10 if mag_span <= 60 else 20)  # None for axes since we're not comparing
+        phase_step = 15 if phase_span <= 90 else (30 if phase_span <= 180 else 45)
+
+        if self._show_magnitude and self._show_phase:
+        # Create axes based on what we need to show
+            self.mag_axes = Axes(
+                x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+                y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
+                x_length=12, y_length=3,
+                axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
+                        "include_tip": False, "include_ticks": False},
+                y_axis_config={"font_size": 25},
+            )
+        
+            self.phase_axes = Axes(
+                x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+                y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
+                x_length=12, y_length=3,
+                axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
+                        "include_tip": False, "include_ticks": False},
+                y_axis_config={"font_size": 25},
+            )
+        elif self._show_magnitude:
+            self.mag_axes = Axes(
+                x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+                y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
+                x_length=12, y_length=5,
+                axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
+                        "include_tip": False, "include_ticks": False},
+                y_axis_config={"font_size": 25},
+            )
+        
+        elif self._show_phase:
+            self.phase_axes = Axes(
+                x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+                y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
+                x_length=12, y_length=5,
+                axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
+                        "include_tip": False, "include_ticks": False},
+                y_axis_config={"font_size": 25},
+            )
+        # Add boxes and labels only for the visible plots
+        self.add_plot_components()
+
+    def add_plot_components(self):
+        """Add boxes, labels, grids, and frequency labels for the visible plots."""
+        min_exp = np.floor(np.log10(self.freq_range[0]))
+        max_exp = np.ceil(np.log10(self.freq_range[1]))
+        decade_exponents = np.arange(min_exp, max_exp + 1)
+        decade_ticks = [10**exp for exp in decade_exponents]
+    
+        # Create frequency labels (these are the same for both plots)
+        self.freq_labels = VGroup()
+        for exp in decade_exponents:
+            x_val = np.log10(10**exp)
+            tick_point = self.phase_axes.x_axis.n2p(x_val)
+            label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
+            label.move_to([tick_point[0]+0.1, self.phase_axes.get_bottom()[1]-0.2, 0])
+            self.freq_labels.add(label)
+    
+        # Magnitude plot components
+        mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
+        mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange)
+        mag_ylabel = Text("Magnitude (dB)", font_size=20).next_to(mag_box, LEFT, buff=-0.3).rotate(PI/2)
+        mag_ticks = self.create_ticks(self.mag_axes, self.magnitude_yrange, "horizontal")
+        mag_vert_ticks = self.create_ticks(self.mag_axes, None, "vertical")
+
+        # Phase plot components
+        phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
+        phase_y_labels = self.create_y_labels(self.phase_axes, self.phase_yrange)
+        phase_ylabel = Text("Phase (deg)", font_size=20).next_to(phase_box, LEFT, buff=0).rotate(PI/2)
+        self.freq_xlabel = Text("Frequency (rad/s)", font_size=20).next_to(phase_box, DOWN, buff=0.4)
+        phase_ticks = self.create_ticks(self.phase_axes, self.phase_yrange, "horizontal")
+        phase_vert_ticks = self.create_ticks(self.phase_axes, None, "vertical")
+
+            # Store grid components with proper references
+        self.mag_grid = self.create_grid(self.mag_axes, self.magnitude_yrange, "horizontal")
+        self.mag_vert_grid = self.create_grid(self.mag_axes, None, "vertical")
+        self.phase_grid = self.create_grid(self.phase_axes, self.phase_yrange, "horizontal")
+        self.phase_vert_grid = self.create_grid(self.phase_axes, None, "vertical")
+
+        # Group components with proper grid references
+        self.mag_components = VGroup(
+        mag_box, mag_y_labels, self.mag_grid, self.mag_vert_grid, 
+        mag_ylabel, mag_ticks, mag_vert_ticks
+        )
+        self.phase_components = VGroup(
+        phase_box, phase_y_labels, self.phase_grid, self.phase_vert_grid,
+        phase_ylabel, phase_ticks, phase_vert_ticks
+        )
+    
+    def create_ticks(self, axes, y_range=None, orientation="horizontal"):
+        """Generalized tick creation for both axes"""
+        ticks = VGroup()
+        
+        if orientation == "horizontal":
+            span = y_range[1] - y_range[0]
+            step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
+           15 if span <= 90 else (30 if span <= 180 else 45)
+            tick_length = 0.1
+            
+            for y_val in np.arange(y_range[0], y_range[1]+1, step):
+                # Left side
+                left_point = axes.c2p(axes.x_range[0], y_val)
+                ticks.add(Line(
+                    [left_point[0], left_point[1], 0],
+                    [left_point[0] + tick_length, left_point[1], 0],
+                    **self.tick_style
+                ))
+                # Right side
+                right_point = axes.c2p(axes.x_range[1], y_val)
+                ticks.add(Line(
+                    [right_point[0]-tick_length, right_point[1], 0],
+                    [right_point[0], right_point[1], 0],
+                    **self.tick_style
+                ))
+                
+        else:  # vertical
+            min_exp = np.floor(np.log10(self.freq_range[0]))
+            max_exp = np.ceil(np.log10(self.freq_range[1]))
+            
+            # Major ticks at decades (10^n)
+            main_log_ticks = np.log10([10**exp for exp in np.arange(min_exp, max_exp + 1)])
+            # Intermediate ticks (2×10^n, 3×10^n, ..., 9×10^n)
+            intermediate_log_ticks = np.log10(np.concatenate([
+                np.arange(2, 10) * 10**exp for exp in np.arange(min_exp, max_exp)
+            ]))
+            
+            y_range = self.magnitude_yrange if axes == self.mag_axes else self.phase_yrange
+            tick_lengths = {"major": 0.15, "minor": 0.08}
+            
+            # Create ticks function
+            def add_vertical_ticks(x_vals, length):
+                for x_val in x_vals:
+                    if not (axes.x_range[0] <= x_val <= axes.x_range[1]):
+                        continue
+                    # Bottom
+                    bottom_point = axes.c2p(x_val, y_range[0])
+                    ticks.add(Line(
+                        [bottom_point[0], bottom_point[1], 0],
+                        [bottom_point[0], bottom_point[1] + length, 0],
+                        **self.tick_style
+                    ))
+                    # Top
+                    top_point = axes.c2p(x_val, y_range[1])
+                    ticks.add(Line(
+                        [top_point[0], top_point[1]-length, 0],
+                        [top_point[0], top_point[1], 0],
+                        **self.tick_style
+                    ))
+            
+            add_vertical_ticks(main_log_ticks, tick_lengths["major"])
+            add_vertical_ticks(intermediate_log_ticks, tick_lengths["minor"])
+            
+        return ticks
+    
+    def create_grid(self, axes, y_range=None, orientation="horizontal"):
+        """Generalized grid creation"""
+        grid = VGroup()
+        show = self._show_grid
+        opacity_val = 1 if show else 0
+        
+        if orientation == "horizontal":
+            span = y_range[1] - y_range[0]
+            step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
+           15 if span <= 90 else (30 if span <= 180 else 45)
+        
+            for y_val in np.arange(y_range[0], y_range[1]+1, step):
+                start = axes.c2p(axes.x_range[0], y_val)
+                end = axes.c2p(axes.x_range[1], y_val)
+            # Create regular line (not dashed) for horizontal grid
+                grid.add(Line(start, end, color=GREY, stroke_width=0.5, stroke_opacity=0.7))
+            
+        else:  # vertical
+            min_exp = np.floor(np.log10(self.freq_range[0]))
+            max_exp = np.ceil(np.log10(self.freq_range[1]))
+        
+            # Main decade lines (solid)
+            main_log_ticks = np.log10([10**exp for exp in np.arange(min_exp, max_exp + 1)])
+            y_range = self.magnitude_yrange if axes == self.mag_axes else self.phase_yrange
+        
+            for x_val in main_log_ticks:
+                start = axes.c2p(x_val, y_range[0])
+                end = axes.c2p(x_val, y_range[1])
+                    # Create regular line for main decades
+                grid.add(Line(start, end, color=GREY, stroke_width=0.5, stroke_opacity=0.7))
+        
+        # Intermediate lines (dashed)
+            intermediate_ticks = np.concatenate([
+                np.arange(1, 10) * 10**exp for exp in np.arange(min_exp, max_exp)
+            ])
+            intermediate_log_ticks = np.log10(intermediate_ticks)
+        
+            for x_val in intermediate_log_ticks:
+                if axes.x_range[0] <= x_val <= axes.x_range[1]:
+                    start = axes.c2p(x_val, y_range[0])
+                    end = axes.c2p(x_val, y_range[1])
+                    # Create dashed line for intermediates
+                    grid.add(DashedLine(start, end, color=GREY, dash_length=0.05, 
+                                   stroke_width=0.5, stroke_opacity=0.7))
+        
+        for line in grid:
+            line.set_opacity(opacity_val)
+        return grid
+
+    def create_y_labels(self, axes, y_range):
+        """Create dynamic y-axis labels."""
+        y_labels = VGroup()
+        span = y_range[1] - y_range[0]
+        step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
+               15 if span <= 90 else (30 if span <= 180 else 45)
+        
+        for y_val in np.arange(y_range[0], y_range[1]+1, step):
+            point = axes.c2p(axes.x_range[0], y_val)
+            label = MathTex(f"{int(y_val)}", font_size=20)
+            box = SurroundingRectangle(axes, buff=0, color=WHITE)
+            label.next_to(box.get_left(), LEFT, buff=0.1)
+            label.move_to([label.get_x(), point[1], 0])
+            y_labels.add(label)
+        return y_labels
+    
     # Check whether a title should be added
     def title(self, text, font_size=40, color=WHITE, use_math_tex=False):
         """
@@ -1294,234 +1542,7 @@ class BodePlot(VGroup):
         # Update title position based on which plots are shown
         self.update_plot_visibility()
 
-        return self
-
-    def create_axes(self):
-        """Create the Bode plot axes with dynamic step sizing."""
-        min_exp = np.floor(np.log10(self.freq_range[0]))
-        max_exp = np.ceil(np.log10(self.freq_range[1]))
-        decade_exponents = np.arange(min_exp, max_exp + 1)
-        decade_ticks = [10 ** exp for exp in decade_exponents]
-        log_ticks = np.log10(decade_ticks)
-
-        # Calculate dynamic step sizes
-        mag_span = self.magnitude_yrange[1] - self.magnitude_yrange[0]
-        phase_span = abs(self.phase_yrange[1]-self.phase_yrange[0])
-        
-        mag_step = 5 if mag_span <= 30 else (10 if mag_span <= 60 else 20)
-        phase_step = 15 if phase_span <= 45 else (45 if phase_span <= 90 else 90)
-
-        # Create axes based on what we need to show
-        self.mag_axes = Axes(
-            x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-            y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
-            x_length=12, y_length=3,
-            axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity":0.7,
-                        "include_tip":False, "include_ticks":False},
-            y_axis_config={"font_size": 25},
-        )
-        
-        self.phase_axes = Axes(
-            x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-            y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
-            x_length=12,
-            y_length=3,
-            axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity":0.7, 
-                        "include_tip":False, "include_ticks":False},
-            y_axis_config={"font_size": 25},
-        )
-
-        # Add boxes and labels only for the visible plots
-        self.add_plot_components()
-
-    def add_plot_components(self):
-        """Add boxes, labels, grids, and frequency labels for the visible plots."""
-        min_exp = np.floor(np.log10(self.freq_range[0]))
-        max_exp = np.ceil(np.log10(self.freq_range[1]))
-        decade_exponents = np.arange(min_exp, max_exp + 1)
-        decade_ticks = [10**exp for exp in decade_exponents]
-    
-        # Create frequency labels (these are the same for both plots)
-        self.freq_labels = VGroup()
-        for exp in decade_exponents:
-            x_val = np.log10(10**exp)
-            tick_point = self.phase_axes.x_axis.n2p(x_val)
-            label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
-            label.move_to([tick_point[0]+0.1, self.phase_axes.get_bottom()[1]-0.2, 0])
-            self.freq_labels.add(label)
-    
-        # magnitude plot components
-        mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
-        mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange, 
-                                        self.magnitude_yrange[1]-self.magnitude_yrange[0])
-        mag_grid_lines = self.create_grid_lines(self.mag_axes, self.magnitude_yrange)
-        mag_ylabel = Text("Magnitude (dB)", font_size=20).next_to(mag_box, LEFT, buff=-0.3).rotate(PI/2)
-        
-        # Add vertical grid lines for magnitude plot
-        mag_vert_grid = self.create_vertical_grid(self.mag_axes)
-        mag_horiz_ticks = self.create_horizontal_ticks(self.mag_axes, self.magnitude_yrange)
-        mag_vert_ticks = self.create_vertical_ticks(self.mag_axes)
-
-        # Add components for phase plot if visible
-        phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
-        phase_y_labels = self.create_y_labels(self.phase_axes, self.phase_yrange,
-                                        self.phase_yrange[1]-self.phase_yrange[0])
-        phase_grid_lines = self.create_grid_lines(self.phase_axes, self.phase_yrange)
-        phase_ylabel = Text("Phase (deg)", font_size=20).next_to(phase_box, LEFT, buff=0).rotate(PI/2)
-        self.freq_xlabel = Text("Frequency (rad/s)", font_size=20).next_to(phase_box, DOWN, buff=0.4)
-        
-        # Add vertical grid lines for phase plot
-        phase_vert_grid = self.create_vertical_grid(self.phase_axes)
-        phase_horiz_ticks = self.create_horizontal_ticks(self.phase_axes, self.phase_yrange)
-        phase_vert_ticks = self.create_vertical_ticks(self.phase_axes)
-
-        # Magnitude components
-        self.mag_components = VGroup(mag_box, mag_y_labels, mag_grid_lines, mag_ylabel, mag_vert_grid, mag_horiz_ticks, mag_vert_ticks)
-        
-        #Phase compmonents
-        self.phase_components = VGroup(phase_box, phase_y_labels, phase_grid_lines, 
-                                  phase_ylabel, phase_vert_grid, phase_vert_ticks, phase_horiz_ticks)
-        
-    def create_horizontal_ticks(self, axes, y_range):
-        """Create small horizontal tick marks on the y-axis."""
-        ticks = VGroup()
-        span = y_range[1] - y_range[0]
-        step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
-           15 if span <= 90 else (30 if span <= 180 else 45)
-    
-        tick_length = 0.1  # Length of the tick marks
-    
-        for y_val in np.arange(y_range[0], y_range[1]+1, step):
-            # Left side ticks
-            left_point = axes.c2p(axes.x_range[0], y_val)
-            left_tick_start = [left_point[0], left_point[1], 0]
-            left_tick_end = [left_point[0] + tick_length, left_point[1], 0]
-            ticks.add(Line(left_tick_start, left_tick_end, color=WHITE, stroke_width=1.2))
-        
-            # Right side ticks
-            right_point = axes.c2p(axes.x_range[1], y_val)
-            right_tick_start = [right_point[0]-tick_length, right_point[1], 0]
-            right_tick_end = [right_point[0], right_point[1], 0]
-            ticks.add(Line(right_tick_start, right_tick_end, color=WHITE, stroke_width=1.2))
-    
-        return ticks
-    def create_vertical_ticks(self, axes):
-        """Create small vertical tick marks on the x-axis at both decades and intermediate log positions."""
-        ticks = VGroup()
-        min_exp = np.floor(np.log10(self.freq_range[0]))
-        max_exp = np.ceil(np.log10(self.freq_range[1]))
-    
-        # Major ticks at decades (10^n)
-        decade_exponents = np.arange(min_exp, max_exp + 1)
-        main_log_ticks = np.log10([10**exp for exp in decade_exponents])
-    
-        # Intermediate ticks (2×10^n, 3×10^n, ..., 9×10^n)
-        intermediate_log_ticks = []
-        for exp in np.arange(min_exp, max_exp):
-            intermediates = np.arange(2, 10) * 10**exp
-            intermediate_log_ticks.extend(np.log10(intermediates))
-    
-        tick_length_major = 0.15  # Longer ticks for decades
-        tick_length_minor = 0.08  # Shorter ticks for intermediates
-        y_range = self.magnitude_yrange if axes == self.mag_axes else self.phase_yrange
-    
-        # Function to create ticks at given x positions
-        def create_ticks_at(x_vals, length):
-            for x_val in x_vals:
-                if x_val < axes.x_range[0] or x_val > axes.x_range[1]:
-                    continue  # Skip ticks outside visible range
-            
-                # Bottom ticks
-                bottom_point = axes.c2p(x_val, y_range[0])
-                bottom_tick_start = [bottom_point[0], bottom_point[1], 0]
-                bottom_tick_end = [bottom_point[0], bottom_point[1] + length, 0]
-                ticks.add(Line(bottom_tick_start, bottom_tick_end, 
-                         color=WHITE, stroke_width=1))
-            
-                # Top ticks
-                top_point = axes.c2p(x_val, y_range[1])
-                top_tick_start = [top_point[0], top_point[1]-length, 0]
-                top_tick_end = [top_point[0], top_point[1], 0]
-                ticks.add(Line(top_tick_start, top_tick_end, 
-                       color=WHITE, stroke_width=1))
-    
-    # Create major decade ticks (longer)
-        create_ticks_at(main_log_ticks, tick_length_major)
-    
-    # Create intermediate ticks (shorter)
-        create_ticks_at(intermediate_log_ticks, tick_length_minor)
-    
-        return ticks
-
-    def create_vertical_grid(self, axes):
-        """Create vertical grid lines for frequency decades."""
-
-        vert_grid = VGroup()
-        if not self._show_grid:  # Return empty group if grid is off
-            return vert_grid
-        
-        min_exp = np.floor(np.log10(self.freq_range[0]))
-        max_exp = np.ceil(np.log10(self.freq_range[1]))
-        decade_exponents = np.arange(min_exp, max_exp + 1)
-        main_log_ticks = np.log10([10**exp for exp in decade_exponents])
-    
-        y_range = self.magnitude_yrange if axes == self.mag_axes else self.phase_yrange
-    
-        for x_val in main_log_ticks:
-            # Solid line at main decades
-            start = axes.c2p(x_val, y_range[0])
-            end = axes.c2p(x_val, y_range[1])
-            vert_grid.add(Line(start, end, color=GREY, stroke_width=0.5, stroke_opacity=0.7))
-    
-        # Add intermediate ticks (dashed lines)
-        intermediate_ticks = []
-        for exp in np.arange(min_exp, max_exp):
-            intermediates = np.arange(1, 10) * 10**exp
-            intermediate_ticks.extend(intermediates)
-        intermediate_log_ticks = np.log10(intermediate_ticks)
-    
-        for x_val in intermediate_log_ticks:
-            if x_val >= axes.x_range[0] and x_val <= axes.x_range[1]:
-                start = axes.c2p(x_val, y_range[0])
-                end = axes.c2p(x_val, y_range[1])
-                vert_grid.add(DashedLine(start, end, color=GREY, dash_length=0.05, 
-                                   stroke_width=0.5, stroke_opacity=0.7))
-    
-        return vert_grid
-
-    def create_y_labels(self, axes, y_range, span):
-        """Create dynamic y-axis labels."""
-        y_labels = VGroup()
-        step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
-               15 if span <= 90 else (30 if span <= 180 else 45)
-        
-        for y_val in np.arange(y_range[0], y_range[1]+1, step):
-            point = axes.c2p(axes.x_range[0], y_val)
-            label = MathTex(f"{int(y_val)}", font_size=20)
-            box = SurroundingRectangle(axes, buff=0, color=WHITE)
-            label.next_to(box.get_left(), LEFT, buff=0.1)
-            label.move_to([label.get_x(), point[1],0])
-            y_labels.add(label)
-        return y_labels
-
-    def create_grid_lines(self, axes, y_range):
-        """Create grid lines for either magnitude or phase plot."""
-        grid_lines = VGroup()
-        if not self._show_grid:  # Return empty group if grid is off
-            return grid_lines
-        
-        span = y_range[1] - y_range[0]
-        step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
-               15 if span <= 90 else (30 if span <= 180 else 45)
-        
-        # Horizontal grid lines
-        for y_val in np.arange(y_range[0], y_range[1]+1, step):
-            start = axes.c2p(axes.x_range[0], y_val)
-            end = axes.c2p(axes.x_range[1], y_val)
-            grid_lines.add(Line(start, end, color=GREY, stroke_width=1, stroke_opacity=0.5))
-        
-        return grid_lines
-    
+        return self    
     # Determine the ranges of interest whenever ranges are not specified
     def _auto_determine_ranges(self):
         """Automatically determine plot ranges based on system poles/zeros and Bode data."""

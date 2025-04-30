@@ -9,8 +9,7 @@ class Bode(Scene):
         system = (num, den)
 
         bode = BodePlot(system)
-        bode.grid_on()
-        bode.grid_off()
+        bode.show_phase(False)
         self.add(bode)
 
         # Highlight critical points
