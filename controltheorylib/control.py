@@ -5,6 +5,7 @@ from scipy import signal
 import sympy as sp
 from collections import OrderedDict
 from manim import TexTemplate
+from scipy.interpolate import interp1d 
 
 my_template = TexTemplate()
 my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
@@ -1319,7 +1320,7 @@ class BodePlot(VGroup):
             self.mag_axes = Axes(
                 x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
                 y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
-                x_length=12, y_length=5,
+                x_length=12, y_length=6,
                 axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
                         "include_tip": False, "include_ticks": False},
                 y_axis_config={"font_size": 25},
@@ -1329,7 +1330,7 @@ class BodePlot(VGroup):
             self.phase_axes = Axes(
                 x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
                 y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
-                x_length=12, y_length=5,
+                x_length=12, y_length=6,
                 axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
                         "include_tip": False, "include_ticks": False},
                 y_axis_config={"font_size": 25},
@@ -1774,3 +1775,175 @@ class BodePlot(VGroup):
     
         return animations, highlights
     
+
+    def _calculate_asymptotes(self):
+        """Calculate asymptotes with proper transfer function handling"""
+        # Handle system representation
+        if isinstance(self.system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+            tf = self.system
+            if not isinstance(tf, signal.TransferFunction):
+                tf = tf.to_tf()
+        else:
+            tf = signal.TransferFunction(*self.system)
+        
+        # Get poles and zeros
+        zeros = tf.zeros
+        poles = tf.poles
+        
+        # Simple pole-zero cancellation
+        tol = 1e-6
+        for z in zeros.copy():
+            for p in poles.copy():
+                if abs(z - p) < tol:
+                    zeros = np.delete(zeros, np.where(zeros == z))
+                    poles = np.delete(poles, np.where(poles == p))
+                    break
+
+        # Initialize asymptotes
+        self.mag_asymp = np.zeros_like(self.frequencies)
+        self.phase_asymp = np.zeros_like(self.frequencies)
+        
+        # Get all break frequencies (sorted)
+        break_freqs = sorted([np.abs(p) for p in poles] + [np.abs(z) for z in zeros if z != 0])
+        break_freqs = [f for f in break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
+        
+        # Calculate DC gain (magnitude at lowest frequency)
+        num = np.poly1d(tf.num)
+        den = np.poly1d(tf.den)
+        w0 = self.freq_range[0]
+        dc_gain = 20 * np.log10(np.abs(num(w0*1j)/den(w0*1j)))
+        
+        # Calculate DC phase
+        phase_shift = 0
+        if np.any(np.real(zeros) == 0) and np.any(np.imag(zeros) == 0):  # Zero at origin
+            phase_shift += 90
+        if np.any(np.real(poles) == 0) and np.any(np.imag(poles) == 0):  # Pole at origin
+            phase_shift -= 90
+        
+        # Calculate magnitude asymptote
+        mag_slope = 0
+        for i, freq in enumerate(self.frequencies):
+            current_mag = dc_gain
+            current_slope = 0
+            
+            # Handle poles and zeros at origin first
+            n_integrators = sum(np.isclose(poles, 0, atol=1e-8))
+            n_differentiators = sum(np.isclose(zeros, 0, atol=1e-8))
+            current_mag += (n_differentiators - n_integrators) * 20 * np.log10(freq/w0)
+            current_slope += (n_differentiators - n_integrators) * 20
+            
+            # Handle other poles and zeros
+            for p in poles:
+                if not np.isclose(p, 0, atol=1e-8):
+                    w_break = np.abs(p)
+                    if freq >= w_break:
+                        current_mag += -20 * np.log10(freq/w_break)
+                        current_slope -= 20
+            
+            for z in zeros:
+                if not np.isclose(z, 0, atol=1e-8):
+                    w_break = np.abs(z)
+                    if freq >= w_break:
+                        current_mag += 20 * np.log10(freq/w_break)
+                        current_slope += 20
+            
+            self.mag_asymp[i] = current_mag
+        
+        # Calculate phase asymptote
+        for i, freq in enumerate(self.frequencies):
+            current_phase = phase_shift
+            
+            # Handle poles and zeros
+            for p in poles:
+                w_break = np.abs(p)
+                if freq < w_break/10:
+                    pass  # No contribution yet
+                elif freq > w_break*10:
+                    current_phase += -90 if np.real(p) < 0 else 90
+                else:
+                    # Linear transition
+                    frac = np.log10(freq/w_break)
+                    current_phase += (-45 if np.real(p) < 0 else 45) * frac
+            
+            for z in zeros:
+                w_break = np.abs(z)
+                if freq < w_break/10:
+                    pass  # No contribution yet
+                elif freq > w_break*10:
+                    current_phase += 90 if np.real(z) < 0 else -90
+                else:
+                    # Linear transition
+                    frac = np.log10(freq/w_break)
+                    current_phase += (45 if np.real(z) < 0 else -45) * frac
+            
+            self.phase_asymp[i] = current_phase
+
+        # Store break frequencies for plotting
+        self.break_freqs = break_freqs
+
+    def show_asymptotes(self, color=YELLOW, stroke_width=2, opacity=1):
+        """Plot magnitude asymptotes as distinct straight line segments"""
+        self._remove_existing_asymptotes()
+        
+        if not hasattr(self, 'mag_asymp'):
+            self._calculate_asymptotes()
+        
+        # Find all important break points (including system breaks and slope changes)
+        break_indices = []
+        
+        # 1. Add system break frequencies
+        for freq in self.break_freqs:
+            idx = np.argmin(np.abs(self.frequencies - freq))
+            break_indices.append(idx)
+        
+        # 2. Add points where slope changes significantly
+        prev_slope = None
+        for i in range(1, len(self.frequencies)):
+            current_slope = self.mag_asymp[i] - self.mag_asymp[i-1]
+            if prev_slope is not None and abs(current_slope - prev_slope) > 1:
+                break_indices.append(i-1)
+            prev_slope = current_slope
+        
+        # Sort and remove duplicates
+        break_indices = sorted(np.unique(break_indices))
+        
+        # Ensure we include start and end points
+        if 0 not in break_indices:
+            break_indices.insert(0, 0)
+        if (len(self.frequencies)-1) not in break_indices:
+            break_indices.append(len(self.frequencies)-1)
+        
+        # Create separate line segments for each section
+        self.mag_asymp_plot = VGroup()
+        
+        for i in range(len(break_indices)-1):
+            start_idx = break_indices[i]
+            end_idx = break_indices[i+1]
+            
+            # Get the points for this segment
+            start_point = self.mag_axes.coords_to_point(
+                np.log10(self.frequencies[start_idx]),
+                self.mag_asymp[start_idx]
+            )
+            end_point = self.mag_axes.coords_to_point(
+                np.log10(self.frequencies[end_idx]),
+                self.mag_asymp[end_idx]
+            )
+            
+            # Create a straight line for this segment with proper opacity handling
+            segment = Line(start_point, end_point, color=color,
+                        stroke_width=stroke_width)
+            segment.set_opacity(opacity)  # Set opacity separately
+            self.mag_asymp_plot.add(segment)
+        
+        # Add to plot
+        if self._show_magnitude:
+            self.mag_components.add(self.mag_asymp_plot)
+        
+        return self
+    
+    def _remove_existing_asymptotes(self):
+        """Clean up previous asymptote plots"""
+        for attr in ['mag_asymp_plot', 'phase_asymp_plot']:
+            if hasattr(self, attr) and getattr(self, attr) in getattr(self, attr.split('_')[0] + '_components'):
+                getattr(self, attr.split('_')[0] + '_components').remove(getattr(self, attr))
