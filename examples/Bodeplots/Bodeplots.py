@@ -8,7 +8,7 @@ class Bode(Scene):
         den = [1] # s+10
         system = (num, den)
 
-        bode = BodePlot(system, color=BLUE, stroke_width=3)
+        bode = BodePlot(system, color=BLUE, stroke_width=3, mag_label="Joehoe", font_size_ylabels=25, font_size_xlabel=15)
         bode.grid_on()
         #bode.show_margins()
         #bode.show_phase(False)

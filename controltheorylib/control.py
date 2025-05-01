@@ -1086,7 +1086,9 @@ class ControlSystem:
 # Bode plot classes
 class BodePlot(VGroup):
     def __init__(self, system, freq_range=None, magnitude_yrange=None, 
-                 phase_yrange=None, color=BLUE,stroke_width=2,**kwargs):
+                 phase_yrange=None, color=BLUE,stroke_width=2, mag_label="Magnitude (dB)", 
+                 phase_label = "Phase (deg)",xlabel = "Frequency (rad/s)", 
+                 font_size_ylabels = 20, font_size_xlabel=20,**kwargs):
         """
         Create a Bode plot visualization for a given system.
         
@@ -1120,6 +1122,12 @@ class BodePlot(VGroup):
         self._title_font_size = 40  # Default font size
         self._use_math_tex = False  # Default to normal text
         self._has_title = False
+
+        self.phase_label = phase_label
+        self.magnitude_label = mag_label
+        self.xlabel = xlabel
+        self.font_size_ylabels = font_size_ylabels
+        self.font_size_xlabel = font_size_xlabel
 
         # by default show both plots
         self._show_magnitude = True
@@ -1356,19 +1364,22 @@ class BodePlot(VGroup):
             label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
             label.move_to([tick_point[0]+0.1, self.phase_axes.get_bottom()[1]-0.2, 0])
             self.freq_labels.add(label)
-    
+
+
+        ylabel_buff = (self.font_size_ylabels/20)*0.5+(20-self.font_size_ylabels)*0.02
+        xlabel_buff = (self.font_size_xlabel/20)*0.5+(20-self.font_size_xlabel)*0.02
         # Magnitude plot components
         mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
         mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange)
-        mag_ylabel = Text("Magnitude (dB)", font_size=20).next_to(mag_box, LEFT, buff=-0.3).rotate(PI/2)
+        mag_ylabel = Text(self.magnitude_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(mag_box, LEFT, buff=ylabel_buff)
         mag_ticks = self.create_ticks(self.mag_axes, self.magnitude_yrange, "horizontal")
         mag_vert_ticks = self.create_ticks(self.mag_axes, None, "vertical")
 
         # Phase plot components
         phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
         phase_y_labels = self.create_y_labels(self.phase_axes, self.phase_yrange)
-        phase_ylabel = Text("Phase (deg)", font_size=20).next_to(phase_box, LEFT, buff=0).rotate(PI/2)
-        self.freq_xlabel = Text("Frequency (rad/s)", font_size=20).next_to(phase_box, DOWN, buff=0.4)
+        phase_ylabel = Text(self.phase_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(phase_box, LEFT, buff=ylabel_buff)
+        self.freq_xlabel = Text(self.xlabel, font_size=self.font_size_xlabel).next_to(phase_box, DOWN, buff=xlabel_buff)
         phase_ticks = self.create_ticks(self.phase_axes, self.phase_yrange, "horizontal")
         phase_vert_ticks = self.create_ticks(self.phase_axes, None, "vertical")
 
