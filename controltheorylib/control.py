@@ -1882,45 +1882,43 @@ class BodePlot(VGroup):
         self.break_freqs = break_freqs
 
     def show_asymptotes(self, color=YELLOW, stroke_width=2, opacity=1):
-        """Plot magnitude asymptotes as distinct straight line segments"""
+        """Plot both magnitude and phase asymptotes as distinct straight line segments"""
         self._remove_existing_asymptotes()
         
         if not hasattr(self, 'mag_asymp'):
             self._calculate_asymptotes()
         
-        # Find all important break points (including system breaks and slope changes)
-        break_indices = []
+        # ===== Magnitude Plot =====
+        mag_break_indices = []
         
-        # 1. Add system break frequencies
+        # Add system break frequencies
         for freq in self.break_freqs:
             idx = np.argmin(np.abs(self.frequencies - freq))
-            break_indices.append(idx)
+            mag_break_indices.append(idx)
         
-        # 2. Add points where slope changes significantly
+        # Add points where slope changes significantly
         prev_slope = None
         for i in range(1, len(self.frequencies)):
             current_slope = self.mag_asymp[i] - self.mag_asymp[i-1]
             if prev_slope is not None and abs(current_slope - prev_slope) > 1:
-                break_indices.append(i-1)
+                mag_break_indices.append(i-1)
             prev_slope = current_slope
         
         # Sort and remove duplicates
-        break_indices = sorted(np.unique(break_indices))
+        mag_break_indices = sorted(np.unique(mag_break_indices))
         
         # Ensure we include start and end points
-        if 0 not in break_indices:
-            break_indices.insert(0, 0)
-        if (len(self.frequencies)-1) not in break_indices:
-            break_indices.append(len(self.frequencies)-1)
+        if 0 not in mag_break_indices:
+            mag_break_indices.insert(0, 0)
+        if (len(self.frequencies)-1) not in mag_break_indices:
+            mag_break_indices.append(len(self.frequencies)-1)
         
-        # Create separate line segments for each section
+        # Create magnitude segments
         self.mag_asymp_plot = VGroup()
-        
-        for i in range(len(break_indices)-1):
-            start_idx = break_indices[i]
-            end_idx = break_indices[i+1]
+        for i in range(len(mag_break_indices)-1):
+            start_idx = mag_break_indices[i]
+            end_idx = mag_break_indices[i+1]
             
-            # Get the points for this segment
             start_point = self.mag_axes.coords_to_point(
                 np.log10(self.frequencies[start_idx]),
                 self.mag_asymp[start_idx]
@@ -1930,18 +1928,63 @@ class BodePlot(VGroup):
                 self.mag_asymp[end_idx]
             )
             
-            # Create a straight line for this segment with proper opacity handling
             segment = Line(start_point, end_point, color=color,
                         stroke_width=stroke_width)
-            segment.set_opacity(opacity)  # Set opacity separately
+            segment.set_opacity(opacity)
             self.mag_asymp_plot.add(segment)
+
+        # ===== Phase Plot =====
+        phase_break_indices = []
         
+        # Add system break frequencies and their transition boundaries
+        for freq in self.break_freqs:
+            # Add points at 0.1× and 10× each break frequency for phase transitions
+            idx_low = np.argmin(np.abs(self.frequencies - freq/10))
+            idx_center = np.argmin(np.abs(self.frequencies - freq))
+            idx_high = np.argmin(np.abs(self.frequencies - freq*10))
+            phase_break_indices.extend([idx_low, idx_center, idx_high])
+        
+        # Add points where phase changes significantly
+        for i in range(1, len(self.frequencies)):
+            if abs(self.phase_asymp[i] - self.phase_asymp[i-1]) > 5:  # Significant phase change
+                phase_break_indices.append(i)
+        
+        # Sort and remove duplicates
+        phase_break_indices = sorted(np.unique(phase_break_indices))
+        
+        # Ensure we include start and end points
+        if 0 not in phase_break_indices:
+            phase_break_indices.insert(0, 0)
+        if (len(self.frequencies)-1) not in phase_break_indices:
+            phase_break_indices.append(len(self.frequencies)-1)
+        
+        # Create phase segments
+        self.phase_asymp_plot = VGroup()
+        for i in range(len(phase_break_indices)-1):
+            start_idx = phase_break_indices[i]
+            end_idx = phase_break_indices[i+1]
+            
+            start_point = self.phase_axes.coords_to_point(
+                np.log10(self.frequencies[start_idx]),
+                self.phase_asymp[start_idx]
+            )
+            end_point = self.phase_axes.coords_to_point(
+                np.log10(self.frequencies[end_idx]),
+                self.phase_asymp[end_idx]
+            )
+            
+            segment = Line(start_point, end_point, color=color,
+                        stroke_width=stroke_width)
+            segment.set_opacity(opacity)
+            self.phase_asymp_plot.add(segment)
+
         # Add to plot
         if self._show_magnitude:
             self.mag_components.add(self.mag_asymp_plot)
+        if self._show_phase:
+            self.phase_components.add(self.phase_asymp_plot)
         
         return self
-    
     def _remove_existing_asymptotes(self):
         """Clean up previous asymptote plots"""
         for attr in ['mag_asymp_plot', 'phase_asymp_plot']:
