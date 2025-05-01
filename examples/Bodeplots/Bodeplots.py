@@ -8,19 +8,17 @@ class Bode(Scene):
         den = [1] # s+10
         system = (num, den)
 
-        bode = BodePlot(system, color=BLUE, stroke_width=3, mag_label="Joehoe", font_size_ylabels=25, font_size_xlabel=15)
+        bode = BodePlot(system, color=BLUE, stroke_width=3)
         bode.grid_on()
         #bode.show_margins()
-        #bode.show_phase(False)
-        bode.show_asymptotes(color=YELLOW, stroke_width=2, opacity=0.5)
-        self.wait()
+        bode.title("Bode plot", font_size=45)
+
         self.add(bode)
 
         # Highlight critical points
         #highlight_anims, markers = bode.highlight_critical_points()
         #self.play(*highlight_anims)
         
-        self.wait(3)
         
         #Clean up by removing markers
         #self.play(*[FadeOut(m) for m in markers])

@@ -1119,7 +1119,6 @@ class BodePlot(VGroup):
         self.phase_yrange = phase_yrange if phase_yrange is not None else auto_ranges['phase_range']
         
         self._title = None
-        self._title_font_size = 40  # Default font size
         self._use_math_tex = False  # Default to normal text
         self._has_title = False
 
@@ -1258,7 +1257,10 @@ class BodePlot(VGroup):
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
             phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
             
-            mag_group.shift(1.8*UP)
+            if self._title:
+                mag_group.shift(1.6*UP)
+            else:
+                mag_group.shift(1.8*UP)
 
             phase_group.next_to(mag_group, DOWN, buff=0.4).align_to(mag_group, LEFT)
             self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
@@ -1282,11 +1284,12 @@ class BodePlot(VGroup):
             self.components_to_add.extend([phase_group, self.freq_labels, self.freq_xlabel])
             # Handle title
 
+
         if self._title:
             if self._show_magnitude:
-                self._title.next_to(self.mag_axes, UP, buff=0.3)
+                self._title.next_to(self.mag_axes, UP, buff=self.title_buff)
             else:
-                self._title.next_to(self.phase_axes, UP, buff=0.3)
+                self._title.next_to(self.phase_axes, UP, buff=self.title_buff)
             self.components_to_add.append(self._title)
 
         self.add(*self.components_to_add)
@@ -1307,24 +1310,44 @@ class BodePlot(VGroup):
         phase_step = 15 if phase_span <= 90 else (30 if phase_span <= 180 else 45)
 
         if self._show_magnitude and self._show_phase:
-        # Create axes based on what we need to show
-            self.mag_axes = Axes(
-                x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-                y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
-                x_length=12, y_length=3,
-                axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
-                        "include_tip": False, "include_ticks": False},
-                y_axis_config={"font_size": 25},
-            )
         
-            self.phase_axes = Axes(
-                x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-                y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
-                x_length=12, y_length=3,
-                axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
+            if self._title:
+        # Create axes based on what we need to show
+                self.mag_axes = Axes(
+                    x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+                    y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
+                    x_length=12, y_length=2.8,
+                    axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
                         "include_tip": False, "include_ticks": False},
-                y_axis_config={"font_size": 25},
-            )
+                    y_axis_config={"font_size": 25},
+                )
+        
+                self.phase_axes = Axes(
+                    x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+                    y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
+                    x_length=12, y_length=2.8,
+                    axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
+                        "include_tip": False, "include_ticks": False},
+                    y_axis_config={"font_size": 25},
+                )
+            else:
+                self.mag_axes = Axes(
+                    x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+                    y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
+                    x_length=12, y_length=3,
+                    axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
+                        "include_tip": False, "include_ticks": False},
+                    y_axis_config={"font_size": 25},
+                )
+        
+                self.phase_axes = Axes(
+                    x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
+                    y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
+                    x_length=12, y_length=3,
+                    axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
+                        "include_tip": False, "include_ticks": False},
+                    y_axis_config={"font_size": 25},
+                )
         elif self._show_magnitude:
             self.mag_axes = Axes(
                 x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
@@ -1365,9 +1388,10 @@ class BodePlot(VGroup):
             label.move_to([tick_point[0]+0.1, self.phase_axes.get_bottom()[1]-0.2, 0])
             self.freq_labels.add(label)
 
-
+        # Calculate the distance from the box as a function of label font_size
         ylabel_buff = (self.font_size_ylabels/20)*0.5+(20-self.font_size_ylabels)*0.02
         xlabel_buff = (self.font_size_xlabel/20)*0.5+(20-self.font_size_xlabel)*0.02
+
         # Magnitude plot components
         mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
         mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange)
@@ -1539,24 +1563,25 @@ class BodePlot(VGroup):
         - font_size: Font size (default: 40)
         - use_math_tex: Whether to render as MathTex (default: False)
         """
-        self._title_font_size = font_size
+        self.title_font_size = font_size
         self._use_math_tex = use_math_tex
         self._has_title = True  # Mark that a title exists
-        
+        self.title_buff = (self.title_font_size/40)*0.3 + (40-self.title_font_size)*0.02
         # Remove existing title if present
         if self._title is not None:
             self.remove(self._title)
         
         # Create new title
         if use_math_tex:
-            self._title = MathTex(text, font_size=font_size, color=color)
+            self._title = MathTex(text, font_size=self.title_font_size, color=color)
         else:
-            self._title = Text(text, font_size=font_size, color=color)
+            self._title = Text(text, font_size=self.title_font_size, color=color)
         
         # Update title position based on which plots are shown
+        self.create_axes()
         self.update_plot_visibility()
 
-        return self    
+        return self
     # Determine the ranges of interest whenever ranges are not specified
     def _auto_determine_ranges(self):
         """Automatically determine plot ranges based on system poles/zeros and Bode data."""
