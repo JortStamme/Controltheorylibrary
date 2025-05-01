@@ -1604,8 +1604,8 @@ class BodePlot(VGroup):
         # Step 1: Determine freq range based on features
         all_features = np.abs(np.concatenate([finite_poles, finite_zeros]))
         if len(all_features) > 0:
-            min_freq = 10**(np.floor(np.log10(np.min(all_features)))-2)
-            max_freq = 10**(np.ceil(np.log10(np.max(all_features)))+2)
+            min_freq = 10**(np.floor(np.log10(np.min(all_features)))-1)
+            max_freq = 10**(np.ceil(np.log10(np.max(all_features)))+1)
         else:
             min_freq, max_freq = 0.1, 100
 
@@ -2113,13 +2113,29 @@ class BodePlot(VGroup):
                         UP, buff=0.1
                     )
                     margin_group.add(pm_text)
+            if np.isfinite(pm):
+                # Mark gain crossover (0 dB point)
+                log_wp = np.log10(wp)
+                crossover_point = self.mag_axes.c2p(log_wp, 0)
+                
+                # Add dashed line and label
+                self.add(
+                    DashedLine(
+                        self.mag_axes.c2p(log_wp, self.magnitude_yrange[0]),
+                        crossover_point,
+                        color=YELLOW
+                    ),
+                    Dot(crossover_point, color=YELLOW),
+                    MathTex(r"PM = {pm:.1f}^\circ", font_size=24)
+                    .next_to(crossover_point, UP)
+                )
         
         # Add the margin group to the appropriate components
         if self._show_magnitude:
             self.mag_components.add(margin_group)
         if self._show_phase:
-            self.phase_components.add(margin_group)
-        
+            self.phase_components.add(margin_group)  
+
         return self
 
     def _calculate_stability_margins(self):
@@ -2147,14 +2163,18 @@ class BodePlot(VGroup):
             gm = np.inf
         
         # Find gain crossover (where magnitude crosses 0 dB)
-        mag_crossings = np.where(np.diff(np.sign(self.magnitudes)))[0]
+        crossings = []
+        for i in range(len(self.magnitudes)-1):
+            if self.magnitudes[i] * self.magnitudes[i+1] <= 0:  # Sign change
+                crossings.append(i)
         
-        if len(mag_crossings) > 0:
-            # Use the first crossing where magnitude goes below 0 dB
-            idx = mag_crossings[0]
-            wp = np.interp(0, self.magnitudes[idx:idx+2], self.frequencies[idx:idx+2])
+        if crossings:
+            idx = crossings[0]  # First 0 dB crossing
+            wp = np.interp(0, 
+                        [self.magnitudes[idx], self.magnitudes[idx+1]],
+                        [self.frequencies[idx], self.frequencies[idx+1]])
             phase_at_wp = np.interp(wp, self.frequencies, self.phases)
-            pm = 180 + phase_at_wp  # Phase margin is how much phase can decrease before instability
+            pm = 180 + phase_at_wp
         else:
             wp = np.inf
             pm = np.inf

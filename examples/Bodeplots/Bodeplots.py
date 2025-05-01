@@ -1,18 +1,20 @@
 from manim import *
 from controltheorylib.control import BodePlot
+import sympy as sp
 
 class Bode(Scene):
     def construct(self):
 
-        num = [1,0.2,1]  #1
-        den = [1] # s+10
+        #s = sp.symbols('s')
+        #num = s + 2
+        #den = s**2 + 2*s +8
+        num = [1]  #1
+        den = np.poly([0,-1,-2]) # s+10
         system = (num, den)
 
         bode = BodePlot(system, color=BLUE, stroke_width=3)
         bode.grid_on()
-        #bode.show_margins()
-        bode.title("Bode plot", font_size=45)
-
+        bode.show_margins()
         self.add(bode)
 
         # Highlight critical points
