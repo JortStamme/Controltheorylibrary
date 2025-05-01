@@ -1086,7 +1086,7 @@ class ControlSystem:
 # Bode plot classes
 class BodePlot(VGroup):
     def __init__(self, system, freq_range=None, magnitude_yrange=None, 
-                 phase_yrange=None, **kwargs):
+                 phase_yrange=None, color=BLUE,stroke_width=2,**kwargs):
         """
         Create a Bode plot visualization for a given system.
         
@@ -1104,7 +1104,8 @@ class BodePlot(VGroup):
         self.system = self._parse_system_input(system)
         self.system = self._ensure_tf(self.system)
         self._show_grid = False # Grid off by default
-
+        self.plotcolor = color
+        self.plot_stroke_width = stroke_width
         self.tick_style = {
             "color": WHITE,
             "stroke_width": 1.2
@@ -1379,8 +1380,8 @@ class BodePlot(VGroup):
 
         # Group components with proper grid references
         self.mag_components = VGroup(
-        mag_box, mag_y_labels, self.mag_grid, self.mag_vert_grid, 
-        mag_ylabel, mag_ticks, mag_vert_ticks
+        mag_box, mag_ticks, mag_vert_ticks, mag_y_labels, self.mag_grid, self.mag_vert_grid, 
+        mag_ylabel
         )
         self.phase_components = VGroup(
         phase_box, phase_y_labels, self.phase_grid, self.phase_vert_grid,
@@ -1697,12 +1698,12 @@ class BodePlot(VGroup):
         # Magnitude plot
         mag_points = [self.mag_axes.coords_to_point(x, y) for x, y in zip(log_w, self.magnitudes)]
         self.mag_plot = VMobject().set_points_as_corners(mag_points)
-        self.mag_plot.set_color(BLUE).set_stroke(width=2)
+        self.mag_plot.set_color(color=self.plotcolor).set_stroke(width=self.plot_stroke_width)
         
         # Phase plot
         phase_points = [self.phase_axes.coords_to_point(x, y) for x, y in zip(log_w, self.phases)]
         self.phase_plot = VMobject().set_points_as_corners(phase_points)
-        self.phase_plot.set_color(BLUE).set_stroke(width=2)
+        self.phase_plot.set_color(color=self.plotcolor).set_stroke(width=self.plot_stroke_width)
 
         # add both plots
         #self.add(self.mag_plot, self.phase_plot)
@@ -1990,3 +1991,145 @@ class BodePlot(VGroup):
         for attr in ['mag_asymp_plot', 'phase_asymp_plot']:
             if hasattr(self, attr) and getattr(self, attr) in getattr(self, attr.split('_')[0] + '_components'):
                 getattr(self, attr.split('_')[0] + '_components').remove(getattr(self, attr))
+
+    def show_margins(self, show_values=True, margin_color=YELLOW, text_color=WHITE):
+        """
+        Show gain and phase margins on the Bode plot if possible.
+        
+        Parameters:
+        - show_values: Whether to display the numerical values of the margins
+        - margin_color: Color for the margin indicators
+        - text_color: Color for the text labels
+        """
+        # Calculate stability margins
+        gm, pm, sm, wg, wp, ws = self._calculate_stability_margins()
+        
+        # Group to hold all margin indicators
+        margin_group = VGroup()
+        
+        # Only proceed if we have valid margins
+        if gm != np.inf and pm != np.inf:
+            log_wg = np.log10(wg)
+            log_wp = np.log10(wp)
+            
+            # ===== Gain Margin =====
+            if self._show_phase:
+                # Find phase at gain crossover frequency (wg)
+                phase_at_wg = np.interp(wg, self.frequencies, self.phases)
+                
+                # Add line at gain crossover frequency (wg)
+                gain_line = DashedLine(
+                    self.phase_axes.c2p(log_wg, self.phase_yrange[0]),
+                    self.phase_axes.c2p(log_wg, phase_at_wg),
+                    color=margin_color,
+                    stroke_width=2
+                )
+                margin_group.add(gain_line)
+                
+                # Add dot at -180° point
+                gm_dot = Dot(
+                    self.phase_axes.c2p(log_wg, -180),
+                    color=margin_color
+                )
+                margin_group.add(gm_dot)
+                
+                # Add text label if requested
+                if show_values:
+                    gm_text = MathTex(
+                        f"GM = {gm:.2f} dB",
+                        font_size=24,
+                        color=text_color
+                    ).next_to(
+                        self.phase_axes.c2p(log_wg, -180),
+                        UP, buff=0.1
+                    )
+                    margin_group.add(gm_text)
+            
+            # ===== Phase Margin =====
+            if self._show_magnitude:
+                # Find magnitude at phase crossover frequency (wp)
+                mag_at_wp = np.interp(wp, self.frequencies, self.magnitudes)
+                
+                # Add line at phase crossover frequency (wp)
+                phase_line = DashedLine(
+                    self.mag_axes.c2p(log_wp, self.magnitude_yrange[0]),
+                    self.mag_axes.c2p(log_wp, mag_at_wp),
+                    color=margin_color,
+                    stroke_width=2
+                )
+                margin_group.add(phase_line)
+                
+                # Add dot at 0 dB point
+                pm_dot = Dot(
+                    self.mag_axes.c2p(log_wp, 0),
+                    color=margin_color
+                )
+                margin_group.add(pm_dot)
+                
+                # Add text label if requested
+                if show_values:
+                    pm_text = MathTex(
+                        f"PM = {pm:.2f}^\\circ",
+                        font_size=24,
+                        color=text_color
+                    ).next_to(
+                        self.mag_axes.c2p(log_wp, 0),
+                        UP, buff=0.1
+                    )
+                    margin_group.add(pm_text)
+        
+        # Add the margin group to the appropriate components
+        if self._show_magnitude:
+            self.mag_components.add(margin_group)
+        if self._show_phase:
+            self.phase_components.add(margin_group)
+        
+        return self
+
+    def _calculate_stability_margins(self):
+        """
+        Calculate gain margin, phase margin, and stability margin.
+        Returns (gm, pm, sm, wg, wp, ws) where:
+        - gm: gain margin (dB)
+        - pm: phase margin (degrees)
+        - sm: stability margin
+        - wg: gain crossover frequency (where phase crosses -180°)
+        - wp: phase crossover frequency (where gain crosses 0 dB)
+        - ws: stability margin frequency
+        """
+        # Find phase crossover (where phase crosses -180°)
+        phase_crossings = np.where(np.diff(np.sign(self.phases + 180)))[0]
+        
+        if len(phase_crossings) > 0:
+            # Use the last crossing before phase goes below -180°
+            idx = phase_crossings[-1]
+            wg = np.interp(-180, self.phases[idx:idx+2], self.frequencies[idx:idx+2])
+            mag_at_wg = np.interp(wg, self.frequencies, self.magnitudes)
+            gm = -mag_at_wg  # Gain margin is how much gain can increase before instability
+        else:
+            wg = np.inf
+            gm = np.inf
+        
+        # Find gain crossover (where magnitude crosses 0 dB)
+        mag_crossings = np.where(np.diff(np.sign(self.magnitudes)))[0]
+        
+        if len(mag_crossings) > 0:
+            # Use the first crossing where magnitude goes below 0 dB
+            idx = mag_crossings[0]
+            wp = np.interp(0, self.magnitudes[idx:idx+2], self.frequencies[idx:idx+2])
+            phase_at_wp = np.interp(wp, self.frequencies, self.phases)
+            pm = 180 + phase_at_wp  # Phase margin is how much phase can decrease before instability
+        else:
+            wp = np.inf
+            pm = np.inf
+        
+        # Calculate stability margin (minimum distance to -1 point)
+        if len(self.frequencies) > 0:
+            nyquist = (1 + 10**(self.magnitudes/20) * np.exp(1j * self.phases * np.pi/180))
+            sm = 1 / np.min(np.abs(nyquist))
+            ws = self.frequencies[np.argmin(np.abs(nyquist))]
+        else:
+            sm = np.inf
+            ws = np.inf
+        
+        return gm, pm, sm, wg, wp, ws
