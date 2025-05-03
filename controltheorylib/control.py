@@ -2043,6 +2043,31 @@ class BodePlot(VGroup):
         # Group to hold all margin indicators
         margin_group = VGroup()
         
+            # ===== Add 0dB line and -180 deg phase line =====
+        if self._show_magnitude:
+            # Create 0dB line across the entire x-range
+            x_min, x_max = self.mag_axes.x_range[0], self.mag_axes.x_range[1]
+            zerodB_line = DashedLine(
+                self.mag_axes.c2p(x_min, 0),
+                self.mag_axes.c2p(x_max, 0),
+                color=margin_color,
+                stroke_width=1,
+                stroke_opacity=0.7
+            )
+            margin_group.add(zerodB_line)
+            
+        if self._show_phase:
+            # Create -180° line across the entire x-range
+            x_min, x_max = self.phase_axes.x_range[0], self.phase_axes.x_range[1]
+            minus180_line = DashedLine(
+                self.phase_axes.c2p(x_min, -180),
+                self.phase_axes.c2p(x_max, -180),
+                color=margin_color,
+                stroke_width=1,
+                stroke_opacity=0.7
+            )
+            margin_group.add(minus180_line)
+            
         # Only proceed if we have valid margins
         if gm != np.inf and pm != np.inf:
             log_wg = np.log10(wg)
@@ -2077,7 +2102,7 @@ class BodePlot(VGroup):
                         color=text_color
                     ).next_to(
                         self.phase_axes.c2p(log_wg, -180),
-                        UP, buff=0.1
+                        UP, buff=0.2
                     )
                     margin_group.add(gm_text)
             
@@ -2110,25 +2135,9 @@ class BodePlot(VGroup):
                         color=text_color
                     ).next_to(
                         self.mag_axes.c2p(log_wp, 0),
-                        UP, buff=0.1
+                        UP, buff=0.2
                     )
                     margin_group.add(pm_text)
-            if np.isfinite(pm):
-                # Mark gain crossover (0 dB point)
-                log_wp = np.log10(wp)
-                crossover_point = self.mag_axes.c2p(log_wp, 0)
-                
-                # Add dashed line and label
-                self.add(
-                    DashedLine(
-                        self.mag_axes.c2p(log_wp, self.magnitude_yrange[0]),
-                        crossover_point,
-                        color=YELLOW
-                    ),
-                    Dot(crossover_point, color=YELLOW),
-                    MathTex(r"PM = {pm:.1f}^\circ", font_size=24)
-                    .next_to(crossover_point, UP)
-                )
         
         # Add the margin group to the appropriate components
         if self._show_magnitude:
