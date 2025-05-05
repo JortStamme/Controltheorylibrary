@@ -8,13 +8,13 @@ class Bode(Scene):
         #s = sp.symbols('s')
         #num = s + 2
         #den = s**2 + 2*s +8
-        num = [1]  #1
-        den = np.poly([0,-1,-2]) # s+10
+        num = [1]  
+        den = [1,0.2,1] 
         system = (num, den)
 
-        bode = BodePlot(system, color=BLUE, stroke_width=3)
+        bode = BodePlot(system)
         bode.grid_on()
-        bode.show_margins()
+        bode.show_asymptotes()
         self.add(bode)
 
         # Highlight critical points

@@ -1098,9 +1098,15 @@ class BodePlot(VGroup):
             * Symbolic expressions for numerator and denominator (using 's' as variable)
             * Tuple of (numerator_expr, denominator_expr) as strings or sympy expressions
         - freq_range: tuple (min_freq, max_freq) in rad/s
-        - freq_range: tuple (min_freq, max_freq) in rad/s
         - magnitude_yrange: tuple (min_db, max_db) for magnitude plot
         - phase_yrange: tuple (min_deg, max_deg) for phase plot
+        -color: color of the bode plot
+        -stroke_width: stroke width of the plot
+        -mag_label: Label on the magnitude y-axis 
+        -phase_label: Label on the phase y-axis
+        -xlabel: Label on the frequency x-axis
+        -font_size_ylabels: The font size of the labels on the y-axis
+        -font_size_xlabels: The font size of the labels on the x-axis
         """
         super().__init__(**kwargs)
         self.system = self._parse_system_input(system)
@@ -1840,9 +1846,64 @@ class BodePlot(VGroup):
         self.mag_asymp = np.zeros_like(self.frequencies)
         self.phase_asymp = np.zeros_like(self.frequencies)
         
-        # Get all break frequencies (sorted)
-        break_freqs = sorted([np.abs(p) for p in poles] + [np.abs(z) for z in zeros if z != 0])
-        break_freqs = [f for f in break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
+        # ===== 1. Magnitude Break Frequencies =====
+        mag_break_freqs = sorted([np.abs(p) for p in poles] + [np.abs(z) for z in zeros if z != 0])
+        mag_break_freqs = [f for f in mag_break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
+        
+        # ===== 2. Phase Break Frequencies (Extended Transitions) =====
+        phase_break_freqs = []
+        
+        # Real poles/zeros: Add 0.1ω, ω, 10ω
+        phase_break_freqs_set = set() # Use a set to avoid duplicates initially
+
+        processed_complex_poles = set()
+        for p in poles:
+            p_conj = np.conj(p)
+            # Check if conjugate is also in poles and not already processed
+            is_complex = not np.isclose(p.imag, 0, atol=1e-8)
+            is_processed = p in processed_complex_poles or p_conj in processed_complex_poles
+
+            if is_complex and is_processed:
+                continue # Skip if conjugate already handled this pair
+
+            w0 = abs(p)
+            if np.isclose(w0, 0, atol=1e-8): continue # Skip origin poles for breaks
+
+            phase_break_freqs_set.add(0.1 * w0)
+            phase_break_freqs_set.add(w0)
+            phase_break_freqs_set.add(10 * w0)
+
+            if is_complex:
+                processed_complex_poles.add(p)
+                processed_complex_poles.add(p_conj)
+
+
+        processed_complex_zeros = set()
+        for z in zeros:
+            z_conj = np.conj(z)
+            is_complex = not np.isclose(z.imag, 0, atol=1e-8)
+            is_processed = z in processed_complex_zeros or z_conj in processed_complex_zeros
+
+            if is_complex and is_processed:
+                 continue
+
+            w0 = abs(z)
+            if np.isclose(w0, 0, atol=1e-8): continue # Skip origin zeros for breaks
+
+            phase_break_freqs_set.add(0.1 * w0)
+            phase_break_freqs_set.add(w0)
+            phase_break_freqs_set.add(10 * w0)
+
+            if is_complex:
+                processed_complex_zeros.add(z)
+                processed_complex_zeros.add(z_conj)
+
+        phase_break_freqs = sorted(list(phase_break_freqs_set))
+        phase_break_freqs = [f for f in phase_break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
+
+        # Store break frequencies
+        self.mag_break_freqs = mag_break_freqs
+        self.phase_break_freqs = phase_break_freqs
         
         # Calculate DC gain (magnitude at lowest frequency)
         num = np.poly1d(tf.num)
@@ -1857,7 +1918,7 @@ class BodePlot(VGroup):
         if np.any(np.real(poles) == 0) and np.any(np.imag(poles) == 0):  # Pole at origin
             phase_shift -= 90
         
-        # Calculate magnitude asymptote
+        # ===== Magnitude Asymptote Calculation =====
         mag_slope = 0
         for i, freq in enumerate(self.frequencies):
             current_mag = dc_gain
@@ -1886,65 +1947,150 @@ class BodePlot(VGroup):
             
             self.mag_asymp[i] = current_mag
         
-        # Calculate phase asymptote
-        for i, freq in enumerate(self.frequencies):
-            current_phase = phase_shift
-            
-            # Handle poles and zeros
-            for p in poles:
-                w_break = np.abs(p)
-                if freq < w_break/10:
-                    pass  # No contribution yet
-                elif freq > w_break*10:
-                    current_phase += -90 if np.real(p) < 0 else 90
-                else:
-                    # Linear transition
-                    frac = np.log10(freq/w_break)
-                    current_phase += (-45 if np.real(p) < 0 else 45) * frac
-            
-            for z in zeros:
-                w_break = np.abs(z)
-                if freq < w_break/10:
-                    pass  # No contribution yet
-                elif freq > w_break*10:
-                    current_phase += 90 if np.real(z) < 0 else -90
-                else:
-                    # Linear transition
-                    frac = np.log10(freq/w_break)
-                    current_phase += (45 if np.real(z) < 0 else -45) * frac
-            
-            self.phase_asymp[i] = current_phase
+                # ===== Phase Asymptote Calculation =====
+        processed_complex_poles = set()
+        processed_complex_zeros = set()
 
-        # Store break frequencies for plotting
-        self.break_freqs = break_freqs
+        for i, freq in enumerate(self.frequencies):
+            current_phase = phase_shift # Start with DC phase shift
+
+            # === Real poles ===
+            for p in poles:
+                if np.isclose(p.imag, 0, atol=1e-8) and not np.isclose(p, 0, atol=1e-8):
+                    w0 = abs(p) # Use absolute value for break frequency
+                    # Standard 2-decade transition
+                    w_start = 0.1 * w0
+                    w_end = 10 * w0
+                    if freq <= w_start:
+                        continue # No contribution below w_start
+                    elif freq >= w_end:
+                        current_phase -= 90 # Full contribution above w_end
+                    else: # Linear interpolation on log scale
+                        log_freq = np.log10(freq)
+                        log_low = np.log10(w_start)
+                        log_high = np.log10(w_end)
+                        # Ensure log_high > log_low to avoid division by zero if w0 is tiny
+                        if log_high > log_low:
+                            fraction = (log_freq - log_low) / (log_high - log_low)
+                            current_phase -= 90 * fraction
+                        elif freq >= w0: # Handle edge case where w_start ~= w_end
+                             current_phase -= 90
+
+            # === Real zeros ===
+            for z in zeros:
+                if np.isclose(z.imag, 0, atol=1e-8) and not np.isclose(z, 0, atol=1e-8):
+                    w0 = abs(z) # Use absolute value
+                    w_start = 0.1 * w0
+                    w_end = 10 * w0
+                    if freq <= w_start:
+                        continue
+                    elif freq >= w_end:
+                        current_phase += 90
+                    else:
+                        log_freq = np.log10(freq)
+                        log_low = np.log10(w_start)
+                        log_high = np.log10(w_end)
+                        if log_high > log_low:
+                             fraction = (log_freq - log_low) / (log_high - log_low)
+                             current_phase += 90 * fraction
+                        elif freq >= w0:
+                             current_phase += 90
+
+            # === Complex conjugate poles ===
+            for p in poles:
+                # Check if complex AND has positive imaginary part (processes pair only once)
+                # Add a small tolerance to imag > 0 check if needed, but usually not
+                if not np.isclose(p.imag, 0, atol=1e-8) and p.imag > 1e-10: # Check p.imag > 0
+                    w0 = abs(p)
+                    if w0 > 1e-8:
+                        zeta = -p.real / w0
+                    else:
+                        continue
+                    # Standard 2-decade transition for the PAIR
+                    w_start = w0/(10**zeta)
+                    w_end = w0*(10**zeta)
+
+                    # Check for valid range (w_end should be > w_start)
+                    if w_end <= w_start: continue # Skip if w0 is near zero or calculation invalid
+
+                    if freq <= w_start:
+                        pass # No contribution yet below w_start
+                    elif freq >= w_end:
+                        current_phase -= 180 # Full contribution for the pair above w_end
+                    else: # Interpolate within the transition decade
+                        log_freq = np.log10(freq)
+                        log_low = np.log10(w_start)
+                        log_high = np.log10(w_end)
+                        # Ensure log_high > log_low before division
+                        if log_high > log_low:
+                            fraction = (log_freq - log_low) / (log_high - log_low)
+                            current_phase -= 180 * fraction
+                        elif freq >= w0: # Fallback if range is tiny, apply full shift past w0
+                            current_phase -= 180
+
+                    # Mark both pole and its conjugate as processed
+                    processed_complex_poles.add(p)
+                    # Check if conjugate exists in the original list before adding
+                    # (handles cases where cancellation might have removed one)
+                    if any(np.isclose(p_conj, pole_in_list) for pole_in_list in poles):
+                       processed_complex_poles.add(p_conj)
+
+
+            # === Complex conjugate zeros ===
+            for z in zeros:
+                z_conj = np.conj(z)
+                is_complex = not np.isclose(z.imag, 0, atol=1e-8)
+                if is_complex and z not in processed_complex_zeros:
+                    w0 = abs(z)
+                    w_start = 0.1 * w0
+                    w_end = 10 * w0
+
+                    if freq <= w_start:
+                       pass
+                    elif freq >= w_end:
+                        current_phase += 180
+                    else:
+                        log_freq = np.log10(freq)
+                        log_low = np.log10(w_start)
+                        log_high = np.log10(w_end)
+                        if log_high > log_low:
+                             fraction = (log_freq - log_low) / (log_high - log_low)
+                             current_phase += 180 * fraction
+                        elif freq >= w0:
+                             current_phase += 180
+
+                    processed_complex_zeros.add(z)
+                    if any(np.isclose(z_conj, zero_in_list) for zero_in_list in zeros):
+                         processed_complex_zeros.add(z_conj)
+
+
+            # Reset processed sets for the next frequency point calculation
+            # Important: Do this *after* processing all poles/zeros for the *current* freq
+            if i == len(self.frequencies) - 1: # Or simply after the loops for poles/zeros finish
+                processed_complex_poles.clear()
+                processed_complex_zeros.clear()
+
+
+            # Wrap phase to [-180°, 180°] (or use np.unwrap if needed later)
+            # Using modulo arithmetic for wrapping:
+            self.phase_asymp[i] = (current_phase + 180) % 360 - 180
+            # Alternatively, for continuous phase use np.unwrap after the loop:
+            # self.phase_asymp[i] = current_phase # Store unwrapped first
+
+
 
     def show_asymptotes(self, color=YELLOW, stroke_width=2, opacity=1):
-        """Plot both magnitude and phase asymptotes as distinct straight line segments"""
+        """Plot asymptotes using separate break frequencies for magnitude and phase"""
         self._remove_existing_asymptotes()
         
         if not hasattr(self, 'mag_asymp'):
             self._calculate_asymptotes()
         
         # ===== Magnitude Plot =====
-        mag_break_indices = []
+        mag_break_indices = [np.argmin(np.abs(self.frequencies - f)) 
+                            for f in self.mag_break_freqs]
         
-        # Add system break frequencies
-        for freq in self.break_freqs:
-            idx = np.argmin(np.abs(self.frequencies - freq))
-            mag_break_indices.append(idx)
-        
-        # Add points where slope changes significantly
-        prev_slope = None
-        for i in range(1, len(self.frequencies)):
-            current_slope = self.mag_asymp[i] - self.mag_asymp[i-1]
-            if prev_slope is not None and abs(current_slope - prev_slope) > 1:
-                mag_break_indices.append(i-1)
-            prev_slope = current_slope
-        
-        # Sort and remove duplicates
-        mag_break_indices = sorted(np.unique(mag_break_indices))
-        
-        # Ensure we include start and end points
+        # Ensure start and end points are included
         if 0 not in mag_break_indices:
             mag_break_indices.insert(0, 0)
         if (len(self.frequencies)-1) not in mag_break_indices:
@@ -1966,53 +2112,22 @@ class BodePlot(VGroup):
             )
             
             segment = Line(start_point, end_point, color=color,
-                        stroke_width=stroke_width)
-            segment.set_opacity(opacity)
+                        stroke_width=stroke_width, stroke_opacity=opacity)
             self.mag_asymp_plot.add(segment)
 
         # ===== Phase Plot =====
-        phase_break_indices = []
-        
-        # Add system break frequencies and their transition boundaries
-        for freq in self.break_freqs:
-            # Add points at 0.1× and 10× each break frequency for phase transitions
-            idx_low = np.argmin(np.abs(self.frequencies - freq/10))
-            idx_center = np.argmin(np.abs(self.frequencies - freq))
-            idx_high = np.argmin(np.abs(self.frequencies - freq*10))
-            phase_break_indices.extend([idx_low, idx_center, idx_high])
-        
-        # Add points where phase changes significantly
-        for i in range(1, len(self.frequencies)):
-            if abs(self.phase_asymp[i] - self.phase_asymp[i-1]) > 5:  # Significant phase change
-                phase_break_indices.append(i)
-        
-        # Sort and remove duplicates
-        phase_break_indices = sorted(np.unique(phase_break_indices))
-        
-        # Ensure we include start and end points
-        if 0 not in phase_break_indices:
-            phase_break_indices.insert(0, 0)
-        if (len(self.frequencies)-1) not in phase_break_indices:
-            phase_break_indices.append(len(self.frequencies)-1)
-        
-        # Create phase segments
         self.phase_asymp_plot = VGroup()
-        for i in range(len(phase_break_indices)-1):
-            start_idx = phase_break_indices[i]
-            end_idx = phase_break_indices[i+1]
-            
+        for i in range(len(self.frequencies) - 1):
             start_point = self.phase_axes.coords_to_point(
-                np.log10(self.frequencies[start_idx]),
-                self.phase_asymp[start_idx]
+                np.log10(self.frequencies[i]),
+                self.phase_asymp[i]
             )
             end_point = self.phase_axes.coords_to_point(
-                np.log10(self.frequencies[end_idx]),
-                self.phase_asymp[end_idx]
+                np.log10(self.frequencies[i + 1]),
+                self.phase_asymp[i + 1]
             )
-            
             segment = Line(start_point, end_point, color=color,
-                        stroke_width=stroke_width)
-            segment.set_opacity(opacity)
+                        stroke_width=stroke_width, stroke_opacity=opacity)
             self.phase_asymp_plot.add(segment)
 
         # Add to plot
@@ -2022,6 +2137,7 @@ class BodePlot(VGroup):
             self.phase_components.add(self.phase_asymp_plot)
         
         return self
+    
     def _remove_existing_asymptotes(self):
         """Clean up previous asymptote plots"""
         for attr in ['mag_asymp_plot', 'phase_asymp_plot']:
