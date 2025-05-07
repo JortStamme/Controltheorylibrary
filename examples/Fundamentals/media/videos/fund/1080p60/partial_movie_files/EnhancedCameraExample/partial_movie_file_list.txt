@@ -1,0 +1,7 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EnhancedCameraExample/3698283168_4156341887_4058062223.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EnhancedCameraExample/2005903131_1121617232_722632446.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EnhancedCameraExample/136951011_513753934_2042036455.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EnhancedCameraExample/930592162_1121617232_43127611.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EnhancedCameraExample/2662920106_1994063996_3358955567.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EnhancedCameraExample/772064295_1121617232_2226296984.mp4'

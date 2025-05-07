@@ -1091,7 +1091,6 @@ class BodePlot(VGroup):
                  font_size_ylabels = 20, font_size_xlabel=20,**kwargs):
         """
         Create a Bode plot visualization for a given system.
-        
         Parameters:
         - system: Can be one of:
             * scipy.signal.lti or transfer function coefficients (list/tuple of arrays)
@@ -2040,10 +2039,16 @@ class BodePlot(VGroup):
             for z in zeros:
                 z_conj = np.conj(z)
                 is_complex = not np.isclose(z.imag, 0, atol=1e-8)
+                if w0 > 1e-8:
+                    zeta = -z.real / w0
+                else:
+                    continue
                 if is_complex and z not in processed_complex_zeros:
                     w0 = abs(z)
-                    w_start = 0.1 * w0
-                    w_end = 10 * w0
+                    w_start = w0/(10**zeta)
+                    w_end = w0*(10**zeta)
+                    
+                    if w_end <= w_start: continue
 
                     if freq <= w_start:
                        pass
@@ -2076,6 +2081,8 @@ class BodePlot(VGroup):
             self.phase_asymp[i] = (current_phase + 180) % 360 - 180
             # Alternatively, for continuous phase use np.unwrap after the loop:
             # self.phase_asymp[i] = current_phase # Store unwrapped first
+
+
 
 
 
@@ -2309,6 +2316,556 @@ class BodePlot(VGroup):
             nyquist = (1 + 10**(self.magnitudes/20) * np.exp(1j * self.phases * np.pi/180))
             sm = 1 / np.min(np.abs(nyquist))
             ws = self.frequencies[np.argmin(np.abs(nyquist))]
+        else:
+            sm = np.inf
+            ws = np.inf
+        
+        return gm, pm, sm, wg, wp, ws
+    
+#Nyquist plot class
+class Nyquist(VGroup):
+    def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
+                 color=BLUE, stroke_width=2, label="Nyquist Plot", 
+                 font_size_labels=20, show_unit_circle=True, **kwargs):
+        """
+        Create a Nyquist plot visualization for a given system.
+        
+        Parameters:
+        - system: Can be one of:
+            * scipy.signal.lti or transfer function coefficients (list/tuple of arrays)
+            * Symbolic expressions for numerator and denominator (using 's' as variable)
+            * Tuple of (numerator_expr, denominator_expr) as strings or sympy expressions
+        - freq_range: tuple (min_freq, max_freq) in rad/s (default: auto-determined)
+        - x_range: tuple (min_x, max_x) for real axis (default: auto-determined)
+        - y_range: tuple (min_y, max_y) for imaginary axis (default: auto-determined)
+        - color: color of the nyquist plot
+        - stroke_width: stroke width of the plot
+        - label: Label for the plot 
+        - font_size_labels: The font size of the axis labels
+        - show_unit_circle: Whether to show the unit circle (default: True)
+        """
+        super().__init__(**kwargs)
+        self.system = self._parse_system_input(system)
+        self.system = self._ensure_tf(self.system)
+        self._show_grid = False  # Grid off by default
+        self.plotcolor = color
+        self.plot_stroke_width = stroke_width
+        self.tick_style = {
+            "color": WHITE,
+            "stroke_width": 1.2
+        }
+        self.label = label
+        self.font_size_labels = font_size_labels
+        self.show_unit_circle = show_unit_circle
+
+        auto_ranges = self._auto_determine_ranges()
+        self.freq_range = freq_range if freq_range is not None else auto_ranges['freq_range']
+        self.x_range = x_range if x_range is not None else auto_ranges['x_range']
+        self.y_range = y_range if y_range is not None else auto_ranges['y_range']
+        
+        self._title = None
+        self._use_math_tex = False
+        self._has_title = False
+
+        # Create all components
+        self.create_axes()
+        self.calculate_nyquist_data()
+        self.plot_nyquist_response()
+        self.add_plot_components()
+
+    # System parsing methods (same as BodePlot)
+    def _parse_system_input(self, system):
+        """Parse different input formats for the system specification."""
+        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace, tuple, list)):
+            return system
+            
+        # Handle symbolic expressions
+        if isinstance(system, str):
+            if '/' in system:
+                num_str, den_str = system.split('/', 1)
+                return (num_str.strip(), den_str.strip())
+            else:
+                return (system, "1")  # Assume denominator is 1 if not provided
+        
+        # Handle tuple of symbolic expressions
+        if isinstance(system, tuple) and len(system) == 2:
+            num, den = system
+            if isinstance(num, str) or isinstance(den, str):
+                return self._symbolic_to_coefficients(num, den)
+        
+        raise ValueError("Invalid system specification. Must be one of: "
+                        "scipy LTI object, (num, den) coefficients, "
+                        "symbolic expressions as strings/tuple, or single transfer function string.")
+
+    def _symbolic_to_coefficients(self, num_expr, den_expr):
+        """Convert symbolic expressions to polynomial coefficients."""
+        s = sp.symbols('s')
+        
+        try:
+            # Parse strings if needed
+            if isinstance(num_expr, str):
+                num_expr = num_expr.replace('^', '**')
+                num_expr = sp.sympify(num_expr)
+            if isinstance(den_expr, str):
+                den_expr = den_expr.replace('^', '**')
+                den_expr = sp.sympify(den_expr)
+        
+            # Convert to polynomial form
+            num_poly = sp.Poly(num_expr, s)
+            den_poly = sp.Poly(den_expr, s)
+        
+            # Get coefficients (highest power first)
+            num_coeffs = [float(sp.N(c)) for c in sp.Poly(num_expr,s).all_coeffs()]
+            den_coeffs = [float(sp.N(c)) for c in sp.Poly(den_expr,s).all_coeffs()]
+        
+            return (num_coeffs, den_coeffs)
+        except Exception as e:
+            raise ValueError(f"Could not parse transfer function:{e}") from e
+        
+    def _ensure_tf(self, system):
+        """Convert system to TransferFunction if needed"""
+        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+            return system
+        return signal.TransferFunction(*system)
+    
+    def grid_on(self):
+        """Turn on the grid lines."""
+        self._show_grid = True
+        self._update_grid_visibility()
+        return self
+
+    def grid_off(self):
+        """Turn off the grid lines."""
+        self._show_grid = False
+        self._update_grid_visibility()
+        return self
+
+    def _update_grid_visibility(self):
+        """Update grid visibility based on current setting"""
+        opacity = 1 if self._show_grid else 0
+        if hasattr(self, 'grid_lines'):
+            self.grid_lines.set_opacity(opacity)
+        if hasattr(self, 'unit_circle'):
+            self.unit_circle.set_opacity(opacity if self.show_unit_circle else 0)
+
+    def _auto_determine_ranges(self):
+        """Automatically determine Nyquist plot ranges based on poles/zeros and response data."""
+        # Get poles and zeros
+        if isinstance(self.system, signal.TransferFunction):
+            poles = self.system.poles
+            zeros = self.system.zeros
+        else:
+            tf = self.system.to_tf()
+            poles = tf.poles
+            zeros = tf.zeros
+
+        # Estimate frequency range from dynamic features
+        finite_features = np.abs(np.concatenate([
+            poles[np.isfinite(poles)],
+            zeros[np.isfinite(zeros)]
+        ]))
+
+        if finite_features.size > 0:
+            min_freq = 10 ** (np.floor(np.log10(np.min(finite_features))) - 1)
+            max_freq = 10 ** (np.ceil(np.log10(np.max(finite_features))) + 1)
+        else:
+            min_freq, max_freq = 0.01, 100  # fallback for static systems
+
+        # Compute Nyquist response
+        w = np.logspace(np.log10(min_freq), np.log10(max_freq), 2000)
+        _, response = signal.freqresp(self.system, w)
+        real_vals = np.real(response)
+        imag_vals = np.imag(response)
+
+        # Calculate center and span
+        real_center = (np.max(real_vals) + np.min(real_vals)) / 2
+        imag_center = (np.max(imag_vals) + np.min(imag_vals)) / 2
+        real_span = np.max(real_vals) - np.min(real_vals)
+        imag_span = np.max(imag_vals) - np.min(imag_vals)
+
+        # Add 20% padding and enforce minimum visible range
+        real_padding = max(0.2 * real_span, 1.0)
+        imag_padding = max(0.2 * imag_span, 1.0)
+
+        x_min = real_center - real_span / 2 - real_padding
+        x_max = real_center + real_span / 2 + real_padding
+        y_min = imag_center - imag_span / 2 - imag_padding
+        y_max = imag_center + imag_span / 2 + imag_padding
+
+        # Ensure critical point (-1, 0) is visible with margin
+        x_min = min(x_min, -2)
+        x_max = max(x_max, 1)
+        y_min = min(y_min, -2)
+        y_max = max(y_max, 2)
+
+        # Optional: force square aspect ratio
+        x_center = (x_min + x_max) / 2
+        y_center = (y_min + y_max) / 2
+        half_range = max((x_max - x_min), (y_max - y_min)) / 2
+        x_min, x_max = x_center - half_range, x_center + half_range
+        y_min, y_max = y_center - half_range, y_center + half_range
+
+        return {
+            'freq_range': (float(min_freq), float(max_freq)),
+            'x_range': (float(x_min), float(x_max)),
+            'y_range': (float(y_min), float(y_max)),
+        }
+    def create_axes(self):
+        """Create the Nyquist plot axes."""
+        # Create complex plane
+        self.plane = ComplexPlane(
+            x_range=[self.x_range[0], self.x_range[1], (self.x_range[1]-self.x_range[0])/5],
+            y_range=[self.y_range[0], self.y_range[1], (self.y_range[1]-self.y_range[0])/5],
+            y_length=5, x_length=5,
+            background_line_style={
+                "stroke_color": GREY,
+                "stroke_width": 1,
+                "stroke_opacity": 0.7
+            },
+            axis_config={
+                "stroke_width": 2,
+                "include_ticks": False,
+                "include_tip": False
+            },
+        )
+        
+        # Add labels
+        self.x_label = MathTex("\\mathrm{Re}", font_size=self.font_size_labels)
+        self.y_label = MathTex("\\mathrm{Im}", font_size=self.font_size_labels)
+        
+        # Position labels
+        self.x_label.next_to(self.plane.x_axis.get_right(), DOWN, buff=0.2)
+        self.y_label.next_to(self.plane.y_axis.get_top(), LEFT, buff=0.2)
+        
+        # Create plot title if specified
+        if self._title:
+            self._title.next_to(self.plane, UP, buff=0.3)
+        
+        # Create unit circle if requested
+        if self.show_unit_circle:
+            unit_circle = Circle(
+                radius=self.plane.x_axis.unit_size,
+                color=RED,
+                stroke_width=1.5,
+                stroke_opacity=0.7
+            )
+            unit_circle.move_to(self.plane.number_to_point(-1 + 0j))
+            self.unit_circle = unit_circle
+        else:
+            self.unit_circle = VGroup()  # Empty group
+        
+        # Create grid lines
+        self.grid_lines = self.plane.get_background_lines()
+        self.grid_lines.set_opacity(1 if self._show_grid else 0)
+        
+        # Group all axes components
+        self.axes_components = VGroup(
+            self.plane,
+            self.x_label,
+            self.y_label,
+            self.grid_lines,
+            self.unit_circle
+        )
+        
+        # Add to main group
+        self.add(self.axes_components)
+        if self._title:
+            self.add(self._title)
+
+    def calculate_nyquist_data(self):
+        """Calculate the Nyquist plot data using scipy.signal."""
+        w = np.logspace(
+            np.log10(self.freq_range[0]),
+            np.log10(self.freq_range[1]),
+            1000
+        )
+        
+        # Calculate frequency response
+        freqs, response = signal.freqresp(self.system, w)
+        
+        # Store data
+        self.frequencies = freqs
+        self.response = response
+        self.real_part = np.real(response)
+        self.imag_part = np.imag(response)
+        
+        # Calculate mirror image for negative frequencies
+        self.neg_frequencies = -freqs[::-1]
+        self.neg_real_part = self.real_part[::-1]
+        self.neg_imag_part = -self.imag_part[::-1]
+
+    def plot_nyquist_response(self):
+        """Create the Nyquist plot curve."""
+        # Positive frequencies
+        pos_points = [
+            self.plane.number_to_point(re + 1j*im)
+            for re, im in zip(self.real_part, self.imag_part)
+        ]
+        
+        # Negative frequencies
+        neg_points = [
+            self.plane.number_to_point(re + 1j*im)
+            for re, im in zip(self.neg_real_part, self.neg_imag_part)
+        ]
+        
+        # Create the plot
+        self.nyquist_plot = VMobject()
+        self.nyquist_plot.set_points_as_corners(pos_points)
+        
+        # Add negative frequency part if system is not strictly proper
+        if len(neg_points) > 0:
+            neg_plot = VMobject()
+            neg_plot.set_points_as_corners(neg_points)
+            self.nyquist_plot.append_points(neg_plot.points)
+        
+        self.nyquist_plot.set_color(color=self.plotcolor)
+        self.nyquist_plot.set_stroke(width=self.plot_stroke_width)
+        
+        # Add arrow at frequency increasing direction
+        if len(pos_points) > 10:
+            mid_idx = len(pos_points) // 2
+            arrow = Arrow(
+                pos_points[mid_idx-1],
+                pos_points[mid_idx+1],
+                buff=0.1,
+                color=self.plotcolor,
+                stroke_width=self.plot_stroke_width
+            )
+            self.nyquist_plot.add(arrow)
+        
+        self.add(self.nyquist_plot)
+
+    def add_plot_components(self):
+        """Add additional plot components like ticks, labels, etc."""
+        # Add ticks to axes
+        x_ticks = self._create_ticks(self.plane.x_axis, "x")
+        y_ticks = self._create_ticks(self.plane.y_axis, "y")
+        
+        # Add tick labels
+        x_labels = self._create_tick_labels(self.plane.x_axis, "x")
+        y_labels = self._create_tick_labels(self.plane.y_axis, "y")
+        
+        # Add -1 point marker if it's in view
+        if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
+            minus_one = Dot(
+                self.plane.number_to_point(-1 + 0j),
+                color=RED,
+                radius=0.05
+            )
+            minus_one_label = MathTex("-1", font_size=20, color=RED)
+            minus_one_label.next_to(minus_one, DOWN, buff=0.1)
+            self.axes_components.add(minus_one, minus_one_label)
+        
+        self.axes_components.add(x_ticks, y_ticks, x_labels, y_labels)
+
+    def _create_ticks(self, axis, orientation):
+        """Create ticks for the specified axis."""
+        ticks = VGroup()
+        tick_length = 0.1
+        
+        if orientation == "x":
+            step = (self.x_range[1] - self.x_range[0]) / 5
+            values = np.arange(
+                self.x_range[0],
+                self.x_range[1] + step/2,
+                step
+            )
+        else:  # y-axis
+            step = (self.y_range[1] - self.y_range[0]) / 5
+            values = np.arange(
+                self.y_range[0],
+                self.y_range[1] + step/2,
+                step
+            )
+        
+        for val in values:
+            point = axis.number_to_point(val)
+            if orientation == "x":
+                tick = Line(
+                    point + DOWN * tick_length/2,
+                    point + UP * tick_length/2,
+                    **self.tick_style
+                )
+            else:
+                tick = Line(
+                    point + LEFT * tick_length/2,
+                    point + RIGHT * tick_length/2,
+                    **self.tick_style
+                )
+            ticks.add(tick)
+        
+        return ticks
+
+    def _create_tick_labels(self, axis, orientation):
+        """Create tick labels for the specified axis."""
+        labels = VGroup()
+        
+        if orientation == "x":
+            step = (self.x_range[1] - self.x_range[0]) / 5
+            values = np.arange(
+                self.x_range[0],
+                self.x_range[1] + step/2,
+                step
+            )
+        else:  # y-axis
+            step = (self.y_range[1] - self.y_range[0]) / 5
+            values = np.arange(
+                self.y_range[0],
+                self.y_range[1] + step/2,
+                step
+            )
+        
+        for val in values:
+            # Skip zero to avoid overlap with axis labels
+            if abs(val) < 1e-6:
+                continue
+                
+            point = axis.number_to_point(val)
+            label = MathTex(f"{val:.1f}", font_size=18)
+            
+            if orientation == "x":
+                label.next_to(point, DOWN, buff=0.1)
+            else:
+                label.next_to(point, LEFT, buff=0.1)
+            
+            labels.add(label)
+        
+        return labels
+
+    def title(self, text, font_size=40, color=WHITE, use_math_tex=False):
+        """
+        Add a title to the Nyquist plot.
+        
+        Parameters:
+        - text: The title text (string)
+        - font_size: Font size (default: 40)
+        - use_math_tex: Whether to render as MathTex (default: False)
+        """
+        self.title_font_size = font_size
+        self._use_math_tex = use_math_tex
+        self._has_title = True
+        
+        # Remove existing title if present
+        if self._title is not None:
+            self.remove(self._title)
+        
+        # Create new title
+        if use_math_tex:
+            self._title = MathTex(text, font_size=self.title_font_size, color=color)
+        else:
+            self._title = Text(text, font_size=self.title_font_size, color=color)
+        
+        # Position title
+        self._title.next_to(self.plane, UP, buff=0.3)
+        self.add(self._title)
+        
+        return self
+
+    def highlight_critical_points(self):
+        """Highlight critical points like (-1,0) and phase/gain margins."""
+        highlights = VGroup()
+        animations = []
+        
+        # Highlight -1 point
+        if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
+            minus_one = Dot(
+                self.plane.number_to_point(-1 + 0j),
+                color=RED,
+                radius=0.08
+            )
+            minus_one_label = MathTex("-1", font_size=24, color=RED)
+            minus_one_label.next_to(minus_one, DOWN, buff=0.1)
+            
+            highlights.add(minus_one, minus_one_label)
+            animations.extend([
+                Create(minus_one),
+                Write(minus_one_label)
+            ])
+        
+        # Calculate stability margins
+        gm, pm, _, wg, wp, _ = self._calculate_stability_margins()
+        
+        # Highlight gain margin point (where phase crosses -180°)
+        if gm != np.inf:
+            # Find the point on the plot closest to wg
+            idx = np.argmin(np.abs(self.frequencies - wg))
+            point = self.plane.number_to_point(self.real_part[idx] + 1j*self.imag_part[idx])
+            
+            gm_dot = Dot(point, color=YELLOW)
+            gm_label = MathTex(f"GM = {gm:.2f} dB", font_size=24, color=YELLOW)
+            gm_label.next_to(gm_dot, UP, buff=0.1)
+            
+            highlights.add(gm_dot, gm_label)
+            animations.extend([
+                Create(gm_dot),
+                Write(gm_label)
+            ])
+        
+        # Highlight phase margin point (where magnitude crosses 1)
+        if pm != np.inf:
+            # Find the point where |G(jw)| = 1 (0 dB)
+            mag = np.abs(self.response)
+            idx = np.argmin(np.abs(mag - 1))
+            point = self.plane.number_to_point(self.real_part[idx] + 1j*self.imag_part[idx])
+            
+            pm_dot = Dot(point, color=GREEN)
+            pm_label = MathTex(f"PM = {pm:.2f}^\\circ", font_size=24, color=GREEN)
+            pm_label.next_to(pm_dot, RIGHT, buff=0.1)
+            
+            highlights.add(pm_dot, pm_label)
+            animations.extend([
+                Create(pm_dot),
+                Write(pm_label)
+            ])
+        
+        return animations, highlights
+
+    def _calculate_stability_margins(self):
+        """
+        Calculate gain margin, phase margin, and stability margin.
+        Same implementation as in BodePlot class.
+        """
+        # Calculate Bode data for margin calculations
+        w = np.logspace(
+            np.log10(self.freq_range[0]),
+            np.log10(self.freq_range[1]),
+            1000
+        )
+        _, mag, phase = signal.bode(self.system, w)
+        
+        # Find phase crossover (where phase crosses -180°)
+        phase_crossings = np.where(np.diff(np.sign(phase + 180)))[0]
+        
+        if len(phase_crossings) > 0:
+            # Use the last crossing before phase goes below -180°
+            idx = phase_crossings[-1]
+            wg = np.interp(-180, phase[idx:idx+2], w[idx:idx+2])
+            mag_at_wg = np.interp(wg, w, mag)
+            gm = -mag_at_wg  # Gain margin is how much gain can increase before instability
+        else:
+            wg = np.inf
+            gm = np.inf
+        
+        # Find gain crossover (where magnitude crosses 0 dB)
+        crossings = []
+        for i in range(len(mag)-1):
+            if mag[i] * mag[i+1] <= 0:  # Sign change
+                crossings.append(i)
+        
+        if crossings:
+            idx = crossings[0]  # First 0 dB crossing
+            wp = np.interp(0, [mag[idx], mag[idx+1]], [w[idx], w[idx+1]])
+            phase_at_wp = np.interp(wp, w, phase)
+            pm = 180 + phase_at_wp
+        else:
+            wp = np.inf
+            pm = np.inf
+        
+        # Calculate stability margin (minimum distance to -1 point)
+        if len(w) > 0:
+            nyquist = (1 + 10**(mag/20) * np.exp(1j * phase * np.pi/180))
+            sm = 1 / np.min(np.abs(nyquist))
+            ws = w[np.argmin(np.abs(nyquist))]
         else:
             sm = np.inf
             ws = np.inf

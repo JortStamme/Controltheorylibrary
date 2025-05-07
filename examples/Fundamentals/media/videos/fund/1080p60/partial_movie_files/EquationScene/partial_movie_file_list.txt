@@ -1,0 +1,5 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EquationScene/3977891868_4197767063_223132457.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EquationScene/2852726489_1839128356_3151034067.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EquationScene/2852726489_674536071_2138709738.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/EquationScene/2852726489_1754310298_3850303318.mp4'
