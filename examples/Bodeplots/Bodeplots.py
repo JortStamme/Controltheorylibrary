@@ -5,21 +5,15 @@ import sympy as sp
 class Bode(Scene):
     def construct(self):
         s = sp.symbols('s')
-        num = s + 2
-        den = s**2 + 2*s +8
-        #num = [1]  
-        #den = [1,0.2,1] 
+        num = 1
+        den = s*(s+1)*(s+5)
         system = (num, den)
 
-        bode = BodePlot(system)
+        bode = BodePlot(system, freq_range=[0.01,100])
         bode.grid_on()
-        self.play(FadeIn(bode))
-        self.wait(2)
-        bode1 = BodePlot(system)
-        bode1.grid_on()
-        bode1.title("Bode plot")
-        self.play(ReplacementTransform(bode,bode1))
-        self.wait(2)
+        #bode.show_asymptotes()
+        bode.show_margins()
+        self.add(bode)
 
 
         # Highlight critical points

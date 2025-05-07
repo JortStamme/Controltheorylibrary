@@ -1605,8 +1605,8 @@ class BodePlot(VGroup):
         # Step 1: Determine freq range based on features
         all_features = np.abs(np.concatenate([finite_poles, finite_zeros]))
         if len(all_features) > 0:
-            min_freq = 10**(np.floor(np.log10(np.min(all_features)))-1)
-            max_freq = 10**(np.ceil(np.log10(np.max(all_features)))+1)
+            min_freq = 10**(np.floor(np.log10(np.min(all_features)))-2)
+            max_freq = 10**(np.ceil(np.log10(np.max(all_features)))+2)
         else:
             min_freq, max_freq = 0.1, 100
 
@@ -1848,51 +1848,34 @@ class BodePlot(VGroup):
         # ===== 2. Phase Break Frequencies (Extended Transitions) =====
         phase_break_freqs = []
         
+        phase_break_freqs_set = set()
+        processed_roots_for_breaks = set() # Use a single set for both poles and zeros
+        for root_list in [poles, zeros]:
+            for root in root_list:
+                if root in processed_roots_for_breaks or np.conj(root) in processed_roots_for_breaks:
+                    continue
+
+                w0 = abs(root)
+                if np.isclose(w0, 0, atol=1e-8): continue # Skip origin for breaks
+            
+                is_complex = not np.isclose(root.imag, 0, atol=1e-8)
+
+                if is_complex:
+                    # For complex pairs, use zeta-dependent break frequencies for phase plotting cues
+                    if w0 > 1e-8:
+                        zeta = -root.real / w0
+                        w_start_zeta = w0 / (10**zeta)
+                        w_end_zeta = w0 * (10**zeta)
+                        phase_break_freqs_set.add(w_start_zeta)
+                        phase_break_freqs_set.add(w_end_zeta)
+                else:
+                    # For real roots, use the standard 0.1*w0 and 10*w0
+                    phase_break_freqs_set.add(0.1 * w0)
+                    phase_break_freqs_set.add(10 * w0)
+
+                processed_roots_for_breaks.add(root)
+                processed_roots_for_breaks.add(np.conj(root))
         # Real poles/zeros: Add 0.1ω, ω, 10ω
-        phase_break_freqs_set = set() # Use a set to avoid duplicates initially
-
-        processed_complex_poles = set()
-        for p in poles:
-            p_conj = np.conj(p)
-            # Check if conjugate is also in poles and not already processed
-            is_complex = not np.isclose(p.imag, 0, atol=1e-8)
-            is_processed = p in processed_complex_poles or p_conj in processed_complex_poles
-
-            if is_complex and is_processed:
-                continue # Skip if conjugate already handled this pair
-
-            w0 = abs(p)
-            if np.isclose(w0, 0, atol=1e-8): continue # Skip origin poles for breaks
-
-            phase_break_freqs_set.add(0.1 * w0)
-            phase_break_freqs_set.add(w0)
-            phase_break_freqs_set.add(10 * w0)
-
-            if is_complex:
-                processed_complex_poles.add(p)
-                processed_complex_poles.add(p_conj)
-
-
-        processed_complex_zeros = set()
-        for z in zeros:
-            z_conj = np.conj(z)
-            is_complex = not np.isclose(z.imag, 0, atol=1e-8)
-            is_processed = z in processed_complex_zeros or z_conj in processed_complex_zeros
-
-            if is_complex and is_processed:
-                 continue
-
-            w0 = abs(z)
-            if np.isclose(w0, 0, atol=1e-8): continue # Skip origin zeros for breaks
-
-            phase_break_freqs_set.add(0.1 * w0)
-            phase_break_freqs_set.add(w0)
-            phase_break_freqs_set.add(10 * w0)
-
-            if is_complex:
-                processed_complex_zeros.add(z)
-                processed_complex_zeros.add(z_conj)
-
         phase_break_freqs = sorted(list(phase_break_freqs_set))
         phase_break_freqs = [f for f in phase_break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
 
@@ -1907,11 +1890,9 @@ class BodePlot(VGroup):
         dc_gain = 20 * np.log10(np.abs(num(w0*1j)/den(w0*1j)))
         
         # Calculate DC phase
-        phase_shift = 0
-        if np.any(np.real(zeros) == 0) and np.any(np.imag(zeros) == 0):  # Zero at origin
-            phase_shift += 90
-        if np.any(np.real(poles) == 0) and np.any(np.imag(poles) == 0):  # Pole at origin
-            phase_shift -= 90
+        n_zeros_origin = sum(np.isclose(zeros, 0, atol=1e-8))
+        n_poles_origin = sum(np.isclose(poles, 0, atol=1e-8))
+        phase_shift = (n_zeros_origin - n_poles_origin) * 90
         
         # ===== Magnitude Asymptote Calculation =====
         mag_slope = 0
@@ -1943,74 +1924,94 @@ class BodePlot(VGroup):
             self.mag_asymp[i] = current_mag
         
                 # ===== Phase Asymptote Calculation =====
-        processed_complex_poles = set()
-        processed_complex_zeros = set()
+        real_poles = [p for p in poles if np.isclose(p.imag, 0, atol=1e-8) and not np.isclose(p, 0, atol=1e-8)]
+        real_zeros = [z for z in zeros if np.isclose(z.imag, 0, atol=1e-8) and not np.isclose(z, 0, atol=1e-8)]
+        
+        complex_pole_pairs = []
+        processed_poles_for_pairing = set()
+        for p in poles:
+            if not np.isclose(p.imag, 0, atol=1e-8) and p not in processed_poles_for_pairing:
+                p_conj = np.conj(p)
+                # Find the conjugate in the poles list (using a tolerance for comparison)
+                found_conj = None
+                for pole_in_list in poles:
+                    if np.isclose(p_conj, pole_in_list, atol=tol):
+                        found_conj = pole_in_list
+                        break
+
+                if found_conj is not None:
+                    complex_pole_pairs.append((p, found_conj))
+                    processed_poles_for_pairing.add(p)
+                    processed_poles_for_pairing.add(found_conj)
+
+        complex_zero_pairs = []
+        processed_zeros_for_pairing = set()
+        for z in zeros:
+            if not np.isclose(z.imag, 0, atol=1e-8) and z not in processed_zeros_for_pairing:
+                z_conj = np.conj(z)
+                # Find the conjugate in the zeros list (using a tolerance for comparison)
+                found_conj = None
+                for zero_in_list in zeros:
+                    if np.isclose(z_conj, zero_in_list, atol=tol):
+                        found_conj = zero_in_list
+                        break
+
+                if found_conj is not None:
+                    complex_zero_pairs.append((z, found_conj))
+                    processed_zeros_for_pairing.add(z)
+                    processed_zeros_for_pairing.add(found_conj)
 
         for i, freq in enumerate(self.frequencies):
             current_phase = phase_shift # Start with DC phase shift
 
             # === Real poles ===
-            for p in poles:
-                if np.isclose(p.imag, 0, atol=1e-8) and not np.isclose(p, 0, atol=1e-8):
-                    w0 = abs(p) # Use absolute value for break frequency
-                    # Standard 2-decade transition
-                    w_start = 0.1 * w0
-                    w_end = 10 * w0
-                    if freq <= w_start:
-                        continue # No contribution below w_start
-                    elif freq >= w_end:
-                        current_phase -= 90 # Full contribution above w_end
-                    else: # Linear interpolation on log scale
+            for p in real_poles:
+                w0 = abs(p)
+                w_start = 0.1 * w0
+                w_end = 10 * w0
+                if freq > w_start:
+                    if freq >= w_end:
+                        current_phase -= 90
+                    else:
                         log_freq = np.log10(freq)
                         log_low = np.log10(w_start)
                         log_high = np.log10(w_end)
-                        # Ensure log_high > log_low to avoid division by zero if w0 is tiny
                         if log_high > log_low:
                             fraction = (log_freq - log_low) / (log_high - log_low)
                             current_phase -= 90 * fraction
-                        elif freq >= w0: # Handle edge case where w_start ~= w_end
-                             current_phase -= 90
 
             # === Real zeros ===
-            for z in zeros:
-                if np.isclose(z.imag, 0, atol=1e-8) and not np.isclose(z, 0, atol=1e-8):
-                    w0 = abs(z) # Use absolute value
-                    w_start = 0.1 * w0
-                    w_end = 10 * w0
-                    if freq <= w_start:
-                        continue
-                    elif freq >= w_end:
-                        current_phase += 90
+            for z in real_zeros:
+                w0 = abs(z) # Use absolute value
+                w_start = 0.1 * w0
+                w_end = 10 * w0
+                if freq > w_start:
+                    if freq>= w_end:
+                        current_phase +=90
                     else:
                         log_freq = np.log10(freq)
                         log_low = np.log10(w_start)
                         log_high = np.log10(w_end)
                         if log_high > log_low:
-                             fraction = (log_freq - log_low) / (log_high - log_low)
-                             current_phase += 90 * fraction
-                        elif freq >= w0:
-                             current_phase += 90
+                            fraction = (log_freq - log_low) / (log_high - log_low)
+                            current_phase += 90 * fraction
 
             # === Complex conjugate poles ===
-            for p in poles:
-                # Check if complex AND has positive imaginary part (processes pair only once)
-                # Add a small tolerance to imag > 0 check if needed, but usually not
-                if not np.isclose(p.imag, 0, atol=1e-8) and p.imag > 1e-10: # Check p.imag > 0
-                    w0 = abs(p)
-                    if w0 > 1e-8:
-                        zeta = -p.real / w0
-                    else:
-                        continue
-                    # Standard 2-decade transition for the PAIR
-                    w_start = w0/(10**zeta)
-                    w_end = w0*(10**zeta)
+            for p1, p2 in complex_pole_pairs:
+                w0 = abs(p1)
+                if w0 < 1e-8: continue
+                
+                zeta = -p1.real / w0
 
-                    # Check for valid range (w_end should be > w_start)
-                    if w_end <= w_start: continue # Skip if w0 is near zero or calculation invalid
+                # Standard 2-decade transition for the PAIR
+                w_start = w0/(10**abs(zeta))
+                w_end = w0*(10**abs(zeta))
 
-                    if freq <= w_start:
-                        pass # No contribution yet below w_start
-                    elif freq >= w_end:
+                # Check for valid range (w_end should be > w_start)
+                if w_end <= w_start: continue # Skip if w0 is near zero or calculation invalid
+
+                if freq > w_start:
+                    if freq >= w_end:
                         current_phase -= 180 # Full contribution for the pair above w_end
                     else: # Interpolate within the transition decade
                         log_freq = np.log10(freq)
@@ -2019,68 +2020,41 @@ class BodePlot(VGroup):
                         # Ensure log_high > log_low before division
                         if log_high > log_low:
                             fraction = (log_freq - log_low) / (log_high - log_low)
+                            fraction = max(0.0, min(fraction, 1.0))
                             current_phase -= 180 * fraction
-                        elif freq >= w0: # Fallback if range is tiny, apply full shift past w0
-                            current_phase -= 180
-
-                    # Mark both pole and its conjugate as processed
-                    processed_complex_poles.add(p)
-                    # Check if conjugate exists in the original list before adding
-                    # (handles cases where cancellation might have removed one)
-                    if any(np.isclose(p_conj, pole_in_list) for pole_in_list in poles):
-                       processed_complex_poles.add(p_conj)
-
 
             # === Complex conjugate zeros ===
-            for z in zeros:
-                z_conj = np.conj(z)
-                is_complex = not np.isclose(z.imag, 0, atol=1e-8)
-                if w0 > 1e-8:
-                    zeta = -z.real / w0
-                else:
-                    continue
-                if is_complex and z not in processed_complex_zeros:
-                    w0 = abs(z)
-                    w_start = w0/(10**zeta)
-                    w_end = w0*(10**zeta)
+            for z1, z2 in complex_zero_pairs:
+                w0 = abs(z1)
+                if w0 < 1e-8: continue
+                zeta = -z1.real / w0
+                is_rhp_zero = z1.real > tol
+    
+                w_start = w0/(10**abs(zeta))
+                w_end = w0*(10**abs(zeta))
                     
-                    if w_end <= w_start: continue
+                if w_end <= w_start: # Default phase change for LHP zero
+                    if freq>=w0:
+                        current_phase += (180 if not is_rhp_zero else -180)
+                    continue
+                    
+                phase_change=180
+                if is_rhp_zero:
+                    phase_change = -180
 
-                    if freq <= w_start:
-                       pass
-                    elif freq >= w_end:
-                        current_phase += 180
-                    else:
-                        log_freq = np.log10(freq)
-                        log_low = np.log10(w_start)
-                        log_high = np.log10(w_end)
-                        if log_high > log_low:
-                             fraction = (log_freq - log_low) / (log_high - log_low)
-                             current_phase += 180 * fraction
-                        elif freq >= w0:
-                             current_phase += 180
-
-                    processed_complex_zeros.add(z)
-                    if any(np.isclose(z_conj, zero_in_list) for zero_in_list in zeros):
-                         processed_complex_zeros.add(z_conj)
-
-
-            # Reset processed sets for the next frequency point calculation
-            # Important: Do this *after* processing all poles/zeros for the *current* freq
-            if i == len(self.frequencies) - 1: # Or simply after the loops for poles/zeros finish
-                processed_complex_poles.clear()
-                processed_complex_zeros.clear()
-
-
-            # Wrap phase to [-180°, 180°] (or use np.unwrap if needed later)
-            # Using modulo arithmetic for wrapping:
+                if freq>=w_end:
+                    current_phase += phase_change
+                    
+                elif freq > w_start:
+                    log_freq = np.log10(freq)
+                    log_low = np.log10(w_start)
+                    log_high = np.log10(w_end)
+                    if log_high > log_low:
+                        fraction = (log_freq - log_low) / (log_high - log_low)
+                        fraction = max(0.0, min(fraction, 1.0))
+                        current_phase += 180 * fraction if not is_rhp_zero else -phase_change*fraction
+            
             self.phase_asymp[i] = (current_phase + 180) % 360 - 180
-            # Alternatively, for continuous phase use np.unwrap after the loop:
-            # self.phase_asymp[i] = current_phase # Store unwrapped first
-
-
-
-
 
     def show_asymptotes(self, color=YELLOW, stroke_width=2, opacity=1):
         """Plot asymptotes using separate break frequencies for magnitude and phase"""
@@ -2119,15 +2093,27 @@ class BodePlot(VGroup):
             self.mag_asymp_plot.add(segment)
 
         # ===== Phase Plot =====
+        phase_break_indices = [np.argmin(np.abs(self.frequencies - f))
+                            for f in self.phase_break_freqs]
+    
+        # Ensure start and end points are included
+        if 0 not in phase_break_indices:
+            phase_break_indices.insert(0, 0)
+        if (len(self.frequencies)-1) not in phase_break_indices:
+            phase_break_indices.append(len(self.frequencies)-1)
+
         self.phase_asymp_plot = VGroup()
-        for i in range(len(self.frequencies) - 1):
+        for i in range(len(phase_break_indices) - 1):
+            start_idx = phase_break_indices[i]
+            end_idx = phase_break_indices[i+1]
+            
             start_point = self.phase_axes.coords_to_point(
-                np.log10(self.frequencies[i]),
-                self.phase_asymp[i]
+                np.log10(self.frequencies[start_idx]),
+                self.phase_asymp[start_idx]
             )
             end_point = self.phase_axes.coords_to_point(
-                np.log10(self.frequencies[i + 1]),
-                self.phase_asymp[i + 1]
+                np.log10(self.frequencies[end_idx]),
+                self.phase_asymp[end_idx]
             )
             segment = Line(start_point, end_point, color=color,
                         stroke_width=stroke_width, stroke_opacity=opacity)
@@ -2196,16 +2182,21 @@ class BodePlot(VGroup):
             if self._show_phase:
                 # Find phase at gain crossover frequency (wg)
                 phase_at_wg = np.interp(wg, self.frequencies, self.phases)
-                
+                gain_at_wp = np.interp(wg, self.frequencies, self.magnitudes)
                 # Add line at gain crossover frequency (wg)
                 gain_line = DashedLine(
-                    self.phase_axes.c2p(log_wg, self.phase_yrange[0]),
+                    self.phase_axes.c2p(log_wg, self.phase_yrange[1]),
                     self.phase_axes.c2p(log_wg, phase_at_wg),
                     color=margin_color,
                     stroke_width=2
                 )
                 margin_group.add(gain_line)
-                
+                GM_vector = DoubleArrow(self.mag_axes.c2p(log_wg, 0),
+                            self.mag_axes.c2p(log_wg, gain_at_wp),
+                    color=margin_color,
+                    stroke_width=1.5, buff=0, tip_length=0.15)
+                margin_group.add(GM_vector)
+                # add vector for phase margin
                 # Add dot at -180° point
                 gm_dot = Dot(
                     self.phase_axes.c2p(log_wg, -180),
@@ -2220,8 +2211,8 @@ class BodePlot(VGroup):
                         font_size=24,
                         color=text_color
                     ).next_to(
-                        self.phase_axes.c2p(log_wg, -180),
-                        UP, buff=0.2
+                        self.mag_axes.c2p(log_wg, gain_at_wp),
+                        UP+RIGHT, buff=0.2
                     )
                     margin_group.add(gm_text)
             
@@ -2229,7 +2220,7 @@ class BodePlot(VGroup):
             if self._show_magnitude:
                 # Find magnitude at phase crossover frequency (wp)
                 mag_at_wp = np.interp(wp, self.frequencies, self.magnitudes)
-                
+                phase_at_wp = np.interp(wp,self.frequencies, self.phases)
                 # Add line at phase crossover frequency (wp)
                 phase_line = DashedLine(
                     self.mag_axes.c2p(log_wp, self.magnitude_yrange[0]),
@@ -2245,7 +2236,11 @@ class BodePlot(VGroup):
                     color=margin_color
                 )
                 margin_group.add(pm_dot)
-                
+                PM_vector = DoubleArrow(self.phase_axes.c2p(log_wp, -180),
+                            self.phase_axes.c2p(log_wp, phase_at_wp),
+                    color=margin_color,
+                    stroke_width=1, buff=0, tip_length=0.15)
+                margin_group.add(PM_vector)
                 # Add text label if requested
                 if show_values:
                     pm_text = MathTex(
@@ -2253,8 +2248,8 @@ class BodePlot(VGroup):
                         font_size=24,
                         color=text_color
                     ).next_to(
-                        self.mag_axes.c2p(log_wp, 0),
-                        UP, buff=0.2
+                        self.phase_axes.c2p(log_wp, phase_at_wp),
+                        DOWN+LEFT, buff=0.2
                     )
                     margin_group.add(pm_text)
         
@@ -2370,60 +2365,57 @@ class Nyquist(VGroup):
         self.plot_nyquist_response()
         self.add_plot_components()
 
-    # System parsing methods (same as BodePlot)
     def _parse_system_input(self, system):
         """Parse different input formats for the system specification."""
-        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace, tuple, list)):
+        # Directly pass through valid scipy LTI system objects or coefficient lists
+        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
             return system
-            
-        # Handle symbolic expressions
+
+        # Tuple: could be symbolic or coefficient list
+        if isinstance(system, tuple) and len(system) == 2:
+            num, den = system
+
+            # If any part is symbolic or a string, convert
+            if isinstance(num, (str, sp.Basic)) or isinstance(den, (str, sp.Basic)):
+                return self._symbolic_to_coefficients(num, den)
+            else:
+                return (num, den)  # Already numeric
+
+        # Handle string-based symbolic transfer functions (e.g., "s+1 / (s^2+2*s+1)")
         if isinstance(system, str):
             if '/' in system:
                 num_str, den_str = system.split('/', 1)
-                return (num_str.strip(), den_str.strip())
+                return self._symbolic_to_coefficients(num_str.strip(), den_str.strip())
             else:
-                return (system, "1")  # Assume denominator is 1 if not provided
-        
-        # Handle tuple of symbolic expressions
-        if isinstance(system, tuple) and len(system) == 2:
-            num, den = system
-            if isinstance(num, str) or isinstance(den, str):
-                return self._symbolic_to_coefficients(num, den)
-        
-        raise ValueError("Invalid system specification. Must be one of: "
-                        "scipy LTI object, (num, den) coefficients, "
-                        "symbolic expressions as strings/tuple, or single transfer function string.")
+                return self._symbolic_to_coefficients(system.strip(), "1")
+
+        raise ValueError("Invalid system specification.")
 
     def _symbolic_to_coefficients(self, num_expr, den_expr):
         """Convert symbolic expressions to polynomial coefficients."""
         s = sp.symbols('s')
-        
         try:
-            # Parse strings if needed
+            # Convert strings to sympy expressions
             if isinstance(num_expr, str):
-                num_expr = num_expr.replace('^', '**')
-                num_expr = sp.sympify(num_expr)
+                num_expr = sp.sympify(num_expr.replace('^', '**'))
             if isinstance(den_expr, str):
-                den_expr = den_expr.replace('^', '**')
-                den_expr = sp.sympify(den_expr)
-        
-            # Convert to polynomial form
+                den_expr = sp.sympify(den_expr.replace('^', '**'))
+
             num_poly = sp.Poly(num_expr, s)
             den_poly = sp.Poly(den_expr, s)
-        
-            # Get coefficients (highest power first)
-            num_coeffs = [float(sp.N(c)) for c in sp.Poly(num_expr,s).all_coeffs()]
-            den_coeffs = [float(sp.N(c)) for c in sp.Poly(den_expr,s).all_coeffs()]
-        
+
+            num_coeffs = [float(c) for c in num_poly.all_coeffs()]
+            den_coeffs = [float(c) for c in den_poly.all_coeffs()]
+
             return (num_coeffs, den_coeffs)
         except Exception as e:
-            raise ValueError(f"Could not parse transfer function:{e}") from e
+            raise ValueError(f"Could not parse transfer function: {e}") from e
         
     def _ensure_tf(self, system):
         """Convert system to TransferFunction if needed"""
-        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+        if isinstance(system, signal.TransferFunction):
             return system
-        return signal.TransferFunction(*system)
+        return signal.TransferFunction(*system) 
     
     def grid_on(self):
         """Turn on the grid lines."""
