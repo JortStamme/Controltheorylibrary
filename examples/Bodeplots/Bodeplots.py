@@ -1,10 +1,14 @@
 from manim import *
 from controltheorylib.control import BodePlot
+import sympy as sp
 
 class Bode(Scene):
     def construct(self):
-        num = [1]  
-        den = [1,0.2,1] 
+        s = sp.symbols('s')
+        num = s + 2
+        den = s**2 + 2*s +8
+        #num = [1]  
+        #den = [1,0.2,1] 
         system = (num, den)
 
         bode = BodePlot(system)

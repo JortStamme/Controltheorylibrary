@@ -1156,59 +1156,55 @@ class BodePlot(VGroup):
     
     def _parse_system_input(self, system):
         """Parse different input formats for the system specification."""
-        # If already a scipy system object or coefficient lists
-        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace, tuple, list)):
+        # Directly pass through valid scipy LTI system objects or coefficient lists
+        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
             return system
-            
-            # Handle symbolic expressions
-        if isinstance(system, str):
-            # Try to split numerator and denominator if string contains '/'
-            if '/' in system:
-                num_str, den_str = system.split('/', 1)
-                return (num_str.strip(), den_str.strip())
-            else:
-                return (system, "1")  # Assume denominator is 1 if not provided
-        
-        # Handle tuple of symbolic expressions
+
+        # Tuple: could be symbolic or coefficient list
         if isinstance(system, tuple) and len(system) == 2:
             num, den = system
-            if isinstance(num, str) or isinstance(den, str):
+
+            # If any part is symbolic or a string, convert
+            if isinstance(num, (str, sp.Basic)) or isinstance(den, (str, sp.Basic)):
                 return self._symbolic_to_coefficients(num, den)
-        
-        raise ValueError("Invalid system specification. Must be one of: "
-                        "scipy LTI object, (num, den) coefficients, "
-                        "symbolic expressions as strings/tuple, or single transfer function string.")
+            else:
+                return (num, den)  # Already numeric
+
+        # Handle string-based symbolic transfer functions (e.g., "s+1 / (s^2+2*s+1)")
+        if isinstance(system, str):
+            if '/' in system:
+                num_str, den_str = system.split('/', 1)
+                return self._symbolic_to_coefficients(num_str.strip(), den_str.strip())
+            else:
+                return self._symbolic_to_coefficients(system.strip(), "1")
+
+        raise ValueError("Invalid system specification.")
 
     def _symbolic_to_coefficients(self, num_expr, den_expr):
         """Convert symbolic expressions to polynomial coefficients."""
         s = sp.symbols('s')
-        
         try:
-            # Parse strings if needed
+            # Convert strings to sympy expressions
             if isinstance(num_expr, str):
-                num_expr = num_expr.replace('^', '**')
-                num_expr = sp.sympify(num_expr)
+                num_expr = sp.sympify(num_expr.replace('^', '**'))
             if isinstance(den_expr, str):
-                den_expr = den_expr.replace('^', '**')
-                den_expr = sp.sympify(den_expr)
-        
-        # Convert to polynomial form
+                den_expr = sp.sympify(den_expr.replace('^', '**'))
+
             num_poly = sp.Poly(num_expr, s)
             den_poly = sp.Poly(den_expr, s)
-        
-        # Get coefficients (highest power first)
-            num_coeffs = [float(sp.N(c)) for c in sp.Poly(num_expr,s).all_coeffs()]
-            den_coeffs = [float(sp.N(c)) for c in sp.Poly(den_expr,s).all_coeffs()]
-        
+
+            num_coeffs = [float(c) for c in num_poly.all_coeffs()]
+            den_coeffs = [float(c) for c in den_poly.all_coeffs()]
+
             return (num_coeffs, den_coeffs)
         except Exception as e:
-            raise ValueError(f"Could not parse transfer function:{e}") from e
+            raise ValueError(f"Could not parse transfer function: {e}") from e
         
     def _ensure_tf(self, system):
         """Convert system to TransferFunction if needed"""
-        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+        if isinstance(system, signal.TransferFunction):
             return system
-        return signal.TransferFunction(*system)
+        return signal.TransferFunction(*system) 
     
     # Check which bode plots to show
     def show_magnitude(self, show=True):
@@ -2322,6 +2318,7 @@ class BodePlot(VGroup):
         
         return gm, pm, sm, wg, wp, ws
     
+# ========================Nyquist=================
 #Nyquist plot class
 class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
@@ -2493,10 +2490,10 @@ class Nyquist(VGroup):
         y_max = imag_center + imag_span / 2 + imag_padding
 
         # Ensure critical point (-1, 0) is visible with margin
-        x_min = min(x_min, -2)
-        x_max = max(x_max, 1)
-        y_min = min(y_min, -2)
-        y_max = max(y_max, 2)
+        self.x_min = min(x_min, -2)
+        self.x_max = max(x_max, 1)
+        self.y_min = min(y_min, -2)
+        self.y_max = max(y_max, 2)
 
         # Optional: force square aspect ratio
         x_center = (x_min + x_max) / 2
@@ -2507,8 +2504,8 @@ class Nyquist(VGroup):
 
         return {
             'freq_range': (float(min_freq), float(max_freq)),
-            'x_range': (float(x_min), float(x_max)),
-            'y_range': (float(y_min), float(y_max)),
+            'x_range': (float(self.x_min), float(self.x_max)),
+            'y_range': (float(self.y_min), float(self.y_max)),
         }
     def create_axes(self):
         """Create the Nyquist plot axes."""
@@ -2534,8 +2531,8 @@ class Nyquist(VGroup):
         self.y_label = MathTex("\\mathrm{Im}", font_size=self.font_size_labels)
         
         # Position labels
-        self.x_label.next_to(self.plane.x_axis.get_right(), DOWN, buff=0.2)
-        self.y_label.next_to(self.plane.y_axis.get_top(), LEFT, buff=0.2)
+        self.x_label.next_to(self.plane.x_axis.get_right(), RIGHT, buff=0.2)
+        self.y_label.next_to(self.plane.y_axis.get_top(), UP, buff=0.2)
         
         # Create plot title if specified
         if self._title:
@@ -2638,12 +2635,12 @@ class Nyquist(VGroup):
     def add_plot_components(self):
         """Add additional plot components like ticks, labels, etc."""
         # Add ticks to axes
-        x_ticks = self._create_ticks(self.plane.x_axis, "x")
-        y_ticks = self._create_ticks(self.plane.y_axis, "y")
+        x_ticks = self.create_ticks(self.plane, orientation="horizontal")
+        y_ticks = self._create_ticks(self.plane, orientation="vertical")
         
         # Add tick labels
-        x_labels = self._create_tick_labels(self.plane.x_axis, "x")
-        y_labels = self._create_tick_labels(self.plane.y_axis, "y")
+        x_labels = self._create_tick_labels(self.plane, orientation="horizontal")
+        y_labels = self._create_tick_labels(self.plane, orientation="vertical")
         
         # Add -1 point marker if it's in view
         if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
@@ -2655,80 +2652,105 @@ class Nyquist(VGroup):
             minus_one_label = MathTex("-1", font_size=20, color=RED)
             minus_one_label.next_to(minus_one, DOWN, buff=0.1)
             self.axes_components.add(minus_one, minus_one_label)
-        
-        self.axes_components.add(x_ticks, y_ticks, x_labels, y_labels)
+        self.box = SurroundingRectangle(self.plane, buff=0, color=WHITE, stroke_width=2)
+        self.axes_components.add(x_ticks, y_ticks, x_labels, y_labels, self.box)
 
-    def _create_ticks(self, axis, orientation):
-        """Create ticks for the specified axis."""
+    def create_ticks(self, axes, y_range=None, orientation="horizontal"):
+        """Generalized tick creation for both axes using c2p method"""
         ticks = VGroup()
         tick_length = 0.1
         
-        if orientation == "x":
+        if orientation == "horizontal":
+            # For x-axis ticks (top and bottom)
             step = (self.x_range[1] - self.x_range[0]) / 5
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
                 step
             )
-        else:  # y-axis
+            
+            for x_val in values:
+                # Bottom ticks
+                bottom_point = axes.c2p(x_val, axes.y_range[0])
+                ticks.add(Line(
+                    [bottom_point[0], bottom_point[1], 0],
+                    [bottom_point[0], bottom_point[1] + tick_length, 0],
+                    **self.tick_style
+                ))
+                
+                # Top ticks
+                top_point = axes.c2p(x_val, axes.y_range[1])
+                ticks.add(Line(
+                    [top_point[0], top_point[1] - tick_length, 0],
+                    [top_point[0], top_point[1], 0],
+                    **self.tick_style
+                ))
+                
+        else:  # vertical (y-axis ticks - left and right)
             step = (self.y_range[1] - self.y_range[0]) / 5
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
                 step
             )
-        
-        for val in values:
-            point = axis.number_to_point(val)
-            if orientation == "x":
-                tick = Line(
-                    point + DOWN * tick_length/2,
-                    point + UP * tick_length/2,
+            
+            for y_val in values:
+                # Left ticks
+                left_point = axes.c2p(axes.x_range[0], y_val)
+                ticks.add(Line(
+                    [left_point[0], left_point[1], 0],
+                    [left_point[0] + tick_length, left_point[1], 0],
                     **self.tick_style
-                )
-            else:
-                tick = Line(
-                    point + LEFT * tick_length/2,
-                    point + RIGHT * tick_length/2,
+                ))
+                
+                # Right ticks
+                right_point = axes.c2p(axes.x_range[1], y_val)
+                ticks.add(Line(
+                    [right_point[0] - tick_length, right_point[1], 0],
+                    [right_point[0], right_point[1], 0],
                     **self.tick_style
-                )
-            ticks.add(tick)
+                ))
         
         return ticks
 
-    def _create_tick_labels(self, axis, orientation):
-        """Create tick labels for the specified axis."""
+    def create_tick_labels(self, axes, orientation="horizontal"):
+        """Create tick labels using c2p method"""
         labels = VGroup()
         
-        if orientation == "x":
+        if orientation == "horizontal":
+            # X-axis labels (bottom only)
             step = (self.x_range[1] - self.x_range[0]) / 5
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
                 step
             )
-        else:  # y-axis
+            
+            for x_val in values:
+                if abs(x_val) < 1e-6:  # Skip zero to avoid overlap
+                    continue
+                    
+                point = axes.c2p(x_val, axes.y_range[0])
+                label = MathTex(f"{x_val:.1f}", font_size=18)
+                label.move_to([point[0], point[1] - 0.3, 0])  # Position below axis
+                labels.add(label)
+                
+        else:  # vertical (y-axis labels - left only)
             step = (self.y_range[1] - self.y_range[0]) / 5
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
                 step
             )
-        
-        for val in values:
-            # Skip zero to avoid overlap with axis labels
-            if abs(val) < 1e-6:
-                continue
-                
-            point = axis.number_to_point(val)
-            label = MathTex(f"{val:.1f}", font_size=18)
             
-            if orientation == "x":
-                label.next_to(point, DOWN, buff=0.1)
-            else:
-                label.next_to(point, LEFT, buff=0.1)
-            
-            labels.add(label)
+            for y_val in values:
+                if abs(y_val) < 1e-6:  # Skip zero to avoid overlap
+                    continue
+                    
+                point = axes.c2p(axes.x_range[0], y_val)
+                label = MathTex(f"{y_val:.1f}", font_size=18)
+                label.move_to([point[0] - 0.3, point[1], 0])  # Position left of axis
+                labels.add(label)
         
         return labels
 
