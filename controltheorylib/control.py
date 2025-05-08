@@ -1271,6 +1271,7 @@ class BodePlot(VGroup):
             # Only magnitude - center it and move frequency labels
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
             #mag_group.move_to(ORIGIN)
+            
             # Move frequency labels to bottom of magnitude plot
             self.freq_labels.next_to(self.mag_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.mag_axes,DOWN,buff=0.4)
@@ -1714,8 +1715,8 @@ class BodePlot(VGroup):
             rhp_poles = sum(np.real(poles) > 0)
             rhp_zeros = sum(np.real(zeros) > 0)
         
-            # Adjust phase for RHP poles/zeros
-            phase -= 180 * (rhp_poles - rhp_zeros)
+            #Adjust phase for RHP poles/zeros
+            phase += 180 * (rhp_poles - rhp_zeros)
 
         except Exception as e:
             print(f"Error calculating Bode data: {e}")
@@ -1967,34 +1968,36 @@ class BodePlot(VGroup):
             # === Real poles ===
             for p in real_poles:
                 w0 = abs(p)
+                is_rhp_pole = p.real > tol
                 w_start = 0.1 * w0
                 w_end = 10 * w0
                 if freq > w_start:
                     if freq >= w_end:
-                        current_phase -= 90
+                        current_phase += 90 if is_rhp_pole else -90
                     else:
                         log_freq = np.log10(freq)
                         log_low = np.log10(w_start)
                         log_high = np.log10(w_end)
                         if log_high > log_low:
                             fraction = (log_freq - log_low) / (log_high - log_low)
-                            current_phase -= 90 * fraction
+                            current_phase += (90 if is_rhp_pole else -90) * fraction
 
             # === Real zeros ===
             for z in real_zeros:
                 w0 = abs(z) # Use absolute value
+                is_rhpfirst_zero = z.real > tol
                 w_start = 0.1 * w0
                 w_end = 10 * w0
                 if freq > w_start:
                     if freq>= w_end:
-                        current_phase +=90
+                        current_phase -=90 if is_rhpfirst_zero else 90
                     else:
                         log_freq = np.log10(freq)
                         log_low = np.log10(w_start)
                         log_high = np.log10(w_end)
                         if log_high > log_low:
                             fraction = (log_freq - log_low) / (log_high - log_low)
-                            current_phase += 90 * fraction
+                            current_phase -= (90 if is_rhp_zero else +90) * fraction
 
             # === Complex conjugate poles ===
             for p1, p2 in complex_pole_pairs:
@@ -2133,7 +2136,7 @@ class BodePlot(VGroup):
             if hasattr(self, attr) and getattr(self, attr) in getattr(self, attr.split('_')[0] + '_components'):
                 getattr(self, attr.split('_')[0] + '_components').remove(getattr(self, attr))
 
-    def show_margins(self, show_values=True, margin_color=YELLOW, text_color=WHITE):
+    def show_margins(self, show_values=True, margin_color=YELLOW, text_color=WHITE, font_size=24):
         """
         Show gain and phase margins on the Bode plot if possible.
         
@@ -2208,7 +2211,7 @@ class BodePlot(VGroup):
                 if show_values:
                     gm_text = MathTex(
                         f"GM = {gm:.2f} dB",
-                        font_size=24,
+                        font_size=font_size,
                         color=text_color
                     ).next_to(
                         self.mag_axes.c2p(log_wg, gain_at_wp),
@@ -2245,7 +2248,7 @@ class BodePlot(VGroup):
                 if show_values:
                     pm_text = MathTex(
                         f"PM = {pm:.2f}^\\circ",
-                        font_size=24,
+                        font_size=font_size,
                         color=text_color
                     ).next_to(
                         self.phase_axes.c2p(log_wp, phase_at_wp),
@@ -2438,86 +2441,116 @@ class Nyquist(VGroup):
             self.unit_circle.set_opacity(opacity if self.show_unit_circle else 0)
 
     def _auto_determine_ranges(self):
-        """Automatically determine Nyquist plot ranges based on poles/zeros and response data."""
-        # Get poles and zeros
-        if isinstance(self.system, signal.TransferFunction):
+        """Safely determine plot ranges with comprehensive error handling."""
+        try:
+            # Get system representation
+            if not isinstance(self.system, signal.TransferFunction):
+                self.system = signal.TransferFunction(*self.system)
+            
             poles = self.system.poles
             zeros = self.system.zeros
-        else:
-            tf = self.system.to_tf()
-            poles = tf.poles
-            zeros = tf.zeros
+            
+            # Handle special cases
+            if not poles.size and not zeros.size:
+                return {
+                    'freq_range': (0.1, 100),
+                    'x_range': (-10, 10),
+                    'y_range': (-10, 10)
+                }
 
-        # Estimate frequency range from dynamic features
-        finite_features = np.abs(np.concatenate([
-            poles[np.isfinite(poles)],
-            zeros[np.isfinite(zeros)]
-        ]))
+            # Calculate frequency range
+            finite_features = np.abs(np.concatenate([
+                poles[np.isfinite(poles) & (poles != 0)],
+                zeros[np.isfinite(zeros) & (zeros != 0)]
+            ]))
+            
+            if finite_features.size > 0:
+                with np.errstate(divide='ignore'):
+                    min_freq = 10**(np.floor(np.log10(np.min(finite_features))) - 1)
+                    max_freq = 10**(np.ceil(np.log10(np.max(finite_features))) + 1)
+            else:
+                min_freq, max_freq = 0.1, 100
 
-        if finite_features.size > 0:
-            min_freq = 10 ** (np.floor(np.log10(np.min(finite_features))) - 1)
-            max_freq = 10 ** (np.ceil(np.log10(np.max(finite_features))) + 1)
-        else:
-            min_freq, max_freq = 0.01, 100  # fallback for static systems
+            # Handle integrators/differentiators
+            if any(np.isclose(poles, 0)):
+                min_freq = min(0.001, min_freq)
+            if any(np.isclose(zeros, 0)):
+                max_freq = max(1000, max_freq)
 
-        # Compute Nyquist response
-        w = np.logspace(np.log10(min_freq), np.log10(max_freq), 2000)
-        _, response = signal.freqresp(self.system, w)
-        real_vals = np.real(response)
-        imag_vals = np.imag(response)
+            # Calculate Nyquist response
+            w = np.logspace(
+                np.log10(max(min_freq, 1e-10)), 
+                np.log10(max_freq), 
+                500
+            )
+            _, response = signal.freqresp(self.system, w)
+            re, im = np.real(response), np.imag(response)
+            
+            # Calculate axis ranges with padding
+            re_span = np.max(re) - np.min(re) or 10
+            im_span = np.max(im) - np.min(im) or 10
+            padding = 0.2
+            
+            x_min = min(np.min(re) - padding*re_span, -2)
+            x_max = max(np.max(re) + padding*re_span, 1)
+            y_min = min(np.min(im) - padding*im_span, -2)
+            y_max = max(np.max(im) + padding*im_span, 2)
 
-        # Calculate center and span
-        real_center = (np.max(real_vals) + np.min(real_vals)) / 2
-        imag_center = (np.max(imag_vals) + np.min(imag_vals)) / 2
-        real_span = np.max(real_vals) - np.min(real_vals)
-        imag_span = np.max(imag_vals) - np.min(imag_vals)
+            return {
+                'freq_range': (float(min_freq), float(max_freq)),
+                'x_range': (float(x_min), float(x_max)),
+                'y_range': (float(y_min), float(y_max))
+            }
 
-        # Add 20% padding and enforce minimum visible range
-        real_padding = max(0.2 * real_span, 1.0)
-        imag_padding = max(0.2 * imag_span, 1.0)
-
-        x_min = real_center - real_span / 2 - real_padding
-        x_max = real_center + real_span / 2 + real_padding
-        y_min = imag_center - imag_span / 2 - imag_padding
-        y_max = imag_center + imag_span / 2 + imag_padding
-
-        # Ensure critical point (-1, 0) is visible with margin
-        self.x_min = min(x_min, -2)
-        self.x_max = max(x_max, 1)
-        self.y_min = min(y_min, -2)
-        self.y_max = max(y_max, 2)
-
-        # Optional: force square aspect ratio
-        x_center = (x_min + x_max) / 2
-        y_center = (y_min + y_max) / 2
-        half_range = max((x_max - x_min), (y_max - y_min)) / 2
-        x_min, x_max = x_center - half_range, x_center + half_range
-        y_min, y_max = y_center - half_range, y_center + half_range
-
-        return {
-            'freq_range': (float(min_freq), float(max_freq)),
-            'x_range': (float(self.x_min), float(self.x_max)),
-            'y_range': (float(self.y_min), float(self.y_max)),
-        }
+        except Exception as e:
+            print(f"Range determination error: {e}")
+            return {
+                'freq_range': (0.1, 100),
+                'x_range': (-10, 10),
+                'y_range': (-10, 10)
+            }
+    
+    def _validate_range(self, range_tuple):
+        """Ensure numerical stability in axis ranges."""
+        min_val, max_val = range_tuple
+        if np.isinf(min_val) or np.isinf(max_val):
+            return (-10, 10)  # Fallback range
+        if max_val - min_val < 1e-6:  # Too small range
+            center = (min_val + max_val)/2
+            return (center-5, center+5)
+        return (min_val, max_val)
+    
     def create_axes(self):
         """Create the Nyquist plot axes."""
         # Create complex plane
+        x_min, x_max = self._validate_range(self.x_range)
+        y_min, y_max = self._validate_range(self.y_range)
+    
+        # Calculate sane step sizes
+        x_step = (x_max - x_min) / 10 if (x_max - x_min) > 0 else 1
+        y_step = (y_max - y_min) / 10 if (y_max - y_min) > 0 else 1
+
         self.plane = ComplexPlane(
-            x_range=[self.x_range[0], self.x_range[1], (self.x_range[1]-self.x_range[0])/5],
-            y_range=[self.y_range[0], self.y_range[1], (self.y_range[1]-self.y_range[0])/5],
-            y_length=5, x_length=5,
+            x_range=[x_min, x_max, x_step],
+            y_range=[y_min, y_max, y_step],
+            y_length=6, x_length=9,
             background_line_style={
                 "stroke_color": GREY,
                 "stroke_width": 1,
                 "stroke_opacity": 0.7
             },
             axis_config={
-                "stroke_width": 2,
+                "stroke_width": 0,
                 "include_ticks": False,
                 "include_tip": False
             },
         )
-        
+        x_start, x_end = self.plane.x_axis.get_start(), self.plane.x_axis.get_end()
+        y_start, y_end = self.plane.y_axis.get_start(), self.plane.y_axis.get_end()
+
+        dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.01, color=WHITE)
+        dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.01, color=WHITE)
+
         # Add labels
         self.x_label = MathTex("\\mathrm{Re}", font_size=self.font_size_labels)
         self.y_label = MathTex("\\mathrm{Im}", font_size=self.font_size_labels)
@@ -2533,7 +2566,7 @@ class Nyquist(VGroup):
         # Create unit circle if requested
         if self.show_unit_circle:
             unit_circle = Circle(
-                radius=self.plane.x_axis.unit_size,
+                radius=0.5,
                 color=RED,
                 stroke_width=1.5,
                 stroke_opacity=0.7
@@ -2553,7 +2586,7 @@ class Nyquist(VGroup):
             self.x_label,
             self.y_label,
             self.grid_lines,
-            self.unit_circle
+            self.unit_circle, dashed_x_axis,dashed_y_axis
         )
         
         # Add to main group
@@ -2585,18 +2618,24 @@ class Nyquist(VGroup):
 
     def plot_nyquist_response(self):
         """Create the Nyquist plot curve."""
+        
+        # Get plane bounds
+        x_min, x_max = self.plane.x_range[:2]
+        y_min, y_max = self.plane.y_range[:2]
+        
         # Positive frequencies
-        pos_points = [
-            self.plane.number_to_point(re + 1j*im)
-            for re, im in zip(self.real_part, self.imag_part)
-        ]
+        pos_points=[]
+        for re, im in zip(self.real_part, self.imag_part):
+            if x_min <= re <= x_max and y_min <= im <= y_max:
+                pos_points.append(self.plane.number_to_point(re + 1j*im))
+            
         
-        # Negative frequencies
-        neg_points = [
-            self.plane.number_to_point(re + 1j*im)
-            for re, im in zip(self.neg_real_part, self.neg_imag_part)
-        ]
         
+        neg_points = []
+        for re, im in zip(self.neg_real_part, self.neg_imag_part):
+            if x_min <= re <= x_max and y_min <= im <= y_max:
+                neg_points.append(self.plane.number_to_point(re + 1j*im))
+            
         # Create the plot
         self.nyquist_plot = VMobject()
         self.nyquist_plot.set_points_as_corners(pos_points)
@@ -2628,11 +2667,11 @@ class Nyquist(VGroup):
         """Add additional plot components like ticks, labels, etc."""
         # Add ticks to axes
         x_ticks = self.create_ticks(self.plane, orientation="horizontal")
-        y_ticks = self._create_ticks(self.plane, orientation="vertical")
+        y_ticks = self.create_ticks(self.plane, orientation="vertical")
         
         # Add tick labels
-        x_labels = self._create_tick_labels(self.plane, orientation="horizontal")
-        y_labels = self._create_tick_labels(self.plane, orientation="vertical")
+        x_labels = self.create_tick_labels(self.plane, orientation="horizontal")
+        y_labels = self.create_tick_labels(self.plane, orientation="vertical")
         
         # Add -1 point marker if it's in view
         if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
