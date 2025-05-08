@@ -1266,16 +1266,19 @@ class BodePlot(VGroup):
             phase_group.next_to(mag_group, DOWN, buff=0.4).align_to(mag_group, LEFT)
             self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([mag_group, phase_group, self.freq_labels, self.freq_xlabel])
+            self.components_to_add.extend([self.mag_box, self.phase_box, self.mag_ticks, self.phase_ticks, self.mag_vert_ticks, 
+                                           self.phase_vert_ticks, self.mag_grid, self.phase_grid, self.mag_vert_grid, self.phase_vert_grid,self.mag_y_labels, 
+        self.phase_y_labels, self.mag_ylabel,self.phase_ylabel,self.mag_axes,self.phase_axes,self.freq_labels, self.freq_xlabel,
+        self.mag_plot,self.phase_plot])
         elif self._show_magnitude:
             # Only magnitude - center it and move frequency labels
             mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
             #mag_group.move_to(ORIGIN)
-            
+
             # Move frequency labels to bottom of magnitude plot
             self.freq_labels.next_to(self.mag_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.mag_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([mag_group, self.freq_labels, self.freq_xlabel])
+            self.components_to_add.extend([self.mag_box,self.mag_ticks, self.mag_vert_ticks,self.mag_grid, self.mag_vert_grid,self.mag_y_labels,self.mag_ylabel,self.mag_axes,self.freq_labels, self.freq_xlabel, self.mag_plot])
 
         elif self._show_phase:
             # Only phase - center it
@@ -1283,7 +1286,7 @@ class BodePlot(VGroup):
             #phase_group.move_to(ORIGIN)
             self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([phase_group, self.freq_labels, self.freq_xlabel])
+            self.components_to_add.extend([self.phase_box,self.phase_ticks, self.phase_vert_ticks,self.phase_grid, self.phase_vert_grid,self.phase_y_labels,self.phase_ylabel,self.phase_axes,self.freq_labels, self.freq_xlabel, self.phase_plot])
             # Handle title
 
 
@@ -1395,19 +1398,19 @@ class BodePlot(VGroup):
         xlabel_buff = (self.font_size_xlabel/20)*0.5+(20-self.font_size_xlabel)*0.02
 
         # Magnitude plot components
-        mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
-        mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange)
-        mag_ylabel = Text(self.magnitude_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(mag_box, LEFT, buff=ylabel_buff)
-        mag_ticks = self.create_ticks(self.mag_axes, self.magnitude_yrange, "horizontal")
-        mag_vert_ticks = self.create_ticks(self.mag_axes, None, "vertical")
+        self.mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
+        self.mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange)
+        self.mag_ylabel = Text(self.magnitude_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(self.mag_box, LEFT, buff=ylabel_buff)
+        self.mag_ticks = self.create_ticks(self.mag_axes, self.magnitude_yrange, "horizontal")
+        self.mag_vert_ticks = self.create_ticks(self.mag_axes, None, "vertical")
 
         # Phase plot components
-        phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
-        phase_y_labels = self.create_y_labels(self.phase_axes, self.phase_yrange)
-        phase_ylabel = Text(self.phase_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(phase_box, LEFT, buff=ylabel_buff)
-        self.freq_xlabel = Text(self.xlabel, font_size=self.font_size_xlabel).next_to(phase_box, DOWN, buff=xlabel_buff)
-        phase_ticks = self.create_ticks(self.phase_axes, self.phase_yrange, "horizontal")
-        phase_vert_ticks = self.create_ticks(self.phase_axes, None, "vertical")
+        self.phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
+        self.phase_y_labels = self.create_y_labels(self.phase_axes, self.phase_yrange)
+        self.phase_ylabel = Text(self.phase_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(self.phase_box, LEFT, buff=ylabel_buff)
+        self.freq_xlabel = Text(self.xlabel, font_size=self.font_size_xlabel).next_to(self.phase_box, DOWN, buff=xlabel_buff)
+        self.phase_ticks = self.create_ticks(self.phase_axes, self.phase_yrange, "horizontal")
+        self.phase_vert_ticks = self.create_ticks(self.phase_axes, None, "vertical")
 
             # Store grid components with proper references
         self.mag_grid = self.create_grid(self.mag_axes, self.magnitude_yrange, "horizontal")
@@ -1417,12 +1420,12 @@ class BodePlot(VGroup):
 
         # Group components with proper grid references
         self.mag_components = VGroup(
-        mag_box, mag_ticks, mag_vert_ticks, mag_y_labels, self.mag_grid, self.mag_vert_grid, 
-        mag_ylabel
+        self.mag_box, self.mag_ticks, self.mag_vert_ticks, self.mag_y_labels, self.mag_grid, self.mag_vert_grid, 
+        self.mag_ylabel
         )
         self.phase_components = VGroup(
-        phase_box, phase_y_labels, self.phase_grid, self.phase_vert_grid,
-        phase_ylabel, phase_ticks, phase_vert_ticks
+        self.phase_box, self.phase_y_labels, self.phase_grid, self.phase_vert_grid,
+        self.phase_ylabel, self.phase_ticks, self.phase_vert_ticks
         )
     
     def create_ticks(self, axes, y_range=None, orientation="horizontal"):
@@ -2439,6 +2442,25 @@ class Nyquist(VGroup):
             self.grid_lines.set_opacity(opacity)
         if hasattr(self, 'unit_circle'):
             self.unit_circle.set_opacity(opacity if self.show_unit_circle else 0)
+    
+    def _is_proper(self, system=None):
+        """Check if the system is proper (numerator degree ≤ denominator degree)."""
+        if system is None:
+            system = self.system
+        
+        if not isinstance(system, signal.TransferFunction):
+            system = signal.TransferFunction(*system)
+        
+        num_degree = len(system.num) - 1  # Degree of numerator
+        den_degree = len(system.den) - 1  # Degree of denominator
+        
+        return num_degree <= den_degree
+
+    def _is_strictly_proper(self):
+        """Check if strictly proper (numerator degree < denominator degree)."""
+        num_degree = len(self.system.num) - 1
+        den_degree = len(self.system.den) - 1
+        return num_degree < den_degree
 
     def _auto_determine_ranges(self):
         """Safely determine plot ranges with comprehensive error handling."""
@@ -2447,6 +2469,9 @@ class Nyquist(VGroup):
             if not isinstance(self.system, signal.TransferFunction):
                 self.system = signal.TransferFunction(*self.system)
             
+            if self._is_proper():
+                
+
             poles = self.system.poles
             zeros = self.system.zeros
             
@@ -2548,8 +2573,8 @@ class Nyquist(VGroup):
         x_start, x_end = self.plane.x_axis.get_start(), self.plane.x_axis.get_end()
         y_start, y_end = self.plane.y_axis.get_start(), self.plane.y_axis.get_end()
 
-        dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.01, color=WHITE)
-        dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.01, color=WHITE)
+        dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE)
+        dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE)
 
         # Add labels
         self.x_label = MathTex("\\mathrm{Re}", font_size=self.font_size_labels)
@@ -2652,15 +2677,26 @@ class Nyquist(VGroup):
         # Add arrow at frequency increasing direction
         if len(pos_points) > 10:
             mid_idx = len(pos_points) // 2
-            arrow = Arrow(
+            arrow_pos = Arrow(
                 pos_points[mid_idx-1],
                 pos_points[mid_idx+1],
                 buff=0.1,
                 color=self.plotcolor,
                 stroke_width=self.plot_stroke_width
             )
-            self.nyquist_plot.add(arrow)
-        
+            self.nyquist_plot.add(arrow_pos)
+
+        if len(neg_points) > 10:  # Assuming neg_points stores negative-frequency data
+            mid_idx = len(neg_points) // 2
+            arrow_neg = Arrow(
+                neg_points[mid_idx - 1],  # Reverse direction for negative omega
+                neg_points[mid_idx + 1],
+                buff=0.1,
+                color=self.plotcolor,
+                stroke_width=self.plot_stroke_width,
+                tip_length=0.15)
+            self.nyquist_plot.add(arrow_neg)
+
         self.add(self.nyquist_plot)
 
     def add_plot_components(self):

@@ -11,9 +11,11 @@ class Bode(Scene):
 
         bode = BodePlot(system)
         bode.grid_on()
-        
+        bode.show_magnitude(False)
 
-        self.add(bode)
+        self.play(Create(bode),run_time=3)
+
+        self.wait(3)
 
 
         # Highlight critical points
