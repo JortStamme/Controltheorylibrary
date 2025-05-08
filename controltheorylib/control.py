@@ -2468,9 +2468,6 @@ class Nyquist(VGroup):
             # Get system representation
             if not isinstance(self.system, signal.TransferFunction):
                 self.system = signal.TransferFunction(*self.system)
-            
-            if self._is_proper():
-                
 
             poles = self.system.poles
             zeros = self.system.zeros
@@ -2511,30 +2508,101 @@ class Nyquist(VGroup):
             _, response = signal.freqresp(self.system, w)
             re, im = np.real(response), np.imag(response)
             
-            # Calculate axis ranges with padding
-            re_span = np.max(re) - np.min(re) or 10
-            im_span = np.max(im) - np.min(im) or 10
-            padding = 0.2
-            
-            x_min = min(np.min(re) - padding*re_span, -2)
-            x_max = max(np.max(re) + padding*re_span, 1)
-            y_min = min(np.min(im) - padding*im_span, -2)
-            y_max = max(np.max(im) + padding*im_span, 2)
+            if self._is_proper():
+                # Include ω=0 and ω=∞ for proper systems (closed contour)
+                if not any(np.isclose(poles, 0)):  # Skip if integrator (diverges at ω=0)
+                    w_extended = np.logspace(
+                        np.log10(min_freq), 
+                        np.log10(max_freq * 10),  # Extend to capture ω→∞ behavior
+                        1000)
+                    _, response_ext = signal.freqresp(self.system, w_extended)
+                    re = np.concatenate([re, np.real(response_ext)])
+                    im = np.concatenate([im, np.imag(response_ext)])
+
+                    # Axis ranges with adaptive padding
+            re_min, re_max = np.min(re), np.max(re)
+            im_min, im_max = np.min(im), np.max(im)
+                    
+                    # Dynamic padding (reduce for closed plots, increase for open)
+            padding = 0.1 if self._is_proper() else 0.3
+                    
+            x_min = re_min 
+            x_max = re_max 
+            y_min = im_min 
+            y_max = -im_min
+
+                    # Ensure the origin is visible for proper systems (critical for Nyquist criterion)
+            if self._is_proper():
+
+                max_abs_real_deviation = max(abs(re_min), abs(re_max))
+                max_abs_im_deviation = max(abs(im_min), abs(im_max))
+
+                min_real_range_extent = max_abs_real_deviation * 0.15 # e.g., 15% of max real deviation
+                min_im_range_extent = max_abs_im_deviation * 0.15 # e.g., 15% of max imaginary deviation
+                
+                x_min = min(x_min, -min_real_range_extent)
+                x_max = max(x_max, min_real_range_extent)
+                y_min = min(y_min, -min_im_range_extent)
+                y_max = max(y_max, min_im_range_extent)
+
+            x_padding = (x_max - x_min) * padding
+            y_padding = (y_max - y_min) * padding
+
+            x_min -= x_padding
+            x_max += x_padding
+            y_min -= y_padding
+            y_max += y_padding
+
+            # Calculate total span
+            self.x_span = x_max-x_min
+            self.y_span = y_max-y_min
+
+            # Based on the span, round off to nearest integer x
+            # Round off to 0.5
+            if self.x_span < 4:
+                x_min=np.floor(x_min/0.5)*0.5
+                x_max=np.ceil(x_max/0.5)*0.5
+            if self.y_span < 4:
+                y_min=np.floor(y_min/0.5)*0.5
+                y_max=np.ceil(y_max/0.5)*0.5
+
+            # Round off to 1
+            if 4<= self.x_span <= 10:
+                x_min=np.floor(x_min)
+                x_max=np.ceil(x_max)
+            if 4 <= self.y_span <= 10:
+                y_min=np.floor(y_min)
+                y_max=np.ceil(y_max)
+
+            # Round off to 2
+            if 10< self.x_span <= 20:
+                x_min=np.floor(x_min/2)*2
+                x_max=np.ceil(x_max/2)*2
+            if 10 <= self.y_span <= 20:
+                y_min=np.floor(y_min)
+                y_max=np.ceil(y_max)
+
+            # Round off to 5 
+            if self.x_span > 20:
+                x_min=np.floor(x_min/5)*5
+                x_max=np.ceil(x_max/5)*5
+            if self.y_span > 20:
+                y_min=np.floor(y_min/5)*5
+                y_max=np.ceil(y_max/5)*5
 
             return {
                 'freq_range': (float(min_freq), float(max_freq)),
                 'x_range': (float(x_min), float(x_max)),
                 'y_range': (float(y_min), float(y_max))
-            }
+                    }
 
         except Exception as e:
-            print(f"Range determination error: {e}")
-            return {
-                'freq_range': (0.1, 100),
-                'x_range': (-10, 10),
-                'y_range': (-10, 10)
-            }
-    
+                    print(f"Range determination error: {e}")
+                    return {
+                        'freq_range': (0.1, 100),
+                        'x_range': (-10, 10),
+                        'y_range': (-10, 10)
+                    }
     def _validate_range(self, range_tuple):
         """Ensure numerical stability in axis ranges."""
         min_val, max_val = range_tuple
@@ -2552,8 +2620,8 @@ class Nyquist(VGroup):
         y_min, y_max = self._validate_range(self.y_range)
     
         # Calculate sane step sizes
-        x_step = (x_max - x_min) / 10 if (x_max - x_min) > 0 else 1
-        y_step = (y_max - y_min) / 10 if (y_max - y_min) > 0 else 1
+        x_step = 0.5 if self.x_span < 4 else (1 if 4<=self.x_span<=10 else (2 if 10<self.x_span<=20 else 5))
+        y_step = 0.5 if self.y_span < 4 else (1 if 4<=self.y_span<=10 else (2 if 10<self.y_span<=20 else 5))
 
         self.plane = ComplexPlane(
             x_range=[x_min, x_max, x_step],
@@ -2729,13 +2797,17 @@ class Nyquist(VGroup):
         
         if orientation == "horizontal":
             # For x-axis ticks (top and bottom)
-            step = (self.x_range[1] - self.x_range[0]) / 5
+            step = 0.5 if self.x_span < 4 else (1 if 4<=self.x_span<=10 else (2 if 10<self.x_span<=20 else 5))
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
                 step
             )
-            
+
+            # make sure that 0 is included
+            if self.x_range[0] <= 0 <= self.x_range[1]:
+                values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+
             for x_val in values:
                 # Bottom ticks
                 bottom_point = axes.c2p(x_val, axes.y_range[0])
@@ -2754,13 +2826,17 @@ class Nyquist(VGroup):
                 ))
                 
         else:  # vertical (y-axis ticks - left and right)
-            step = (self.y_range[1] - self.y_range[0]) / 5
+            step = 0.5 if self.y_span < 4 else (1 if 4<=self.y_span<=10 else (2 if 10<self.y_span<=20 else 5))
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
                 step
             )
-            
+
+            # Make sure that 0 is included
+            if self.y_range[0] <= 0 <= self.y_range[1]:
+                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+
             for y_val in values:
                 # Left ticks
                 left_point = axes.c2p(axes.x_range[0], y_val)
@@ -2786,34 +2862,34 @@ class Nyquist(VGroup):
         
         if orientation == "horizontal":
             # X-axis labels (bottom only)
-            step = (self.x_range[1] - self.x_range[0]) / 5
+            step = 0.5 if self.x_span < 4 else (1 if 4<=self.x_span<=10 else (2 if 10<self.x_span<=20 else 5))
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
                 step
             )
-            
+
+            if self.x_range[0] <= 0 <= self.x_range[1]:
+                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+
             for x_val in values:
-                if abs(x_val) < 1e-6:  # Skip zero to avoid overlap
-                    continue
-                    
                 point = axes.c2p(x_val, axes.y_range[0])
                 label = MathTex(f"{x_val:.1f}", font_size=18)
                 label.move_to([point[0], point[1] - 0.3, 0])  # Position below axis
                 labels.add(label)
                 
         else:  # vertical (y-axis labels - left only)
-            step = (self.y_range[1] - self.y_range[0]) / 5
+            step = 0.5 if self.y_span < 4 else (1 if 4<=self.y_span<=10 else (2 if 10<self.y_span<=20 else 5)) 
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
                 step
             )
             
+            if self.y_range[0] <= 0 <= self.y_range[1]:
+                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+
             for y_val in values:
-                if abs(y_val) < 1e-6:  # Skip zero to avoid overlap
-                    continue
-                    
                 point = axes.c2p(axes.x_range[0], y_val)
                 label = MathTex(f"{y_val:.1f}", font_size=18)
                 label.move_to([point[0] - 0.3, point[1], 0])  # Position left of axis
