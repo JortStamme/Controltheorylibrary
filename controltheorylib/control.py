@@ -2641,8 +2641,8 @@ class Nyquist(VGroup):
         x_start, x_end = self.plane.x_axis.get_start(), self.plane.x_axis.get_end()
         y_start, y_end = self.plane.y_axis.get_start(), self.plane.y_axis.get_end()
 
-        dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE)
-        dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE)
+        dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
 
         # Add labels
         self.x_label = MathTex("\\mathrm{Re}", font_size=self.font_size_labels)
@@ -2748,9 +2748,10 @@ class Nyquist(VGroup):
             arrow_pos = Arrow(
                 pos_points[mid_idx-1],
                 pos_points[mid_idx+1],
-                buff=0.1,
+                buff=0.01,
                 color=self.plotcolor,
-                stroke_width=self.plot_stroke_width
+                stroke_width=self.plot_stroke_width+0.5, 
+                tip_length=0.3
             )
             self.nyquist_plot.add(arrow_pos)
 
@@ -2759,10 +2760,10 @@ class Nyquist(VGroup):
             arrow_neg = Arrow(
                 neg_points[mid_idx - 1],  # Reverse direction for negative omega
                 neg_points[mid_idx + 1],
-                buff=0.1,
+                buff=0.01,
                 color=self.plotcolor,
-                stroke_width=self.plot_stroke_width,
-                tip_length=0.15)
+                stroke_width=self.plot_stroke_width+0.5,
+                tip_length=0.3)
             self.nyquist_plot.add(arrow_neg)
 
         self.add(self.nyquist_plot)
@@ -2779,14 +2780,11 @@ class Nyquist(VGroup):
         
         # Add -1 point marker if it's in view
         if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
-            minus_one = Dot(
-                self.plane.number_to_point(-1 + 0j),
-                color=RED,
-                radius=0.05
-            )
+            minus_one_marker = MathTex("+", color = RED, font_size=40).move_to(self.plane.number_to_point(-1 + 0j))
             minus_one_label = MathTex("-1", font_size=20, color=RED)
-            minus_one_label.next_to(minus_one, DOWN, buff=0.1)
-            self.axes_components.add(minus_one, minus_one_label)
+            minus_one_label.next_to(minus_one_marker, DOWN, buff=0.1)
+            self.axes_components.add(minus_one_marker, minus_one_label)
+
         self.box = SurroundingRectangle(self.plane, buff=0, color=WHITE, stroke_width=2)
         self.axes_components.add(x_ticks, y_ticks, x_labels, y_labels, self.box)
 
@@ -2885,7 +2883,7 @@ class Nyquist(VGroup):
                 self.y_range[1] + step/2,
                 step
             )
-            
+
             if self.y_range[0] <= 0 <= self.y_range[1]:
                  values = np.sort(np.unique(np.concatenate([values, [0.0]])))
 

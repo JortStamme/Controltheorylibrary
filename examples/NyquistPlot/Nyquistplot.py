@@ -6,10 +6,10 @@ class Nyquistplot(Scene):
     def construct(self):
         
         s = sp.symbols('s')
-        num = 1  
+        num = s+1  
         den = s**2+0.2*s+1 
         system = (num, den)
-        nyquist = Nyquist(system)
+        nyquist = Nyquist(system,show_unit_circle=False)
         nyquist.title("Nyquist plot")
         nyquist.highlight_critical_points()
         self.add(nyquist)
