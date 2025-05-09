@@ -2618,43 +2618,43 @@ class Nyquist(VGroup):
             # Based on the span, round off to nearest integer x
             # Round off to 0.5
             if self.x_span < 4:
-                x_min=np.floor(x_min/0.5)*0.5
-                x_max=np.ceil(x_max/0.5)*0.5
+                x_min=np.floor(x_min)
+                x_max=np.ceil(x_max)
             if self.y_span < 4:
-                y_min=np.floor(y_min/0.5)*0.5
-                y_max=np.ceil(y_max/0.5)*0.5
+                y_min=np.floor(y_min)
+                y_max=np.ceil(y_max)
 
             # Round off to 1
             if 4<= self.x_span <= 10:
-                x_min=np.floor(x_min)
-                x_max=np.ceil(x_max)
+                x_min=np.floor(x_min/2)*2
+                x_max=np.ceil(x_max/2)*2
             if 4 <= self.y_span <= 10:
-                y_min=np.floor(y_min)
-                y_max=np.ceil(y_max)
+                y_min=np.floor(y_min/2)*2
+                y_max=np.ceil(y_max/2)*2
 
             # Round off to 2
             if 10< self.x_span <= 20:
-                x_min=np.floor(x_min/2)*2
-                x_max=np.ceil(x_max/2)*2
-            if 10 <= self.y_span <= 20:
-                y_min=np.floor(y_min)
-                y_max=np.ceil(y_max)
-
-            # Round off to 5 
-            if 20<self.x_span <=50:
                 x_min=np.floor(x_min/5)*5
                 x_max=np.ceil(x_max/5)*5
-            if 20<self.y_span <=50:
+            if 10 <= self.y_span <= 20:
                 y_min=np.floor(y_min/5)*5
                 y_max=np.ceil(y_max/5)*5
 
-            # Round off to 10 
-            if self.x_span > 50:
+            # Round off to 5 
+            if 20<self.x_span <=50:
                 x_min=np.floor(x_min/10)*10
                 x_max=np.ceil(x_max/10)*10
-            if self.y_span > 50:
+            if 20<self.y_span <=50:
                 y_min=np.floor(y_min/10)*10
                 y_max=np.ceil(y_max/10)*10
+
+            # Round off to 10 
+            if self.x_span > 50:
+                x_min=np.floor(x_min/20)*20
+                x_max=np.ceil(x_max/20)*20
+            if self.y_span > 50:
+                y_min=np.floor(y_min/20)*20
+                y_max=np.ceil(y_max/20)*20
 
             return {
                 'freq_range': (float(min_freq), float(max_freq)),
@@ -2687,8 +2687,8 @@ class Nyquist(VGroup):
         y_min, y_max = self._validate_range(self.y_range)
     
         # Calculate sane step sizes
-        x_step = 0.5 if self.x_span < 4 else (1 if 4<=self.x_span<=10 else (2 if 10<self.x_span<=20 else 5))
-        y_step = 0.5 if self.y_span < 4 else (1 if 4<=self.y_span<=10 else (2 if 10<self.y_span<=20 else 5))
+        x_step = 1 if self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
+        y_step = 1 if self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
 
         self.plane = ComplexPlane(
             x_range=[x_min, x_max, x_step],
@@ -2865,7 +2865,7 @@ class Nyquist(VGroup):
         
         if orientation == "horizontal":
             # For x-axis ticks (top and bottom)
-            step = 0.5 if self.x_span < 4 else (1 if 4<=self.x_span<=10 else (2 if 10<self.x_span<=20 else 5))
+            step = 1 if self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
@@ -2894,7 +2894,7 @@ class Nyquist(VGroup):
                 ))
                 
         else:  # vertical (y-axis ticks - left and right)
-            step = 0.5 if self.y_span < 4 else (1 if 4<=self.y_span<=10 else (2 if 10<self.y_span<=20 else 5))
+            step = 1 if self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
@@ -2930,7 +2930,7 @@ class Nyquist(VGroup):
         
         if orientation == "horizontal":
             # X-axis labels (bottom only)
-            step = 0.5 if self.x_span < 4 else (1 if 4<=self.x_span<=10 else (2 if 10<self.x_span<=20 else 5))
+            step = 1 if self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
@@ -2947,7 +2947,7 @@ class Nyquist(VGroup):
                 labels.add(label)
                 
         else:  # vertical (y-axis labels - left only)
-            step = 0.5 if self.y_span < 4 else (1 if 4<=self.y_span<=10 else (2 if 10<self.y_span<=20 else 5)) 
+            step = 1 if self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
