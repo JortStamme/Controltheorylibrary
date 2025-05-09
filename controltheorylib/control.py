@@ -2493,8 +2493,8 @@ class Nyquist(VGroup):
             
             if finite_features.size > 0:
                 with np.errstate(divide='ignore'):
-                    min_freq = 10**(np.floor(np.log10(np.min(finite_features))) - 1)
-                    max_freq = 10**(np.ceil(np.log10(np.max(finite_features))) + 1)
+                    min_freq = 10**(np.floor(np.log10(np.min(finite_features))) - 2)
+                    max_freq = 10**(np.ceil(np.log10(np.max(finite_features))) + 2)
             else:
                 min_freq, max_freq = 0.1, 100
 
@@ -2503,6 +2503,9 @@ class Nyquist(VGroup):
                 min_freq = min(0.001, min_freq)
             if any(np.isclose(zeros, 0)):
                 max_freq = max(1000, max_freq)
+
+            if not self._is_proper():
+                max_freq = min(max_freq, 1e6)
 
             # Calculate Nyquist response
             w = np.logspace(
@@ -2528,8 +2531,8 @@ class Nyquist(VGroup):
             re_min, re_max = np.min(re), np.max(re)
             im_min, im_max = np.min(im), np.max(im)
                     
-                    # Dynamic padding (reduce for closed plots, increase for open)
-            padding = 0.1 if self._is_proper() else 0.3
+
+            padding = 0.1 if self._is_proper() else 0.05
                     
             x_min = re_min 
             x_max = re_max 
@@ -2550,15 +2553,64 @@ class Nyquist(VGroup):
                 x_max = max(x_max, min_real_range_extent)
                 y_min = min(y_min, -min_im_range_extent)
                 y_max = max(y_max, min_im_range_extent)
+                
+                x_padding = (x_max - x_min) * padding
+                y_padding = (y_max - y_min) * padding
 
-            x_padding = (x_max - x_min) * padding
-            y_padding = (y_max - y_min) * padding
+                x_min -= x_padding
+                x_max += x_padding
+                y_min -= y_padding
+                y_max += y_padding
 
-            x_min -= x_padding
-            x_max += x_padding
-            y_min -= y_padding
-            y_max += y_padding
-
+            if not self._is_proper() or not self._is_strictly_proper():
+                # Detect sustained divergence for improper systems
+                magnitudes = np.abs(response)
+                if len(magnitudes) > 1:
+                    log_magnitudes = np.log(magnitudes + 1e-12)  # Avoid log(0)
+                    log_w = np.log(w + 1e-12)
+                    
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        growth_rate = np.diff(log_magnitudes)/np.diff(log_w)
+                    growth_rate = np.nan_to_num(growth_rate, nan=0, posinf=1e6, neginf=-1e6)
+                    
+                    # Parameters for sustained divergence detection
+                    threshold = 0.5  # Growth rate threshold
+                    min_consecutive_points = 100  # Number of consecutive points above threshold
+                    
+                    # Find regions of sustained growth
+                    above_threshold = growth_rate > threshold
+                    divergent_regions = np.where(np.convolve(
+                        above_threshold, 
+                        np.ones(min_consecutive_points), 
+                        mode='full'
+                    ) >= min_consecutive_points)[0]
+                    
+                    if len(divergent_regions) > 0:
+                        first_divergent_idx = divergent_regions[0]
+                        
+                        # Only truncate if the divergence is significant
+                        if (log_w[-1] - log_w[first_divergent_idx]) > 1.0:  # At least 1 decade of sustained growth
+                            re = re[:first_divergent_idx+1]
+                            im = im[:first_divergent_idx+1]
+                
+                # Calculate ranges based on response
+                re_min, re_max = np.min(re), np.max(re)
+                im_min, im_max = np.min(im), np.max(im)
+                
+                # Add padding only if not diverging
+                if len(magnitudes) == len(re):  # If we didn't truncate
+                    padding = 0
+                    x_padding = (re_max - re_min) * padding
+                    y_padding = (im_max - im_min) * padding
+                else:
+                    padding = 0  # Smaller padding for truncated responses
+                
+                x_min = re_min 
+                x_max = re_max 
+                max_abs_im = max(abs(im_min), abs(im_max))
+                y_min = -max_abs_im 
+                y_max = max_abs_im
+                
             # Calculate total span
             self.x_span = x_max-x_min
             self.y_span = y_max-y_min
@@ -2589,12 +2641,20 @@ class Nyquist(VGroup):
                 y_max=np.ceil(y_max)
 
             # Round off to 5 
-            if self.x_span > 20:
+            if 20<self.x_span <=50:
                 x_min=np.floor(x_min/5)*5
                 x_max=np.ceil(x_max/5)*5
-            if self.y_span > 20:
+            if 20<self.y_span <=50:
                 y_min=np.floor(y_min/5)*5
                 y_max=np.ceil(y_max/5)*5
+
+            # Round off to 10 
+            if self.x_span > 50:
+                x_min=np.floor(x_min/10)*10
+                x_max=np.ceil(x_max/10)*10
+            if self.y_span > 50:
+                y_min=np.floor(y_min/10)*10
+                y_max=np.ceil(y_max/10)*10
 
             return {
                 'freq_range': (float(min_freq), float(max_freq)),
