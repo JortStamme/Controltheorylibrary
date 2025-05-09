@@ -2504,6 +2504,22 @@ class Nyquist(VGroup):
             if any(np.isclose(zeros, 0)):
                 max_freq = max(1000, max_freq)
 
+            self.is_pure_integrator = (len(poles) == 1 and np.isclose(poles[0], 0) 
+                                  and len(zeros) == 0)
+            if self.is_pure_integrator:
+                y_min=-10
+                y_max=10
+                x_min=-2
+                x_max=10   
+                re_min, re_max = x_min, x_max
+                im_min, im_max = y_min, y_max
+                self.x_span = x_max-x_min
+                self.y_span = y_max-y_min
+                return {
+                    'freq_range': (0.1, 100.0),
+                    'x_range': (x_min, x_max),
+                    'y_range': (y_min, y_max)
+                 }
             if not self._is_proper():
                 max_freq = min(max_freq, 1e6)
 
@@ -2516,7 +2532,7 @@ class Nyquist(VGroup):
             _, response = signal.freqresp(self.system, w)
             re, im = np.real(response), np.imag(response)
             
-            if self._is_proper():
+            if self._is_proper() and not self.is_pure_integrator:
                 # Include ω=0 and ω=∞ for proper systems (closed contour)
                 if not any(np.isclose(poles, 0)):  # Skip if integrator (diverges at ω=0)
                     w_extended = np.logspace(
@@ -2528,20 +2544,20 @@ class Nyquist(VGroup):
                     im = np.concatenate([im, np.imag(response_ext)])
 
                     # Axis ranges with adaptive padding
-            re_min, re_max = np.min(re), np.max(re)
-            im_min, im_max = np.min(im), np.max(im)
+                    re_min, re_max = np.min(re), np.max(re)
+                    im_min, im_max = np.min(im), np.max(im)
                     
 
-            padding = 0.1 if self._is_proper() else 0.05
+                    padding = 0.1 if self._is_proper() else 0.05
                     
-            x_min = re_min 
-            x_max = re_max 
-            max_abs_im = max(abs(im_min), abs(im_max))
-            y_min = -max_abs_im 
-            y_max = max_abs_im
+                    x_min = re_min 
+                    x_max = re_max 
+                    max_abs_im = max(abs(im_min), abs(im_max))
+                    y_min = -max_abs_im 
+                    y_max = max_abs_im
 
                     # Ensure the origin is visible for proper systems (critical for Nyquist criterion)
-            if self._is_proper() or self._is_strictly_proper():
+            if self._is_proper() or self._is_strictly_proper() and not self.is_pure_integrator:
 
                 max_abs_real_deviation = max(abs(re_min), abs(re_max))
                 max_abs_im_deviation = max(abs(im_min), abs(im_max))
@@ -2562,7 +2578,7 @@ class Nyquist(VGroup):
                 y_min -= y_padding
                 y_max += y_padding
 
-            if not self._is_proper() or not self._is_strictly_proper():
+            if (not self._is_proper() or not self._is_strictly_proper()) and not self.is_pure_integrator :
                 # Detect sustained divergence for improper systems
                 magnitudes = np.abs(response)
                 if len(magnitudes) > 1:
@@ -2574,8 +2590,8 @@ class Nyquist(VGroup):
                     growth_rate = np.nan_to_num(growth_rate, nan=0, posinf=1e6, neginf=-1e6)
                     
                     # Parameters for sustained divergence detection
-                    threshold = 0.5  # Growth rate threshold
-                    min_consecutive_points = 100  # Number of consecutive points above threshold
+                    threshold = 0.5  # Growth rate threshold 0.5
+                    min_consecutive_points = 80  # Number of consecutive points above threshold 100
                     
                     # Find regions of sustained growth
                     above_threshold = growth_rate > threshold
@@ -2610,7 +2626,7 @@ class Nyquist(VGroup):
                 max_abs_im = max(abs(im_min), abs(im_max))
                 y_min = -max_abs_im 
                 y_max = max_abs_im
-                
+
             # Calculate total span
             self.x_span = x_max-x_min
             self.y_span = y_max-y_min
@@ -2810,7 +2826,18 @@ class Nyquist(VGroup):
         self.nyquist_plot.set_stroke(width=self.plot_stroke_width)
         
         # Add arrow at frequency increasing direction
-        if len(pos_points) > 10:
+        if self.is_pure_integrator:
+            pure_int_arrow_pos=Arrow(self.plane.c2p(0,2), self.plane.c2p(0,6),
+                                 color=self.plotcolor,
+                                 stroke_width=self.plot_stroke_width+0.5,
+                                 tip_length=0.3)
+            pure_int_arrow_neg=Arrow(self.plane.c2p(0,-6), self.plane.c2p(0,-2),
+                                 color=self.plotcolor,
+                                 stroke_width=self.plot_stroke_width+0.5,
+                                 tip_length=0.3)
+            self.nyquist_plot.add(pure_int_arrow_pos, pure_int_arrow_neg)
+
+        if len(pos_points) >= 3:
             mid_idx = len(pos_points) // 2
             arrow_pos = Arrow(
                 pos_points[mid_idx-1],
@@ -2818,11 +2845,11 @@ class Nyquist(VGroup):
                 buff=0.1,
                 color=self.plotcolor,
                 stroke_width=self.plot_stroke_width+0.5, 
-                tip_length=0.3
-            )
+                tip_length=0.2)
+            
             self.nyquist_plot.add(arrow_pos)
 
-        if len(neg_points) > 10:  # Assuming neg_points stores negative-frequency data
+        if len(neg_points) >= 3:  # Assuming neg_points stores negative-frequency data
             mid_idx = len(neg_points) // 2
             arrow_neg = Arrow(
                 neg_points[mid_idx - 1],  # Reverse direction for negative omega
