@@ -23,3 +23,6 @@ examples/MassSpringDamperSystem/media/
 
 examples/PoleZeroMap/__pycache__/
 examples/PoleZeroMap/media/
+
+examples/NyquistPlot/media/
+examples/NyquistPlot/__pycache__/

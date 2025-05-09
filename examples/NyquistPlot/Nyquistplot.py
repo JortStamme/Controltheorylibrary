@@ -6,10 +6,10 @@ class Nyquistplot(Scene):
     def construct(self):
         
         s = sp.symbols('s')
-        num = s+1  
+        num = (s+1)*(s-1) 
         den = s**2+0.2*s+1 
         system = (num, den)
-        nyquist = Nyquist(system,show_unit_circle=False)
-        nyquist.title("Nyquist plot")
-        nyquist.highlight_critical_points()
+        nyquist = Nyquist(system, show_minus_one_label=False,
+                          y_axis_label=r"\mathcal{I}m\{\mathcal{L}(j\omega)\}",
+                          x_axis_label=r"\mathcal{R}e\{\mathcal{L}(j\omega)\}")
         self.add(nyquist)

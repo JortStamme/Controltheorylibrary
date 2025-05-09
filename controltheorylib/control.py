@@ -2323,8 +2323,8 @@ class BodePlot(VGroup):
 #Nyquist plot class
 class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
-                 color=BLUE, stroke_width=2, label="Nyquist Plot", 
-                 font_size_labels=20, show_unit_circle=True, **kwargs):
+                 color=BLUE, stroke_width=2, label="Nyquist Plot", y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
+                 font_size_labels=20, show_unit_circle=False, show_minus_one_label=True,show_minus_one_marker=True, **kwargs):
         """
         Create a Nyquist plot visualization for a given system.
         
@@ -2355,6 +2355,8 @@ class Nyquist(VGroup):
         self.label = label
         self.font_size_labels = font_size_labels
         self.show_unit_circle = show_unit_circle
+        self.show_minus_one_label = show_minus_one_label
+        self.show_minus_one_marker = show_minus_one_marker
 
         auto_ranges = self._auto_determine_ranges()
         self.freq_range = freq_range if freq_range is not None else auto_ranges['freq_range']
@@ -2364,6 +2366,9 @@ class Nyquist(VGroup):
         self._title = None
         self._use_math_tex = False
         self._has_title = False
+
+        self.y_axis_label = y_axis_label
+        self.x_axis_label = x_axis_label
 
         # Create all components
         self.create_axes()
@@ -2528,11 +2533,12 @@ class Nyquist(VGroup):
                     
             x_min = re_min 
             x_max = re_max 
-            y_min = im_min 
-            y_max = -im_min
+            max_abs_im = max(abs(im_min), abs(im_max))
+            y_min = -max_abs_im 
+            y_max = max_abs_im
 
                     # Ensure the origin is visible for proper systems (critical for Nyquist criterion)
-            if self._is_proper():
+            if self._is_proper() or self._is_strictly_proper():
 
                 max_abs_real_deviation = max(abs(re_min), abs(re_max))
                 max_abs_im_deviation = max(abs(im_min), abs(im_max))
@@ -2603,6 +2609,7 @@ class Nyquist(VGroup):
                         'x_range': (-10, 10),
                         'y_range': (-10, 10)
                     }
+        
     def _validate_range(self, range_tuple):
         """Ensure numerical stability in axis ranges."""
         min_val, max_val = range_tuple
@@ -2645,8 +2652,8 @@ class Nyquist(VGroup):
         dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
 
         # Add labels
-        self.x_label = MathTex("\\mathrm{Re}", font_size=self.font_size_labels)
-        self.y_label = MathTex("\\mathrm{Im}", font_size=self.font_size_labels)
+        self.x_label = MathTex(self.x_axis_label, font_size=self.font_size_labels)
+        self.y_label = MathTex(self.y_axis_label, font_size=self.font_size_labels)
         
         # Position labels
         self.x_label.next_to(self.plane.x_axis.get_right(), RIGHT, buff=0.2)
@@ -2748,7 +2755,7 @@ class Nyquist(VGroup):
             arrow_pos = Arrow(
                 pos_points[mid_idx-1],
                 pos_points[mid_idx+1],
-                buff=0.01,
+                buff=0.1,
                 color=self.plotcolor,
                 stroke_width=self.plot_stroke_width+0.5, 
                 tip_length=0.3
@@ -2760,7 +2767,7 @@ class Nyquist(VGroup):
             arrow_neg = Arrow(
                 neg_points[mid_idx - 1],  # Reverse direction for negative omega
                 neg_points[mid_idx + 1],
-                buff=0.01,
+                buff=0.1,
                 color=self.plotcolor,
                 stroke_width=self.plot_stroke_width+0.5,
                 tip_length=0.3)
@@ -2780,10 +2787,13 @@ class Nyquist(VGroup):
         
         # Add -1 point marker if it's in view
         if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
-            minus_one_marker = MathTex("+", color = RED, font_size=40).move_to(self.plane.number_to_point(-1 + 0j))
-            minus_one_label = MathTex("-1", font_size=20, color=RED)
-            minus_one_label.next_to(minus_one_marker, DOWN, buff=0.1)
-            self.axes_components.add(minus_one_marker, minus_one_label)
+            if self.show_minus_one_marker:
+                minus_one_marker = MathTex("+", color = RED, font_size=40).move_to(self.plane.number_to_point(-1 + 0j))
+                self.axes_components.add(minus_one_marker)
+            if self.show_minus_one_label:
+                minus_one_label = MathTex("-1", font_size=20, color=RED)
+                minus_one_label.next_to(minus_one_marker, DOWN, buff=0.1)
+                self.axes_components.add(minus_one_label)
 
         self.box = SurroundingRectangle(self.plane, buff=0, color=WHITE, stroke_width=2)
         self.axes_components.add(x_ticks, y_ticks, x_labels, y_labels, self.box)
