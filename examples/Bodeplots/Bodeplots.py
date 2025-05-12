@@ -6,14 +6,13 @@ class Bode(Scene):
     def construct(self):
         s = sp.symbols('s')
         num = 1
-        den = s**2+0.2*s+1
+        den = s*(s+1)*(s+5)
         system = (num, den)
 
         bode = BodePlot(system)
         bode.grid_on()
-        bode.show_magnitude(False)
-
-        self.play(Create(bode),run_time=3)
+        bode.show_margins()
+        self.add(bode)
 
         self.wait(3)
 

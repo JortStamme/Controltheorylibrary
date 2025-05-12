@@ -2264,7 +2264,6 @@ class BodePlot(VGroup):
             self.mag_components.add(margin_group)
         if self._show_phase:
             self.phase_components.add(margin_group)  
-
         return self
 
     def _calculate_stability_margins(self):
@@ -2279,7 +2278,7 @@ class BodePlot(VGroup):
         - ws: stability margin frequency
         """
         # Find phase crossover (where phase crosses -180°)
-        phase_crossings = np.where(np.diff(np.sign(self.phases + 180)))[0]
+        phase_crossings = np.where(np.abs(self.phases + 180) < 5)[0]
         
         if len(phase_crossings) > 0:
             # Use the last crossing before phase goes below -180°
@@ -2292,13 +2291,10 @@ class BodePlot(VGroup):
             gm = np.inf
         
         # Find gain crossover (where magnitude crosses 0 dB)
-        crossings = []
-        for i in range(len(self.magnitudes)-1):
-            if self.magnitudes[i] * self.magnitudes[i+1] <= 0:  # Sign change
-                crossings.append(i)
+        gain_crossings = np.where(np.abs(self.magnitudes) < 0.5)[0]
         
-        if crossings:
-            idx = crossings[0]  # First 0 dB crossing
+        if len(gain_crossings)>0:
+            idx = gain_crossings[0]  # First 0 dB crossing
             wp = np.interp(0, 
                         [self.magnitudes[idx], self.magnitudes[idx+1]],
                         [self.frequencies[idx], self.frequencies[idx+1]])
@@ -2324,7 +2320,8 @@ class BodePlot(VGroup):
 class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
                  color=BLUE, stroke_width=2, label="Nyquist Plot", y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
-                 font_size_labels=20, show_unit_circle=False, show_minus_one_label=True,show_minus_one_marker=True, **kwargs):
+                 font_size_labels=20, show_unit_circle=False, show_minus_one_label=True,show_minus_one_marker=True,
+                  show_positive_freq=True, show_negative_freq=True, **kwargs):
         """
         Create a Nyquist plot visualization for a given system.
         
@@ -2357,6 +2354,8 @@ class Nyquist(VGroup):
         self.show_unit_circle = show_unit_circle
         self.show_minus_one_label = show_minus_one_label
         self.show_minus_one_marker = show_minus_one_marker
+        self.show_positive_freq = show_positive_freq
+        self.show_negative_freq = show_negative_freq
 
         auto_ranges = self._auto_determine_ranges()
         self.freq_range = freq_range if freq_range is not None else auto_ranges['freq_range']
@@ -2477,6 +2476,13 @@ class Nyquist(VGroup):
             poles = self.system.poles
             zeros = self.system.zeros
             
+            # Initialize range variables with defaults
+            min_freq, max_freq = 0.1, 100
+            x_min, x_max = -10, 10
+            y_min, y_max = -10, 10
+            re_min, re_max = x_min, x_max # Initialize with default plot ranges
+            im_min, im_max = y_min, y_max # Initialize with default plot ranges
+
             # Handle special cases
             if not poles.size and not zeros.size:
                 return {
@@ -2504,41 +2510,84 @@ class Nyquist(VGroup):
             if any(np.isclose(zeros, 0)):
                 max_freq = max(1000, max_freq)
 
+            num_poles_at_zero = np.sum(np.isclose(poles,0))
             self.is_pure_integrator = (len(poles) == 1 and np.isclose(poles[0], 0) 
                                   and len(zeros) == 0)
-            if self.is_pure_integrator:
-                y_min=-10
-                y_max=10
-                x_min=-2
-                x_max=10   
-                re_min, re_max = x_min, x_max
-                im_min, im_max = y_min, y_max
-                self.x_span = x_max-x_min
-                self.y_span = y_max-y_min
-                return {
-                    'freq_range': (0.1, 100.0),
-                    'x_range': (x_min, x_max),
-                    'y_range': (y_min, y_max)
-                 }
-            if not self._is_proper():
-                max_freq = min(max_freq, 1e6)
 
             # Calculate Nyquist response
             w = np.logspace(
                 np.log10(max(min_freq, 1e-10)), 
                 np.log10(max_freq), 
-                500
+                10000
             )
             _, response = signal.freqresp(self.system, w)
             re, im = np.real(response), np.imag(response)
             
-            if self._is_proper() and not self.is_pure_integrator:
+            if num_poles_at_zero>0:
+                magnitudes = np.abs(response)
+                if len(magnitudes) > 1:
+                    log_magnitudes = np.log(magnitudes + 1e-12)  # Avoid log(0)
+                    log_w = np.log(w + 1e-12)
+                    
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        growth_rate = np.diff(log_magnitudes)/np.diff(log_w)
+                    growth_rate = np.nan_to_num(growth_rate, nan=0, posinf=1e6, neginf=-1e6)
+                    
+                    # Parameters for sustained divergence detection
+                    negative_threshold = -0.5  # negative since magnitude increases as frequency decreases
+                    min_consecutive_points = 500  # Number of consecutive points above threshold 100
+                    
+                    # Find regions of sustained growth
+                    below_threshold = growth_rate < negative_threshold
+                    # Use convolution to find consecutive points below the negative threshold
+                    convolved_divergence = np.convolve(
+                        below_threshold,
+                        np.ones(min_consecutive_points),
+                        mode='valid' # Use 'valid' mode to get indices where the window fully overlaps
+                    )
+                    
+                    # Find the indices in the convolved result where the condition is met
+                    divergent_start_in_convolved = np.where(convolved_divergence >= min_consecutive_points)[0]
+                    if len(divergent_start_in_convolved) > 0:
+                        # The last index in divergent_regions_indices + min_consecutive_points - 1
+                        # gives the approximate index in the 'growth_rate' array where
+                        # the sustained negative growth *ends*.
+                        # The corresponding index in the 'response' array is one greater.
+                        end_of_divergence_in_growth_rate = divergent_start_in_convolved[0] + min_consecutive_points - 1
+                        truncate_start_idx = end_of_divergence_in_growth_rate + 1 # Truncate from this index onwards
+
+                    # Apply truncation: keep the part of the response *after* the low-frequency divergence
+                    re_truncated = re[truncate_start_idx:]
+                    im_truncated = im[truncate_start_idx:]
+                    truncated=False
+
+                    # Recalculate ranges based on the truncated response
+                    # Ensure arrays are not empty after truncation
+                    if re_truncated.size > 0:
+                        re_min, re_max = np.min(re_truncated), np.max(re_truncated)
+                        im_min, im_max = np.min(im_truncated), np.max(im_truncated)
+                    if self.is_pure_integrator:
+                        re_min, re_max = -2, 10
+                        im_min, im_max = -10, 10
+
+
+                    #if self.is_pure_integrator:
+                        #re_min, re_max = -2, 10
+                        #im_min, im_max = -10, 10
+                
+                    x_min = re_min 
+                    x_max = re_max 
+                    max_abs_im = max(abs(im_min), abs(im_max))
+                    y_min = -max_abs_im 
+                    y_max = max_abs_im
+
+            if self._is_proper() and num_poles_at_zero==0:
                 # Include ω=0 and ω=∞ for proper systems (closed contour)
                 if not any(np.isclose(poles, 0)):  # Skip if integrator (diverges at ω=0)
                     w_extended = np.logspace(
                         np.log10(min_freq), 
                         np.log10(max_freq * 10),  # Extend to capture ω→∞ behavior
-                        1000)
+                        10000)
                     _, response_ext = signal.freqresp(self.system, w_extended)
                     re = np.concatenate([re, np.real(response_ext)])
                     im = np.concatenate([im, np.imag(response_ext)])
@@ -2557,7 +2606,7 @@ class Nyquist(VGroup):
                     y_max = max_abs_im
 
                     # Ensure the origin is visible for proper systems (critical for Nyquist criterion)
-            if self._is_proper() or self._is_strictly_proper() and not self.is_pure_integrator:
+            if (self._is_proper() or self._is_strictly_proper()) and num_poles_at_zero==0:
 
                 max_abs_real_deviation = max(abs(re_min), abs(re_max))
                 max_abs_im_deviation = max(abs(im_min), abs(im_max))
@@ -2578,7 +2627,7 @@ class Nyquist(VGroup):
                 y_min -= y_padding
                 y_max += y_padding
 
-            if (not self._is_proper() or not self._is_strictly_proper()) and not self.is_pure_integrator :
+            if (not self._is_proper() or not self._is_strictly_proper()) and num_poles_at_zero==0:
                 # Detect sustained divergence for improper systems
                 magnitudes = np.abs(response)
                 if len(magnitudes) > 1:
@@ -2591,7 +2640,7 @@ class Nyquist(VGroup):
                     
                     # Parameters for sustained divergence detection
                     threshold = 0.5  # Growth rate threshold 0.5
-                    min_consecutive_points = 80  # Number of consecutive points above threshold 100
+                    min_consecutive_points = 1000  # Number of consecutive points above threshold 100
                     
                     # Find regions of sustained growth
                     above_threshold = growth_rate > threshold
@@ -2775,7 +2824,7 @@ class Nyquist(VGroup):
         w = np.logspace(
             np.log10(self.freq_range[0]),
             np.log10(self.freq_range[1]),
-            1000
+            10000
         )
         
         # Calculate frequency response
@@ -2793,74 +2842,122 @@ class Nyquist(VGroup):
         self.neg_imag_part = -self.imag_part[::-1]
 
     def plot_nyquist_response(self):
-        """Create the Nyquist plot curve."""
-        
-        # Get plane bounds
+        """Create the Nyquist plot curve with robust arrow placement."""
+
+        # Get all points from the calculated response
+        # Do NOT filter based on current plot bounds here.
         x_min, x_max = self.plane.x_range[:2]
         y_min, y_max = self.plane.y_range[:2]
-        
-        # Positive frequencies
-        pos_points=[]
+
+
+         # Positive frequencies
+        all_pos_points=[]
         for re, im in zip(self.real_part, self.imag_part):
             if x_min <= re <= x_max and y_min <= im <= y_max:
-                pos_points.append(self.plane.number_to_point(re + 1j*im))
-            
-        
-        
-        neg_points = []
+                all_pos_points.append(self.plane.number_to_point(re + 1j*im))
+
+        all_neg_points = []
         for re, im in zip(self.neg_real_part, self.neg_imag_part):
             if x_min <= re <= x_max and y_min <= im <= y_max:
-                neg_points.append(self.plane.number_to_point(re + 1j*im))
-            
-        # Create the plot
+                all_neg_points.append(self.plane.number_to_point(re + 1j*im))
+
+        # Create the plot VMobject using all points
         self.nyquist_plot = VMobject()
-        self.nyquist_plot.set_points_as_corners(pos_points)
-        
-        # Add negative frequency part if system is not strictly proper
-        if len(neg_points) > 0:
-            neg_plot = VMobject()
-            neg_plot.set_points_as_corners(neg_points)
-            self.nyquist_plot.append_points(neg_plot.points)
-        
+        if all_pos_points and self.show_positive_freq: # Ensure there are points before setting
+            self.nyquist_plot.set_points_as_corners(all_pos_points)
+
+        if len(all_neg_points) > 0 and self.show_negative_freq:
+            neg_plot_vobject = VMobject()
+            neg_plot_vobject.set_points_as_corners(all_neg_points)
+            # Append points from the negative frequency VMobject
+            self.nyquist_plot.append_points(neg_plot_vobject.points)
+
+
         self.nyquist_plot.set_color(color=self.plotcolor)
         self.nyquist_plot.set_stroke(width=self.plot_stroke_width)
-        
-        # Add arrow at frequency increasing direction
-        if self.is_pure_integrator:
-            pure_int_arrow_pos=Arrow(self.plane.c2p(0,2), self.plane.c2p(0,6),
-                                 color=self.plotcolor,
-                                 stroke_width=self.plot_stroke_width+0.5,
-                                 tip_length=0.3)
-            pure_int_arrow_neg=Arrow(self.plane.c2p(0,-6), self.plane.c2p(0,-2),
-                                 color=self.plotcolor,
-                                 stroke_width=self.plot_stroke_width+0.5,
-                                 tip_length=0.3)
-            self.nyquist_plot.add(pure_int_arrow_pos, pure_int_arrow_neg)
 
-        if len(pos_points) >= 3:
-            mid_idx = len(pos_points) // 2
-            arrow_pos = Arrow(
-                pos_points[mid_idx-1],
-                pos_points[mid_idx+1],
-                buff=0.1,
-                color=self.plotcolor,
-                stroke_width=self.plot_stroke_width+0.5, 
-                tip_length=0.2)
+        tip_length = 0.2 # Define the desired length of the triangular tip
+        point_skip = 5 # Number of points to skip to get a direction vector
+
+        # Ensure there are enough points in the positive frequency part before placing an arrow
+        if len(all_pos_points) >= point_skip + 1:
             
-            self.nyquist_plot.add(arrow_pos)
+            start_dir_idx = int(len(all_pos_points) * 0.5)
+            end_dir_idx = start_dir_idx + point_skip
 
-        if len(neg_points) >= 3:  # Assuming neg_points stores negative-frequency data
-            mid_idx = len(neg_points) // 2
-            arrow_neg = Arrow(
-                neg_points[mid_idx - 1],  # Reverse direction for negative omega
-                neg_points[mid_idx + 1],
-                buff=0.1,
-                color=self.plotcolor,
-                stroke_width=self.plot_stroke_width+0.5,
-                tip_length=0.3)
-            self.nyquist_plot.add(arrow_neg)
+            # Ensure indices are within bounds
+            start_dir_idx = max(0, min(start_dir_idx, len(all_pos_points) - point_skip - 1))
+            end_dir_idx = start_dir_idx + point_skip # Recalculate end based on adjusted start
+
+            # Ensure start is before end
+            if start_dir_idx >= end_dir_idx:
+                start_dir_idx = max(0, end_dir_idx - 1)
+
+
+            if start_dir_idx != end_dir_idx: # Ensure distinct points for direction
+                # The tip will be placed at the 'end_dir_idx' point
+                tip_location = all_pos_points[end_dir_idx]
+
+                # Calculate the direction vector from start_dir_idx to end_dir_idx
+                direction_vector = all_pos_points[end_dir_idx] - all_pos_points[start_dir_idx]
+
+                # Calculate the angle of the direction vector
+                angle = angle_of_vector(direction_vector)
+
+                # Create a small triangle pointing upwards initially
+                arrow_tip = Triangle(fill_opacity=1, stroke_width=0)
+                # Rotate it to point in the direction of the curve
+                arrow_tip.rotate(angle - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
+                # Scale it to the desired size
+                arrow_tip.set_height(tip_length)
+                # Color it the plot color
+                arrow_tip.set_color(self.plotcolor)
+                # Move it to the tip location
+                arrow_tip.move_to(tip_location)
+                self.nyquist_plot.add(arrow_tip)
+
+        # Arrow for negative frequencies
+        # Ensure there are enough points in the negative frequency part before placing an arrow
+        if len(all_neg_points) >= point_skip + 1:
+        
+            point1_idx_neg = int(len(all_neg_points) * 0.5)
+            point2_idx_neg = point1_idx_neg + point_skip
+
+            # Ensure indices are within bounds for all_neg_points
+            point1_idx_neg = max(0, min(point1_idx_neg, len(all_neg_points) - point_skip - 1))
+            point2_idx_neg = point1_idx_neg + point_skip # Recalculate point2 based on adjusted point1
+
+            # Ensure point1 is before point2 in the original order
+            if point1_idx_neg >= point2_idx_neg:
+                point1_idx_neg = max(0, point2_idx_neg - 1)
+
+
+            if point1_idx_neg != point2_idx_neg: # Ensure distinct points for direction
+                # The tip will be placed at the 'point2_idx_neg' point
+                tip_location_neg = all_neg_points[point2_idx_neg]
+
+                # Calculate the direction vector from point1_idx_neg to point2_idx_neg
+                # Note: This vector points in the direction of increasing negative frequency (towards -infinity)
+                direction_vector_neg = all_neg_points[point2_idx_neg] - all_neg_points[point1_idx_neg]
+
+                # Calculate the angle of the direction vector
+                angle_neg = angle_of_vector(direction_vector_neg)
+
+                # Create a small triangle pointing upwards initially
+                arrow_tip_neg = Triangle(fill_opacity=1, stroke_width=0)
+                # Rotate it to point in the direction of the curve
+                arrow_tip_neg.rotate(angle_neg - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
+                # Scale it to the desired size
+                arrow_tip_neg.set_height(tip_length)
+                # Color it the plot color
+                arrow_tip_neg.set_color(self.plotcolor)
+                # Move it to the tip location
+                arrow_tip_neg.move_to(tip_location_neg)
+                self.nyquist_plot.add(arrow_tip_neg)
+
 
         self.add(self.nyquist_plot)
+
 
     def add_plot_components(self):
         """Add additional plot components like ticks, labels, etc."""
