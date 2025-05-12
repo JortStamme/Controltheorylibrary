@@ -2480,8 +2480,8 @@ class Nyquist(VGroup):
             min_freq, max_freq = 0.1, 100
             x_min, x_max = -10, 10
             y_min, y_max = -10, 10
-            re_min, re_max = x_min, x_max # Initialize with default plot ranges
-            im_min, im_max = y_min, y_max # Initialize with default plot ranges
+            re_min, re_max = x_min, x_max 
+            im_min, im_max = y_min, y_max 
 
             # Handle special cases
             if not poles.size and not zeros.size:
@@ -2535,58 +2535,48 @@ class Nyquist(VGroup):
                     
                     # Parameters for sustained divergence detection
                     negative_threshold = -0.5  # negative since magnitude increases as frequency decreases
-                    min_consecutive_points = 500  # Number of consecutive points above threshold 100
+                    min_consecutive_points = 4000  # Number of consecutive points below threshold 
                     
-                    # Find regions of sustained growth
                     below_threshold = growth_rate < negative_threshold
                     # Use convolution to find consecutive points below the negative threshold
                     convolved_divergence = np.convolve(
                         below_threshold,
                         np.ones(min_consecutive_points),
-                        mode='valid' # Use 'valid' mode to get indices where the window fully overlaps
+                        mode='valid' 
                     )
-                    
                     # Find the indices in the convolved result where the condition is met
                     divergent_start_in_convolved = np.where(convolved_divergence >= min_consecutive_points)[0]
                     if len(divergent_start_in_convolved) > 0:
-                        # The last index in divergent_regions_indices + min_consecutive_points - 1
-                        # gives the approximate index in the 'growth_rate' array where
-                        # the sustained negative growth *ends*.
-                        # The corresponding index in the 'response' array is one greater.
                         end_of_divergence_in_growth_rate = divergent_start_in_convolved[0] + min_consecutive_points - 1
                         truncate_start_idx = end_of_divergence_in_growth_rate + 1 # Truncate from this index onwards
 
-                    # Apply truncation: keep the part of the response *after* the low-frequency divergence
                     re_truncated = re[truncate_start_idx:]
                     im_truncated = im[truncate_start_idx:]
-                    truncated=False
-
-                    # Recalculate ranges based on the truncated response
+                    
                     # Ensure arrays are not empty after truncation
-                    if re_truncated.size > 0:
+                    if len(re_truncated) > 0:
                         re_min, re_max = np.min(re_truncated), np.max(re_truncated)
                         im_min, im_max = np.min(im_truncated), np.max(im_truncated)
-                    if self.is_pure_integrator:
-                        re_min, re_max = -2, 10
-                        im_min, im_max = -10, 10
-
-
-                    #if self.is_pure_integrator:
-                        #re_min, re_max = -2, 10
-                        #im_min, im_max = -10, 10
                 
-                    x_min = re_min 
-                    x_max = re_max 
-                    max_abs_im = max(abs(im_min), abs(im_max))
-                    y_min = -max_abs_im 
-                    y_max = max_abs_im
+                        if self.is_pure_integrator:
+                            re_min, re_max = -2, 10
+                            im_min, im_max = -10, 10
+                    else:
+                        re_min, re_max = (-1.5, 0.5) if self.is_pure_integrator else (-10, 10)
+                        im_min, im_max = (-1, 1) if self.is_pure_integrator else (-10, 10)
+                
+                x_min = re_min 
+                x_max = re_max 
+                max_abs_im = max(abs(im_min), abs(im_max))
+                y_min = -max_abs_im 
+                y_max = max_abs_im
 
             if self._is_proper() and num_poles_at_zero==0:
-                # Include ω=0 and ω=∞ for proper systems (closed contour)
-                if not any(np.isclose(poles, 0)):  # Skip if integrator (diverges at ω=0)
+
+                if not any(np.isclose(poles, 0)):  
                     w_extended = np.logspace(
                         np.log10(min_freq), 
-                        np.log10(max_freq * 10),  # Extend to capture ω→∞ behavior
+                        np.log10(max_freq * 10),  
                         10000)
                     _, response_ext = signal.freqresp(self.system, w_extended)
                     re = np.concatenate([re, np.real(response_ext)])
@@ -2882,12 +2872,12 @@ class Nyquist(VGroup):
         # Ensure there are enough points in the positive frequency part before placing an arrow
         if len(all_pos_points) >= point_skip + 1:
             
-            start_dir_idx = int(len(all_pos_points) * 0.5)
+            start_dir_idx = int(len(all_pos_points)*0.5)
             end_dir_idx = start_dir_idx + point_skip
 
             # Ensure indices are within bounds
-            start_dir_idx = max(0, min(start_dir_idx, len(all_pos_points) - point_skip - 1))
-            end_dir_idx = start_dir_idx + point_skip # Recalculate end based on adjusted start
+            #start_dir_idx = max(0, min(start_dir_idx, len(all_pos_points) - point_skip - 1))
+            #end_dir_idx = start_dir_idx + point_skip # Recalculate end based on adjusted start
 
             # Ensure start is before end
             if start_dir_idx >= end_dir_idx:
@@ -2920,7 +2910,7 @@ class Nyquist(VGroup):
         # Ensure there are enough points in the negative frequency part before placing an arrow
         if len(all_neg_points) >= point_skip + 1:
         
-            point1_idx_neg = int(len(all_neg_points) * 0.5)
+            point1_idx_neg = int(len(all_neg_points)*0.5)
             point2_idx_neg = point1_idx_neg + point_skip
 
             # Ensure indices are within bounds for all_neg_points

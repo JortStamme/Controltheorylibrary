@@ -7,7 +7,7 @@ class Nyquistplot(Scene):
         
         s = sp.symbols('s')
         num = 1
-        den = s
+        den = s*(s+1)
         system = (num, den)
         nyquist = Nyquist(system, show_minus_one_label=False,
                           y_axis_label=r"\mathcal{I}m\{\mathcal{L}(j\omega)\}",
