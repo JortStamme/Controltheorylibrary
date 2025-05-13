@@ -1277,7 +1277,7 @@ class BodePlot(VGroup):
             # Move frequency labels to bottom of magnitude plot
             self.freq_labels.next_to(self.mag_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.mag_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([self.mag_box,self.mag_ticks, self.mag_vert_ticks,self.mag_grid, self.mag_vert_grid,self.mag_y_labels,self.mag_ylabel,self.mag_axes,self.freq_labels, self.freq_xlabel, self.mag_plot])
+            self.components_to_add.extend([self.mag_group, self.freq_labels, self.freq_xlabel])
 
         elif self._show_phase:
             # Only phase - center it
@@ -1285,7 +1285,7 @@ class BodePlot(VGroup):
             #phase_group.move_to(ORIGIN)
             self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([self.phase_box,self.phase_ticks, self.phase_vert_ticks,self.phase_grid, self.phase_vert_grid,self.phase_y_labels,self.phase_ylabel,self.phase_axes,self.freq_labels, self.freq_xlabel, self.phase_plot])
+            self.components_to_add.extend([self.phase_group,self.freq_labels, self.freq_xlabel])
             # Handle title
 
 
@@ -1590,20 +1590,33 @@ class BodePlot(VGroup):
     def _auto_determine_ranges(self):
         """Automatically determine plot ranges based on system poles/zeros and Bode data."""
         # Get poles and zeros
-        if isinstance(self.system, signal.TransferFunction):
-            poles = self.system.poles
-            zeros = self.system.zeros
+        if not isinstance(self.system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+             try:
+                 system_tf = signal.TransferFunction(*self.system)
+             except Exception as e:
+                 print(f"Could not convert system to TransferFunction: {e}")
+                 poles = np.array([])
+                 zeros = np.array([])
         else:
-            poles = self.system.to_tf().poles
-            zeros = self.system.to_tf().zeros
+            system_tf = self.system
 
-        # Filter out infinite and zero frequencies
+        if isinstance(system_tf, (signal.ZerosPolesGain, signal.StateSpace)):
+            poles = system_tf.poles
+            zeros = system_tf.zeros
+        elif isinstance(system_tf, signal.TransferFunction):
+            poles = system_tf.poles
+            zeros = system_tf.zeros
+        else:
+            poles = np.array([])
+            zeros = np.array([])
+
+        # Filter out infinite and zero frequencies for frequency range determination
         finite_poles = poles[np.isfinite(poles) & (poles != 0)]
         finite_zeros = zeros[np.isfinite(zeros) & (zeros != 0)]
 
-        # Handle integrators (poles at 0)
-        integrators = np.isclose(poles, 0, atol=1e-8)
-        differentiators = np.isclose(zeros, 0, atol=1e-8)
+        # Handle integrators (poles at 0) and differentiators (zeros at 0)
+        has_integrator = any(np.isclose(poles, 0, atol=1e-8))
+        has_differentiator = any(np.isclose(zeros, 0, atol=1e-8))
 
         # Step 1: Determine freq range based on features
         all_features = np.abs(np.concatenate([finite_poles, finite_zeros]))
@@ -1613,84 +1626,101 @@ class BodePlot(VGroup):
         else:
             min_freq, max_freq = 0.1, 100
 
-        # Handle integrators (poles at 0)
-        if any(poles == 0):
-            min_freq = min(0.001, min_freq)
+        if has_integrator:
+             min_freq = min(0.001, min_freq)
+        if has_differentiator:
+             max_freq = max(1000, max_freq)
 
-        # Handle differentiators (zeros at 0)
-        if any(zeros == 0):
-            max_freq = max(1000, max_freq)
+        # Step 2: Calculate Bode response in determined frequency range for range finding
+        w_focus = np.logspace(np.log10(min_freq), np.log10(max_freq), 2000) # More points for range calc
+        try:
+            _, mag_focus, phase_focus_raw = signal.bode(system_tf, w_focus)
 
-        # Step 2: Calculate Bode response in determined frequency range
-        w_focus = np.logspace(np.log10(min_freq), np.log10(max_freq), 1000)
-        _, mag_focus, phase_focus = signal.bode(self.system, w_focus)
+            # UNWRAP THE PHASE
+            phase_focus_unwrapped = np.unwrap(phase_focus_raw * np.pi/180) * 180/np.pi
+
+            # --- Apply DC Gain Based Phase Alignment for Range Determination ---
+            phase_focus_aligned = np.copy(phase_focus_unwrapped) # Work on a copy
+            try:
+                # Calculate DC Gain
+                G0 = system_tf.horner(0)
+
+                # Check if DC gain is finite and non-zero
+                if not np.isclose(G0, 0) and np.isfinite(G0):
+                    # Determine the target starting phase (0 or 180)
+                    target_dc_phase = 180 if np.real(G0) < 0 else 0 # Use real part to be safe
+
+                    # Calculate the shift needed to align the lowest freq phase to the target
+                    phase_at_low_freq = phase_focus_unwrapped[0]
+                    shift = target_dc_phase - phase_at_low_freq
+
+                    # Normalize shift to be within +/- 180 degrees around 0
+                    shift = (shift + 180) % 360 - 180
+
+                    # Apply the shift to the phase data used for range determination
+                    phase_focus_aligned += shift
+                # else: If G0 is 0 or inf, the phase doesn't settle to 0/180,
+                #       so no DC alignment is applied. Use the unwrapped phase as is.
+
+            except Exception as e_align:
+                 print(f"Warning: Could not perform DC phase alignment for range: {e_align}")
+                 # Fallback: Use the unwrapped phase without alignment if alignment fails
+                 phase_focus_aligned = phase_focus_unwrapped
+
+        except Exception as e:
+            print(f"Error calculating Bode data for range determination: {e}")
+            phase_focus_aligned = np.zeros_like(w_focus)
+            mag_focus = np.zeros_like(w_focus)
+
+
+        # Step 3: Determine phase range from the calculated, ALIGNED Bode data
+        phase_min_calc = np.min(phase_focus_aligned)
+        phase_max_calc = np.max(phase_focus_aligned)
+
+        # Apply rounding for nice plot ticks based on the span
+        phase_span = phase_max_calc - phase_min_calc
+
         
-        if any(np.isclose(self.system.poles, 0)):
-            phase_min = -360
-            phase_max = max(0, np.ceil(np.max(phase_focus)/45)*45 + 5)
-
-        # Step 3: Determine phase range from Bode data
-        phase_min = max(-360, np.floor(np.min(phase_focus) / 45)*45)
-        phase_max = min(360, np.ceil(np.max(phase_focus) / 45)*45)
-
-        # Step 4: Determine magnitude range from same range
-        mag_padding = 0  # dB padding
-        mag_min = np.floor(np.min(mag_focus)/5)*5 - mag_padding
-        mag_max = np.ceil(np.max(mag_focus)/5)*5 + mag_padding
-        
-        mag_span = mag_max - mag_min
-        if mag_span <= 30:
-        # Round to nearest 5
-            mag_min = np.floor(mag_min/5)*5
-            mag_max = np.ceil(mag_max/5)*5
-        elif mag_span <=60:
-        #Round to nearest 10
-            mag_min = np.floor(mag_min/10)*10
-            mag_max = np.ceil(mag_max/10)*10
-        else:
-        # Round to nearest 20
-            mag_min = np.floor(mag_min/20)*20
-            mag_max = np.ceil(mag_max/20)*20
-        # Ensure we don't have excessive empty space
-        #if mag_min < np.min(mag_focus)-10:  # Don't allow more than 10dB below minimum
-            #mag_min = np.floor(np.min(mag_focus)/5)*5 -5
-    
-        #if mag_max > np.max(mag_focus) + 10:  # Don't allow more than 10dB above maximum
-            #mag_max = np.ceil(np.max(mag_focus)/5)*5 + 5
-
-        # Adjust phase range to be divisible by our potential step sizes
-        phase_span = phase_max - phase_min
         if phase_span <= 90:
-        # Round to nearest 15
-            phase_min = np.floor(phase_min / 15) * 15
-            phase_max = np.ceil(phase_max / 15) * 15
+             base_step = 15
         elif phase_span <= 180:
-        # Round to nearest 30
-            phase_min = np.floor(phase_min / 30) * 30
-            phase_max = np.ceil(phase_max / 30) * 30
+             base_step = 30
         else:
-        # Round to nearest 45
-            phase_min = np.floor(phase_min / 45) * 45
-            phase_max = np.ceil(phase_max / 45) * 45
+             base_step = 45
 
-        # Count RHP poles/zeros to predict phase range
-        poles = self.system.poles if hasattr(self.system, 'poles') else np.roots(self.system.den)
-        zeros = self.system.zeros if hasattr(self.system, 'zeros') else np.roots(self.system.num)
-    
-        rhp_poles = sum(np.real(poles) > 0)
-        rhp_zeros = sum(np.real(zeros) > 0)
-    
-        # Base phase range (adjusted for RHP dynamics)
-        total_phase_shift = (len(zeros) - len(poles)) * 90
-        if rhp_poles or rhp_zeros:
-            phase_min = min(-360, total_phase_shift - 180)
-            phase_max = max(-90, total_phase_shift)
+        phase_min = np.floor(phase_min_calc / base_step) * base_step
+        phase_max = np.ceil(phase_max_calc / base_step) * base_step
+
+        # Add some padding and ensure rounding to base step
+        padding_deg = 0 # Add at least one step of padding
+        phase_min = np.floor((phase_min_calc - padding_deg) / base_step) * base_step
+        phase_max = np.ceil((phase_max_calc + padding_deg) / base_step) * base_step
+
+
+        # Step 4: Determine magnitude range
+        mag_padding = 0 # dB padding
+        mag_min_calc = np.min(mag_focus)
+        mag_max_calc = np.max(mag_focus)
+
+        mag_span = mag_max_calc - mag_min_calc
+
+        if mag_span <= 30:
+             base_step_mag = 5
+        elif mag_span <= 60:
+             base_step_mag = 10
+        else:
+             base_step_mag = 20
+
+        mag_min = np.floor((mag_min_calc - mag_padding) / base_step_mag) * base_step_mag
+        mag_max = np.ceil((mag_max_calc + mag_padding) / base_step_mag) * base_step_mag
+
 
         return {
             'freq_range': (float(min_freq), float(max_freq)),
             'mag_range': (float(mag_min), float(mag_max)),
             'phase_range': (float(phase_min), float(phase_max))
         }
+
     
     # calculate the bode data using Scipy.signal
     def calculate_bode_data(self):
@@ -1702,33 +1732,55 @@ class BodePlot(VGroup):
         )
         
         try:
+            # Ensure we work with a TransferFunction object
             if isinstance(self.system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
-                w, mag, phase = signal.bode(self.system, w)
+                 system_tf = self.system
             else:
-                tf = signal.TransferFunction(*self.system)
-                w, mag, phase = signal.bode(tf, w)
+                 system_tf = signal.TransferFunction(*self.system)
 
-            phase = np.unwrap(phase * np.pi/180) * 180/np.pi
+            w, mag, self.phase_raw = signal.bode(system_tf, w)
+
+            phase_unwrapped = np.unwrap(self.phase_raw * np.pi/180) * 180/np.pi
             
-            # Count RHP poles and zeros (critical for phase behavior)
-            poles = self.system.poles if hasattr(self.system, 'poles') else tf.poles
-            zeros = self.system.zeros if hasattr(self.system, 'zeros') else tf.zeros
-        
-            rhp_poles = sum(np.real(poles) > 0)
-            rhp_zeros = sum(np.real(zeros) > 0)
-        
-            #Adjust phase for RHP poles/zeros
-            phase += 180 * (rhp_poles - rhp_zeros)
+            # --- Apply DC Gain Based Phase Alignment ---
+            phase_aligned = np.copy(phase_unwrapped) # Work on a copy
+            try:
+                # Calculate DC Gain
+                G0 = system_tf.horner(0)
+
+                # Check if DC gain is finite and non-zero
+                if not np.isclose(G0, 0) and np.isfinite(G0):
+                    # Determine the target starting phase (0 or 180)
+                    target_dc_phase = 180 if np.real(G0) < 0 else 0 # Use real part to be safe
+
+                    # Calculate the shift needed to align the lowest freq phase to the target
+                    phase_at_low_freq = phase_unwrapped[0]
+                    shift = target_dc_phase - phase_at_low_freq
+
+                    # Normalize shift to be within +/- 180 degrees around 0
+                    shift = (shift + 180) % 360 - 180
+
+                    # Apply the shift to the phase data
+                    phase_aligned += shift
+                # else: If G0 is 0 or inf, the phase doesn't settle to 0/180,
+                #       so no DC alignment is applied. Use the unwrapped phase as is.
+
+            except Exception as e_align:
+                 print(f"Warning: Could not perform DC phase alignment: {e_align}")
+                 # Fallback: Use the unwrapped phase without alignment if alignment fails
+                 phase_aligned = phase_unwrapped
+
 
         except Exception as e:
             print(f"Error calculating Bode data: {e}")
             w = np.logspace(np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1000)
             mag = np.zeros_like(w)
-            phase = np.zeros_like(w)
-        
+            phase_aligned = np.zeros_like(w) # Use aligned name even if alignment failed
+
+
         self.frequencies = w
         self.magnitudes = mag
-        self.phases = phase
+        self.phases = phase_aligned # Store the aligned phase
 
     # Plot the actual data
     def plot_bode_response(self):
@@ -1862,11 +1914,17 @@ class BodePlot(VGroup):
         den = np.poly1d(tf.den)
         w0 = self.freq_range[0]
         dc_gain = 20 * np.log10(np.abs(num(w0*1j)/den(w0*1j)))
-        
+
+        w_start = self.frequencies[0]
+        num_val_at_start = np.polyval(tf.num, w_start * 1j)
+        den_val_at_start = np.polyval(tf.den, w_start * 1j)
+        complex_gain_at_start = num_val_at_start / den_val_at_start
+        start_phase_anchor = np.angle(complex_gain_at_start, deg=True)
+
         # Calculate DC phase
         n_zeros_origin = sum(np.isclose(zeros, 0, atol=1e-8))
         n_poles_origin = sum(np.isclose(poles, 0, atol=1e-8))
-        initial_phase_shift = (n_zeros_origin - n_poles_origin) * 90
+        initial_phase_shift = (n_zeros_origin-n_poles_origin)*90
         
         # ===== Magnitude Asymptote Calculation =====
         mag_slope = 0
@@ -1935,9 +1993,10 @@ class BodePlot(VGroup):
                     processed_zeros_for_pairing.add(z)
                     processed_zeros_for_pairing.add(found_conj)
 
+
         # Calculate phase at each frequency point based on cumulative jumps
         for i, freq in enumerate(self.frequencies):
-            current_phase = initial_phase_shift # Start with DC phase from origin roots
+            current_phase = start_phase_anchor # Start with DC phase from origin roots
 
             # Add contributions from real poles
             for p in poles:
@@ -1977,7 +2036,7 @@ class BodePlot(VGroup):
                      processed_cplx_zeros.add(z)
                      processed_cplx_zeros.add(np.conj(z)) # Mark conjugate as processed
 
-            self.phase_asymp[i] = (current_phase + 180) % 360 - 180
+            self.phase_asymp[i] = current_phase
 
     def show_asymptotes(self, color=YELLOW, stroke_width=2, opacity=1):
         """Plot asymptotes using separate break frequencies for magnitude and phase"""
@@ -2049,7 +2108,7 @@ class BodePlot(VGroup):
         if self._show_phase:
             self.phase_components.add(self.phase_asymp_plot)
         return self
-    
+
 
     
     def _remove_existing_asymptotes(self):

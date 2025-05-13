@@ -5,16 +5,14 @@ import sympy as sp
 class Bode(Scene):
     def construct(self):
         s = sp.symbols('s')
-        num = 1
-        den = s+1
+        num = (s-1)
+        den = 1
         system = (num, den)
 
         bode = BodePlot(system)
         bode.grid_on()
         bode.show_asymptotes()
         self.add(bode)
-
-        self.wait(3)
 
 
         # Highlight critical points
