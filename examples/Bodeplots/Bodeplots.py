@@ -6,12 +6,12 @@ class Bode(Scene):
     def construct(self):
         s = sp.symbols('s')
         num = 1
-        den = s*(s+1)*(s+5)
+        den = s+1
         system = (num, den)
 
         bode = BodePlot(system)
         bode.grid_on()
-        bode.show_margins()
+        bode.show_asymptotes()
         self.add(bode)
 
         self.wait(3)

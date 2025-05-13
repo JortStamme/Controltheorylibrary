@@ -1251,28 +1251,27 @@ class BodePlot(VGroup):
             self.remove(mobject)
         
         self.components_to_add = []
+        self.mag_group = VGroup()
+        self.phase_group = VGroup()
 
         # Handle different display configurations
         if self._show_magnitude and self._show_phase:
             # Both plots - standard layout
-            mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
-            phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
+            self.mag_group.add(self.mag_axes, self.mag_components, self.mag_plot)
+            self.phase_group.add(self.phase_axes, self.phase_components, self.phase_plot)
             
             if self._title:
-                mag_group.shift(1.6*UP)
+                self.mag_group.shift(1.6*UP)
             else:
-                mag_group.shift(1.8*UP)
+                self.mag_group.shift(1.8*UP)
 
-            phase_group.next_to(mag_group, DOWN, buff=0.4).align_to(mag_group, LEFT)
+            self.phase_group.next_to(self.mag_group, DOWN, buff=0.4).align_to(self.mag_group, LEFT)
             self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([self.mag_box, self.phase_box, self.mag_ticks, self.phase_ticks, self.mag_vert_ticks, 
-                                           self.phase_vert_ticks, self.mag_grid, self.phase_grid, self.mag_vert_grid, self.phase_vert_grid,self.mag_y_labels, 
-        self.phase_y_labels, self.mag_ylabel,self.phase_ylabel,self.mag_axes,self.phase_axes,self.freq_labels, self.freq_xlabel,
-        self.mag_plot,self.phase_plot])
+            self.components_to_add.extend([self.mag_group, self.phase_group,self.freq_labels, self.freq_xlabel,])
         elif self._show_magnitude:
             # Only magnitude - center it and move frequency labels
-            mag_group = VGroup(self.mag_axes, self.mag_components, self.mag_plot)
+            self.mag_group.add(self.mag_axes, self.mag_components, self.mag_plot)
             #mag_group.move_to(ORIGIN)
 
             # Move frequency labels to bottom of magnitude plot
@@ -1282,7 +1281,7 @@ class BodePlot(VGroup):
 
         elif self._show_phase:
             # Only phase - center it
-            phase_group = VGroup(self.phase_axes, self.phase_components, self.phase_plot)
+            self.phase_group.add(self.phase_axes, self.phase_components, self.phase_plot)
             #phase_group.move_to(ORIGIN)
             self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
@@ -1850,39 +1849,10 @@ class BodePlot(VGroup):
         mag_break_freqs = [f for f in mag_break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
         
         # ===== 2. Phase Break Frequencies (Extended Transitions) =====
-        phase_break_freqs = []
-        
-        phase_break_freqs_set = set()
-        processed_roots_for_breaks = set() # Use a single set for both poles and zeros
-        for root_list in [poles, zeros]:
-            for root in root_list:
-                if root in processed_roots_for_breaks or np.conj(root) in processed_roots_for_breaks:
-                    continue
+        phase_break_freqs = sorted(list(set([np.abs(p) for p in poles if not np.isclose(p, 0, atol=tol)] +
+                                                [np.abs(z) for z in zeros if not np.isclose(z, 0, atol=tol)])))
 
-                w0 = abs(root)
-                if np.isclose(w0, 0, atol=1e-8): continue # Skip origin for breaks
-            
-                is_complex = not np.isclose(root.imag, 0, atol=1e-8)
-
-                if is_complex:
-                    # For complex pairs, use zeta-dependent break frequencies for phase plotting cues
-                    if w0 > 1e-8:
-                        zeta = -root.real / w0
-                        w_start_zeta = w0 / (10**zeta)
-                        w_end_zeta = w0 * (10**zeta)
-                        phase_break_freqs_set.add(w_start_zeta)
-                        phase_break_freqs_set.add(w_end_zeta)
-                else:
-                    # For real roots, use the standard 0.1*w0 and 10*w0
-                    phase_break_freqs_set.add(0.1 * w0)
-                    phase_break_freqs_set.add(10 * w0)
-
-                processed_roots_for_breaks.add(root)
-                processed_roots_for_breaks.add(np.conj(root))
-        # Real poles/zeros: Add 0.1ω, ω, 10ω
-        phase_break_freqs = sorted(list(phase_break_freqs_set))
-        phase_break_freqs = [f for f in phase_break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
-
+        self.phase_asymp = np.zeros_like(self.frequencies)
         # Store break frequencies
         self.mag_break_freqs = mag_break_freqs
         self.phase_break_freqs = phase_break_freqs
@@ -1896,7 +1866,7 @@ class BodePlot(VGroup):
         # Calculate DC phase
         n_zeros_origin = sum(np.isclose(zeros, 0, atol=1e-8))
         n_poles_origin = sum(np.isclose(poles, 0, atol=1e-8))
-        phase_shift = (n_zeros_origin - n_poles_origin) * 90
+        initial_phase_shift = (n_zeros_origin - n_poles_origin) * 90
         
         # ===== Magnitude Asymptote Calculation =====
         mag_slope = 0
@@ -1965,101 +1935,48 @@ class BodePlot(VGroup):
                     processed_zeros_for_pairing.add(z)
                     processed_zeros_for_pairing.add(found_conj)
 
+        # Calculate phase at each frequency point based on cumulative jumps
         for i, freq in enumerate(self.frequencies):
-            current_phase = phase_shift # Start with DC phase shift
+            current_phase = initial_phase_shift # Start with DC phase from origin roots
 
-            # === Real poles ===
-            for p in real_poles:
-                w0 = abs(p)
-                is_rhp_pole = p.real > tol
-                w_start = 0.1 * w0
-                w_end = 10 * w0
-                if freq > w_start:
-                    if freq >= w_end:
-                        current_phase += 90 if is_rhp_pole else -90
-                    else:
-                        log_freq = np.log10(freq)
-                        log_low = np.log10(w_start)
-                        log_high = np.log10(w_end)
-                        if log_high > log_low:
-                            fraction = (log_freq - log_low) / (log_high - log_low)
-                            current_phase += (90 if is_rhp_pole else -90) * fraction
+            # Add contributions from real poles
+            for p in poles:
+                 if np.isclose(p.imag, 0, atol=tol) and not np.isclose(p, 0, atol=tol):
+                     w0 = abs(p)
+                     if freq >= w0:
+                         # LHP pole contributes -90, RHP pole contributes +90
+                         current_phase += -90 if p.real < 0 else 90
 
-            # === Real zeros ===
-            for z in real_zeros:
-                w0 = abs(z) # Use absolute value
-                is_rhpfirst_zero = z.real > tol
-                w_start = 0.1 * w0
-                w_end = 10 * w0
-                if freq > w_start:
-                    if freq>= w_end:
-                        current_phase -=90 if is_rhpfirst_zero else 90
-                    else:
-                        log_freq = np.log10(freq)
-                        log_low = np.log10(w_start)
-                        log_high = np.log10(w_end)
-                        if log_high > log_low:
-                            fraction = (log_freq - log_low) / (log_high - log_low)
-                            current_phase -= (90 if is_rhp_zero else +90) * fraction
+            # Add contributions from real zeros
+            for z in zeros:
+                 if np.isclose(z.imag, 0, atol=tol) and not np.isclose(z, 0, atol=tol):
+                     w0 = abs(z)
+                     if freq >= w0:
+                         # LHP zero contributes +90, RHP zero contributes -90
+                         current_phase += 90 if z.real < 0 else -90
 
-            # === Complex conjugate poles ===
-            for p1, p2 in complex_pole_pairs:
-                w0 = abs(p1)
-                if w0 < 1e-8: continue
-                
-                zeta = -p1.real / w0
+            # Add contributions from complex conjugate pole pairs
+            processed_cplx_poles = set()
+            for p in poles:
+                 if not np.isclose(p.imag, 0, atol=tol) and p not in processed_cplx_poles:
+                     w0 = abs(p)
+                     if freq >= w0:
+                         # Complex pole pair contributes -180
+                         current_phase += -180
+                     processed_cplx_poles.add(p)
+                     processed_cplx_poles.add(np.conj(p)) # Mark conjugate as processed
 
-                # Standard 2-decade transition for the PAIR
-                w_start = w0/(10**abs(zeta))
-                w_end = w0*(10**abs(zeta))
+            # Add contributions from complex conjugate zero pairs
+            processed_cplx_zeros = set()
+            for z in zeros:
+                 if not np.isclose(z.imag, 0, atol=tol) and z not in processed_cplx_zeros:
+                     w0 = abs(z)
+                     if freq >= w0:
+                         # Complex zero pair contributes +180
+                         current_phase += 180
+                     processed_cplx_zeros.add(z)
+                     processed_cplx_zeros.add(np.conj(z)) # Mark conjugate as processed
 
-                # Check for valid range (w_end should be > w_start)
-                if w_end <= w_start: continue # Skip if w0 is near zero or calculation invalid
-
-                if freq > w_start:
-                    if freq >= w_end:
-                        current_phase -= 180 # Full contribution for the pair above w_end
-                    else: # Interpolate within the transition decade
-                        log_freq = np.log10(freq)
-                        log_low = np.log10(w_start)
-                        log_high = np.log10(w_end)
-                        # Ensure log_high > log_low before division
-                        if log_high > log_low:
-                            fraction = (log_freq - log_low) / (log_high - log_low)
-                            fraction = max(0.0, min(fraction, 1.0))
-                            current_phase -= 180 * fraction
-
-            # === Complex conjugate zeros ===
-            for z1, z2 in complex_zero_pairs:
-                w0 = abs(z1)
-                if w0 < 1e-8: continue
-                zeta = -z1.real / w0
-                is_rhp_zero = z1.real > tol
-    
-                w_start = w0/(10**abs(zeta))
-                w_end = w0*(10**abs(zeta))
-                    
-                if w_end <= w_start: # Default phase change for LHP zero
-                    if freq>=w0:
-                        current_phase += (180 if not is_rhp_zero else -180)
-                    continue
-                    
-                phase_change=180
-                if is_rhp_zero:
-                    phase_change = -180
-
-                if freq>=w_end:
-                    current_phase += phase_change
-                    
-                elif freq > w_start:
-                    log_freq = np.log10(freq)
-                    log_low = np.log10(w_start)
-                    log_high = np.log10(w_end)
-                    if log_high > log_low:
-                        fraction = (log_freq - log_low) / (log_high - log_low)
-                        fraction = max(0.0, min(fraction, 1.0))
-                        current_phase += 180 * fraction if not is_rhp_zero else -phase_change*fraction
-            
             self.phase_asymp[i] = (current_phase + 180) % 360 - 180
 
     def show_asymptotes(self, color=YELLOW, stroke_width=2, opacity=1):
@@ -2068,7 +1985,7 @@ class BodePlot(VGroup):
         
         if not hasattr(self, 'mag_asymp'):
             self._calculate_asymptotes()
-        
+        self.tol=1e-6
         # ===== Magnitude Plot =====
         mag_break_indices = [np.argmin(np.abs(self.frequencies - f)) 
                             for f in self.mag_break_freqs]
@@ -2099,39 +2016,41 @@ class BodePlot(VGroup):
             self.mag_asymp_plot.add(segment)
 
         # ===== Phase Plot =====
-        phase_break_indices = [np.argmin(np.abs(self.frequencies - f))
-                            for f in self.phase_break_freqs]
-    
-        # Ensure start and end points are included
-        if 0 not in phase_break_indices:
-            phase_break_indices.insert(0, 0)
-        if (len(self.frequencies)-1) not in phase_break_indices:
-            phase_break_indices.append(len(self.frequencies)-1)
-
         self.phase_asymp_plot = VGroup()
-        for i in range(len(phase_break_indices) - 1):
-            start_idx = phase_break_indices[i]
-            end_idx = phase_break_indices[i+1]
-            
-            start_point = self.phase_axes.coords_to_point(
-                np.log10(self.frequencies[start_idx]),
-                self.phase_asymp[start_idx]
-            )
-            end_point = self.phase_axes.coords_to_point(
-                np.log10(self.frequencies[end_idx]),
-                self.phase_asymp[end_idx]
-            )
-            segment = Line(start_point, end_point, color=color,
-                        stroke_width=stroke_width, stroke_opacity=opacity)
-            self.phase_asymp_plot.add(segment)
+
+        # Iterate through the calculated phase asymptote points and draw segments
+        for i in range(len(self.frequencies) - 1):
+            freq1 = self.frequencies[i]
+            freq2 = self.frequencies[i+1]
+            phase1 = self.phase_asymp[i]
+            phase2 = self.phase_asymp[i+1]
+
+            # Draw horizontal segment
+            point1_h = self.phase_axes.coords_to_point(np.log10(freq1), phase1)
+            point2_h = self.phase_axes.coords_to_point(np.log10(freq2), phase1) # Horizontal segment stays at phase1
+
+            if np.abs(point2_h[0] - point1_h[0]) > 1e-6: # Only draw if there's horizontal distance
+                 horizontal_segment = Line(point1_h, point2_h, color=color,
+                                           stroke_width=stroke_width, stroke_opacity=opacity)
+                 self.phase_asymp_plot.add(horizontal_segment)
+
+            # Draw vertical segment if phase changes
+            if np.abs(phase2 - phase1) > self.tol: # Check if phase value changes significantly
+                 point1_v = self.phase_axes.coords_to_point(np.log10(freq2), phase1) # Vertical segment starts at freq2, phase1
+                 point2_v = self.phase_axes.coords_to_point(np.log10(freq2), phase2) # Vertical segment ends at freq2, phase2
+
+                 vertical_segment = Line(point1_v, point2_v, color=color,
+                                         stroke_width=stroke_width, stroke_opacity=opacity)
+                 self.phase_asymp_plot.add(vertical_segment)
 
         # Add to plot
         if self._show_magnitude:
-            self.mag_components.add(self.mag_asymp_plot)
+            self.mag_group.add(self.mag_asymp_plot)
         if self._show_phase:
             self.phase_components.add(self.phase_asymp_plot)
-        
         return self
+    
+
     
     def _remove_existing_asymptotes(self):
         """Clean up previous asymptote plots"""
@@ -2357,6 +2276,11 @@ class Nyquist(VGroup):
         self.show_positive_freq = show_positive_freq
         self.show_negative_freq = show_negative_freq
 
+        self.axes_components = VGroup()
+        self.nyquist_plot = VMobject()
+        self.grid_lines = VGroup()
+        self.unit_circle = VGroup()
+
         auto_ranges = self._auto_determine_ranges()
         self.freq_range = freq_range if freq_range is not None else auto_ranges['freq_range']
         self.x_range = x_range if x_range is not None else auto_ranges['x_range']
@@ -2468,6 +2392,7 @@ class Nyquist(VGroup):
 
     def _auto_determine_ranges(self):
         """Safely determine plot ranges with comprehensive error handling."""
+        
         try:
             # Get system representation
             if not isinstance(self.system, signal.TransferFunction):
@@ -2740,7 +2665,7 @@ class Nyquist(VGroup):
         # Create complex plane
         x_min, x_max = self._validate_range(self.x_range)
         y_min, y_max = self._validate_range(self.y_range)
-    
+
         # Calculate sane step sizes
         x_step = 1 if self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
         y_step = 1 if self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
@@ -2870,21 +2795,22 @@ class Nyquist(VGroup):
         point_skip = 5 # Number of points to skip to get a direction vector
 
         # Ensure there are enough points in the positive frequency part before placing an arrow
-        if len(all_pos_points) >= point_skip + 1:
+        if (len(all_pos_points) >= point_skip + 1) and self.show_positive_freq==True:
             
-            start_dir_idx = int(len(all_pos_points)*0.5)
-            end_dir_idx = start_dir_idx + point_skip
+            middle_idx = len(all_pos_points) // 2
+            start_dir_idx = max(0, middle_idx - point_skip//2)
+            end_dir_idx = min(len(all_pos_points)-1, middle_idx + point_skip//2)
 
             # Ensure indices are within bounds
             #start_dir_idx = max(0, min(start_dir_idx, len(all_pos_points) - point_skip - 1))
             #end_dir_idx = start_dir_idx + point_skip # Recalculate end based on adjusted start
 
             # Ensure start is before end
-            if start_dir_idx >= end_dir_idx:
-                start_dir_idx = max(0, end_dir_idx - 1)
+            #if start_dir_idx >= end_dir_idx:
+                #start_dir_idx = max(0, end_dir_idx - 1)
 
 
-            if start_dir_idx != end_dir_idx: # Ensure distinct points for direction
+            if start_dir_idx < end_dir_idx: # Ensure distinct points for direction
                 # The tip will be placed at the 'end_dir_idx' point
                 tip_location = all_pos_points[end_dir_idx]
 
@@ -2908,27 +2834,22 @@ class Nyquist(VGroup):
 
         # Arrow for negative frequencies
         # Ensure there are enough points in the negative frequency part before placing an arrow
-        if len(all_neg_points) >= point_skip + 1:
+        if (len(all_neg_points) >= point_skip + 1) and self.show_negative_freq==True:
         
-            point1_idx_neg = int(len(all_neg_points)*0.5)
-            point2_idx_neg = point1_idx_neg + point_skip
-
-            # Ensure indices are within bounds for all_neg_points
-            point1_idx_neg = max(0, min(point1_idx_neg, len(all_neg_points) - point_skip - 1))
-            point2_idx_neg = point1_idx_neg + point_skip # Recalculate point2 based on adjusted point1
-
-            # Ensure point1 is before point2 in the original order
-            if point1_idx_neg >= point2_idx_neg:
-                point1_idx_neg = max(0, point2_idx_neg - 1)
+            middle_idx_neg = len(all_neg_points) // 2
+        
+        # Calculate start and end indices centered around the middle
+            start_dir_idx_neg = max(0, middle_idx_neg - point_skip//2)
+            end_dir_idx_neg = min(len(all_neg_points)-1, middle_idx_neg + point_skip//2)
 
 
-            if point1_idx_neg != point2_idx_neg: # Ensure distinct points for direction
+            if start_dir_idx_neg != end_dir_idx_neg: # Ensure distinct points for direction
                 # The tip will be placed at the 'point2_idx_neg' point
-                tip_location_neg = all_neg_points[point2_idx_neg]
+                tip_location_neg = all_neg_points[end_dir_idx_neg]
 
                 # Calculate the direction vector from point1_idx_neg to point2_idx_neg
                 # Note: This vector points in the direction of increasing negative frequency (towards -infinity)
-                direction_vector_neg = all_neg_points[point2_idx_neg] - all_neg_points[point1_idx_neg]
+                direction_vector_neg = all_neg_points[end_dir_idx_neg] - all_neg_points[start_dir_idx_neg]
 
                 # Calculate the angle of the direction vector
                 angle_neg = angle_of_vector(direction_vector_neg)
