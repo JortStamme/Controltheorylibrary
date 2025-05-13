@@ -1,2 +1,9 @@
 # This file is used internally by FFMPEG.
-file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/3977891868_1734327179_1782141195.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/3977891868_3141746006_2997998125.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/2852726489_3201849554_2908436671.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/2852726489_2925637176_3023962336.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/2852726489_3201849554_1301395342.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/2852726489_2484601777_855805286.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/2852726489_2704686740_1331895802.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/2852726489_1989031305_1078854797.mp4'
+file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Bodeplots/media/videos/Bodeplots/1080p60/partial_movie_files/Bode/2852726489_1839128356_365050153.mp4'

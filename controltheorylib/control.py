@@ -1132,6 +1132,7 @@ class BodePlot(VGroup):
         self.xlabel = xlabel
         self.font_size_ylabels = font_size_ylabels
         self.font_size_xlabel = font_size_xlabel
+        self.show_asymptotes_r = False
 
         # by default show both plots
         self._show_magnitude = True
@@ -1599,7 +1600,7 @@ class BodePlot(VGroup):
                  zeros = np.array([])
         else:
             system_tf = self.system
-
+    
         if isinstance(system_tf, (signal.ZerosPolesGain, signal.StateSpace)):
             poles = system_tf.poles
             zeros = system_tf.zeros
@@ -1672,13 +1673,14 @@ class BodePlot(VGroup):
             phase_focus_aligned = np.zeros_like(w_focus)
             mag_focus = np.zeros_like(w_focus)
 
-
+        if not hasattr(self, 'phase_asymp'):
         # Step 3: Determine phase range from the calculated, ALIGNED Bode data
-        phase_min_calc = np.min(phase_focus_aligned)
-        phase_max_calc = np.max(phase_focus_aligned)
+            self.phase_min_calc = np.min(phase_focus_aligned)
+            self.phase_max_calc = np.max(phase_focus_aligned)
 
-        # Apply rounding for nice plot ticks based on the span
-        phase_span = phase_max_calc - phase_min_calc
+
+            # Apply rounding for nice plot ticks based on the span
+        phase_span = self.phase_max_calc - self.phase_min_calc
 
         
         if phase_span <= 90:
@@ -1688,13 +1690,13 @@ class BodePlot(VGroup):
         else:
              base_step = 45
 
-        phase_min = np.floor(phase_min_calc / base_step) * base_step
-        phase_max = np.ceil(phase_max_calc / base_step) * base_step
+        self.phase_min = np.floor(self.phase_min_calc / base_step) * base_step
+        self.phase_max = np.ceil(self.phase_max_calc / base_step) * base_step
 
         # Add some padding and ensure rounding to base step
         padding_deg = 0 # Add at least one step of padding
-        phase_min = np.floor((phase_min_calc - padding_deg) / base_step) * base_step
-        phase_max = np.ceil((phase_max_calc + padding_deg) / base_step) * base_step
+        self.phase_min = np.floor((self.phase_min_calc - padding_deg) / base_step) * base_step
+        self.phase_max = np.ceil((self.phase_max_calc + padding_deg) / base_step) * base_step
 
 
         # Step 4: Determine magnitude range
@@ -1718,7 +1720,7 @@ class BodePlot(VGroup):
         return {
             'freq_range': (float(min_freq), float(max_freq)),
             'mag_range': (float(mag_min), float(mag_max)),
-            'phase_range': (float(phase_min), float(phase_max))
+            'phase_range': (float(self.phase_min), float(self.phase_max))
         }
 
     
@@ -1918,7 +1920,7 @@ class BodePlot(VGroup):
         w_start = self.frequencies[0]
         num_val_at_start = np.polyval(tf.num, w_start * 1j)
         den_val_at_start = np.polyval(tf.den, w_start * 1j)
-        complex_gain_at_start = num_val_at_start / den_val_at_start
+        complex_gain_at_start = num_val_at_start/den_val_at_start
         start_phase_anchor = np.angle(complex_gain_at_start, deg=True)
 
         # Calculate DC phase
@@ -2041,9 +2043,15 @@ class BodePlot(VGroup):
     def show_asymptotes(self, color=YELLOW, stroke_width=2, opacity=1):
         """Plot asymptotes using separate break frequencies for magnitude and phase"""
         self._remove_existing_asymptotes()
-        
+        self.show_asymptotes_r = True
+
         if not hasattr(self, 'mag_asymp'):
             self._calculate_asymptotes()
+    
+        if hasattr(self, 'phase_asymp'):
+            self.phase_min_calc = min(np.min(self.phase_min_calc), np.min(self.phase_asymp))
+            self.phase_max_calc = max(np.max(self.phase_max_calc), np.max(self.phase_asymp))
+
         self.tol=1e-6
         # ===== Magnitude Plot =====
         mag_break_indices = [np.argmin(np.abs(self.frequencies - f)) 
@@ -2130,6 +2138,11 @@ class BodePlot(VGroup):
         gm, pm, sm, wg, wp, ws = self._calculate_stability_margins()
         
         # Group to hold all margin indicators
+        all_animations = [] # everything combined
+        part1_anims = [] # 0dB and -180 deg lines
+        part2_anims = [] # vertical lines + dot at intersection
+        part3_anims = [] # arrows + labels
+
         margin_group = VGroup()
         
             # ===== Add 0dB line and -180 deg phase line =====
@@ -2144,7 +2157,8 @@ class BodePlot(VGroup):
                 stroke_opacity=0.7
             )
             margin_group.add(zerodB_line)
-            
+            all_animations.extend([Create(zerodB_line)])
+            part1_anims.extend([Create(zerodB_line)])
         if self._show_phase:
             # Create -180° line across the entire x-range
             x_min, x_max = self.phase_axes.x_range[0], self.phase_axes.x_range[1]
@@ -2156,6 +2170,9 @@ class BodePlot(VGroup):
                 stroke_opacity=0.7
             )
             margin_group.add(minus180_line)
+            all_animations.extend([Create(minus180_line)])
+            part1_anims.extend([Create(minus180_line)])
+
             
         # Only proceed if we have valid margins
         if gm != np.inf and pm != np.inf:
@@ -2172,21 +2189,26 @@ class BodePlot(VGroup):
                     self.phase_axes.c2p(log_wg, self.phase_yrange[1]),
                     self.phase_axes.c2p(log_wg, phase_at_wg),
                     color=margin_color,
-                    stroke_width=2
+                    stroke_width=1, stroke_opacity=0.7
                 )
                 margin_group.add(gain_line)
-                GM_vector = DoubleArrow(self.mag_axes.c2p(log_wg, 0),
+                all_animations.extend([Create(gain_line)])
+                part2_anims.extend([Create(gain_line)])
+                gm_dot = Dot(
+                    self.phase_axes.c2p(log_wg, -180),
+                    color=margin_color, radius=0.05
+                )
+                margin_group.add(gm_dot)
+                all_animations.extend([Create(gm_dot)])
+                part2_anims.extend([Create(gm_dot)])
+
+                GM_vector = Arrow(self.mag_axes.c2p(log_wg, 0),
                             self.mag_axes.c2p(log_wg, gain_at_wp),
                     color=margin_color,
                     stroke_width=1.5, buff=0, tip_length=0.15)
                 margin_group.add(GM_vector)
-                # add vector for phase margin
-                # Add dot at -180° point
-                gm_dot = Dot(
-                    self.phase_axes.c2p(log_wg, -180),
-                    color=margin_color
-                )
-                margin_group.add(gm_dot)
+                all_animations.extend([Create(GM_vector)])
+                part3_anims.extend([Create(GM_vector)])
                 
                 # Add text label if requested
                 if show_values:
@@ -2199,6 +2221,8 @@ class BodePlot(VGroup):
                         UP+RIGHT, buff=0.2
                     )
                     margin_group.add(gm_text)
+                    all_animations.extend([Write(gm_text)])
+                    part3_anims.extend([Write(gm_text)])
             
             # ===== Phase Margin =====
             if self._show_magnitude:
@@ -2210,21 +2234,29 @@ class BodePlot(VGroup):
                     self.mag_axes.c2p(log_wp, self.magnitude_yrange[0]),
                     self.mag_axes.c2p(log_wp, mag_at_wp),
                     color=margin_color,
-                    stroke_width=2
+                    stroke_width=1, stroke_opacity=0.7
                 )
                 margin_group.add(phase_line)
-                
+                all_animations.extend([Create(phase_line)])
+                part2_anims.extend([Create(phase_line)])
+
                 # Add dot at 0 dB point
                 pm_dot = Dot(
                     self.mag_axes.c2p(log_wp, 0),
-                    color=margin_color
+                    color=margin_color, radius=0.05
                 )
                 margin_group.add(pm_dot)
-                PM_vector = DoubleArrow(self.phase_axes.c2p(log_wp, -180),
+                all_animations.extend([Create(pm_dot)])
+                part2_anims.extend([Create(pm_dot)])
+
+                PM_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
                             self.phase_axes.c2p(log_wp, phase_at_wp),
                     color=margin_color,
-                    stroke_width=1, buff=0, tip_length=0.15)
+                    stroke_width=1.5, buff=0, tip_length=0.15)
                 margin_group.add(PM_vector)
+                all_animations.extend([Create(PM_vector)])
+                part3_anims.extend([Create(PM_vector)])
+
                 # Add text label if requested
                 if show_values:
                     pm_text = MathTex(
@@ -2236,13 +2268,25 @@ class BodePlot(VGroup):
                         DOWN+LEFT, buff=0.2
                     )
                     margin_group.add(pm_text)
+                    all_animations.extend([Write(pm_text)])
+                    part3_anims.extend([Write(pm_text)])
         
-        # Add the margin group to the appropriate components
-        if self._show_magnitude:
-            self.mag_components.add(margin_group)
-        if self._show_phase:
-            self.phase_components.add(margin_group)  
-        return self
+        return {
+            'animations': {
+                'combined': all_animations,
+                'parts': {
+                    'reference_lines': part1_anims,
+                    'crossover': part2_anims,
+                    'margins': part3_anims
+                }
+            },
+            'markers': {
+                'all': margin_group,  # Everything combined
+                'reference': VGroup(zerodB_line, minus180_line),
+                'crossover': VGroup(gm_dot, pm_dot, gain_line, phase_line),
+                'indicators': VGroup(GM_vector, PM_vector, gm_text, pm_text)
+            }
+        }
 
     def _calculate_stability_margins(self):
         """
@@ -2256,7 +2300,7 @@ class BodePlot(VGroup):
         - ws: stability margin frequency
         """
         # Find phase crossover (where phase crosses -180°)
-        phase_crossings = np.where(np.abs(self.phases + 180) < 5)[0]
+        phase_crossings = np.where(np.abs(self.phases + 180) < 0.5)[0]
         
         if len(phase_crossings) > 0:
             # Use the last crossing before phase goes below -180°
