@@ -11,24 +11,30 @@ class Bode(Scene):
 
         bode = BodePlot(system)
         bode.grid_on()
-        self.add(bode)
-        
-        #......
-
+        plot_anims = bode.get_plot_animations()
         margin_data = bode.show_margins()
-        self.play(*margin_data['animations']['parts']['reference_lines']
-                  , run_time=1.2)
+        self.play(LaggedStart(
+            *plot_anims['axes'],
+            *plot_anims['grid'],
+            lag_ratio=0.2,
+            run_time=3))
+        self.play(
+            *plot_anims['magnitude'],
+            *plot_anims['phase'],
+            run_time=2)
+        self.play(*plot_anims['labels'],
+            run_time=1.5)
+        self.play(*margin_data['animations']['parts']['reference_lines'])
         self.wait(0.5)
-        self.play(*margin_data['animations']['parts']['crossover']
-                  , run_time=1.2)
+        self.play(*margin_data['animations']['parts']['crossover'])
         self.wait(0.5)
-        self.play(*margin_data['animations']['parts']['margins']
-                  , run_time=1.2)
-        self.wait(1.5)
-
-        markers = margin_data['markers']['all']
-        self.play(LaggedStart(*[FadeOut(m) for m in markers]
-                              , lag_ratio=0.1))
+        self.play(*margin_data['animations']['parts']['margins'])
+        self.wait(2)
+        self.play(
+            FadeOut(margin_data['markers']['indicators']),
+            FadeOut(margin_data['markers']['crossover']),
+            run_time=1
+        )
         self.wait(1)
 
         #margin_anims, margin_markers = bode.show_margins()
@@ -39,6 +45,12 @@ class Bode(Scene):
         #self.play(*[FadeOut(m) for m in margin_markers])
         #self.wait(1)
 
+        #margin_data = bode.show_margins()
+        #self.play(*margin_data['animations']['combined'], run_time=2)
+        #self.wait(2)
+
+        #self.play(FadeOut(margin_data['markers']['all']))
+        #self.wait(1)
 
         # Highlight critical points
         #highlight_anims, markers = bode.highlight_critical_points()

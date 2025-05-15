@@ -7,9 +7,10 @@ class Nyquistplot(Scene):
         
         s = sp.symbols('s')
         num = 1
-        den = (s+0.1)*(s+1)**2
+        den = s**2+0.2*s+1
         system = (num, den)
-        nyquist = Nyquist(system, show_minus_one_label=False, x_range=[-2,1], y_range=[-2,2],
+        nyquist = Nyquist(system, show_minus_one_label=True, show_unit_circle=True,
                           y_axis_label=r"\mathcal{I}m\{\mathcal{L}(j\omega)\}",
                           x_axis_label=r"\mathcal{R}e\{\mathcal{L}(j\omega)\}")
+        nyquist.grid_on()
         self.add(nyquist)

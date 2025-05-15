@@ -1085,7 +1085,7 @@ class ControlSystem:
 
 # Bode plot classes
 class BodePlot(VGroup):
-    def __init__(self, system, freq_range=None, magnitude_yrange=None, 
+    def __init__(self, system, freq_range=None, magnitude_yrange=None,  
                  phase_yrange=None, color=BLUE,stroke_width=2, mag_label="Magnitude (dB)", 
                  phase_label = "Phase (deg)",xlabel = "Frequency (rad/s)", 
                  font_size_ylabels = 20, font_size_xlabel=20,**kwargs):
@@ -2336,13 +2336,79 @@ class BodePlot(VGroup):
             ws = np.inf
         
         return gm, pm, sm, wg, wp, ws
+        
+    ## ===== animation options for bode =======
+    def get_plot_animations(self):
+        """Return animations for plotting the Bode diagram in stages"""
+        return {
+            'axes': self._get_axes_animations(),
+            'grid': self._get_grid_animations(),
+            'magnitude': self._get_magnitude_animation(),
+            'phase': self._get_phase_animation(),
+            'labels': self._get_label_animations()
+        }
+
+    def _get_axes_animations(self):
+        """Animations for creating axes"""
+        anims = []
+        if self._show_magnitude:
+            anims.append(Create(self.mag_box))
+        if self._show_phase:
+            anims.append(Create(self.phase_box))
+        return anims
+
+    def _get_grid_animations(self):
+        """Animations for grid lines"""
+        anims = []
+        if self._show_magnitude:
+            anims.append(Create(self.mag_grid))
+            anims.append(Create(self.mag_vert_grid))
+        if self._show_phase:
+            anims.append(Create(self.phase_grid))
+            anims.append(Create(self.phase_vert_grid))
+        return anims
+
+    def _get_magnitude_animation(self):
+        """Animation for magnitude plot"""
+        if not self._show_magnitude:
+            return []
+        return [Create(self.mag_plot)]
+
+    def _get_phase_animation(self):
+        """Animation for phase plot"""
+        if not self._show_phase:
+            return []
+        return [Create(self.phase_plot)]
+
+    def _get_label_animations(self):
+        """Animations for labels and ticks"""
+        anims = []
+        if self._show_magnitude:
+            anims.extend([
+                Write(self.mag_y_labels),
+                Write(self.mag_ylabel),
+                Create(self.mag_ticks),
+                Create(self.mag_vert_ticks)
+            ])
+        if self._show_phase:
+            anims.extend([
+                Write(self.phase_y_labels),
+                Write(self.phase_ylabel),
+                Create(self.phase_ticks),
+                Create(self.phase_vert_ticks),
+                Write(self.freq_labels),
+                Write(self.freq_xlabel)
+            ])
+        if self._title:
+            anims.append(Write(self._title))
+        return anims
     
 # ========================Nyquist=================
 #Nyquist plot class
 class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
                  color=BLUE, stroke_width=2, label="Nyquist Plot", y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
-                 font_size_labels=20, show_unit_circle=False, show_minus_one_label=True,show_minus_one_marker=True,
+                 font_size_labels=20, show_unit_circle=False, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
                   show_positive_freq=True, show_negative_freq=True, **kwargs):
         """
         Create a Nyquist plot visualization for a given system.
@@ -2374,6 +2440,7 @@ class Nyquist(VGroup):
         self.label = label
         self.font_size_labels = font_size_labels
         self.show_unit_circle = show_unit_circle
+        self.unit_circle_color = circle_color
         self.show_minus_one_label = show_minus_one_label
         self.show_minus_one_marker = show_minus_one_marker
         self.show_positive_freq = show_positive_freq
@@ -2468,12 +2535,12 @@ class Nyquist(VGroup):
 
     def _update_grid_visibility(self):
         """Update grid visibility based on current setting"""
-        opacity = 1 if self._show_grid else 0
+        opacity = 0.7 if self._show_grid else 0
         if hasattr(self, 'grid_lines'):
             self.grid_lines.set_opacity(opacity)
         if hasattr(self, 'unit_circle'):
             self.unit_circle.set_opacity(opacity if self.show_unit_circle else 0)
-    
+
     def _is_proper(self, system=None):
         """Check if the system is proper (numerator degree ≤ denominator degree)."""
         if system is None:
@@ -2533,12 +2600,12 @@ class Nyquist(VGroup):
                 min_freq, max_freq = 0.1, 100
 
             # Handle integrators/differentiators
-            if any(np.isclose(poles, 0)):
+            if any(np.isclose(poles, 0, atol=1e-6)):
                 min_freq = min(0.001, min_freq)
             if any(np.isclose(zeros, 0)):
                 max_freq = max(1000, max_freq)
 
-            num_poles_at_zero = np.sum(np.isclose(poles,0))
+            self.num_poles_at_zero = np.sum(np.isclose(poles,0))
             self.is_pure_integrator = (len(poles) == 1 and np.isclose(poles[0], 0) 
                                   and len(zeros) == 0)
 
@@ -2551,7 +2618,7 @@ class Nyquist(VGroup):
             _, response = signal.freqresp(self.system, w)
             re, im = np.real(response), np.imag(response)
             
-            if num_poles_at_zero>0:
+            if self.num_poles_at_zero>0:
                 magnitudes = np.abs(response)
                 if len(magnitudes) > 1:
                     log_magnitudes = np.log(magnitudes + 1e-12)  # Avoid log(0)
@@ -2563,7 +2630,7 @@ class Nyquist(VGroup):
                     
                     # Parameters for sustained divergence detection
                     negative_threshold = -0.5  # negative since magnitude increases as frequency decreases
-                    min_consecutive_points = 4000  # Number of consecutive points below threshold 
+                    min_consecutive_points = 4000  #4000 Number of consecutive points below threshold 
                     
                     below_threshold = growth_rate < negative_threshold
                     # Use convolution to find consecutive points below the negative threshold
@@ -2599,7 +2666,7 @@ class Nyquist(VGroup):
                 y_min = -max_abs_im 
                 y_max = max_abs_im
 
-            if self._is_proper() and num_poles_at_zero==0:
+            if (self._is_proper() or self._is_strictly_proper) and self.num_poles_at_zero==0:
 
                 if not any(np.isclose(poles, 0)):  
                     w_extended = np.logspace(
@@ -2615,7 +2682,7 @@ class Nyquist(VGroup):
                     im_min, im_max = np.min(im), np.max(im)
                     
 
-                    padding = 0.1 if self._is_proper() else 0.05
+                    padding = 0.01 if self._is_proper() else 0.05
                     
                     x_min = re_min 
                     x_max = re_max 
@@ -2624,7 +2691,7 @@ class Nyquist(VGroup):
                     y_max = max_abs_im
 
                     # Ensure the origin is visible for proper systems (critical for Nyquist criterion)
-            if (self._is_proper() or self._is_strictly_proper()) and num_poles_at_zero==0:
+            if (self._is_proper() or self._is_strictly_proper()) and self.num_poles_at_zero==0:
 
                 max_abs_real_deviation = max(abs(re_min), abs(re_max))
                 max_abs_im_deviation = max(abs(im_min), abs(im_max))
@@ -2645,7 +2712,7 @@ class Nyquist(VGroup):
                 y_min -= y_padding
                 y_max += y_padding
 
-            if (not self._is_proper() or not self._is_strictly_proper()) and num_poles_at_zero==0:
+            if (not self._is_proper() and not self._is_strictly_proper()) and self.num_poles_at_zero==0:
                 # Detect sustained divergence for improper systems
                 magnitudes = np.abs(response)
                 if len(magnitudes) > 1:
@@ -2658,7 +2725,7 @@ class Nyquist(VGroup):
                     
                     # Parameters for sustained divergence detection
                     threshold = 0.5  # Growth rate threshold 0.5
-                    min_consecutive_points = 1000  # Number of consecutive points above threshold 100
+                    min_consecutive_points = 1000  # 1000Number of consecutive points above threshold 100
                     
                     # Find regions of sustained growth
                     above_threshold = growth_rate > threshold
@@ -2695,12 +2762,19 @@ class Nyquist(VGroup):
                 y_max = max_abs_im
 
             # Calculate total span
-            self.x_span = x_max-x_min
-            self.y_span = y_max-y_min
+            self.x_span = abs(x_max-x_min)
+            self.y_span = abs(y_max-y_min)
 
             # Based on the span, round off to nearest integer x
             # Round off to 0.5
-            if self.x_span < 4:
+            if self.x_span <= 2:
+                x_min=x_min
+                x_max=x_max
+            if self.y_span <= 2:
+                y_min=y_min
+                y_max=y_max
+
+            if 2<self.x_span < 4:
                 x_min=np.floor(x_min)
                 x_max=np.ceil(x_max)
             if self.y_span < 4:
@@ -2738,6 +2812,15 @@ class Nyquist(VGroup):
             if self.y_span > 50:
                 y_min=np.floor(y_min/20)*20
                 y_max=np.ceil(y_max/20)*20
+            
+            if np.isclose(x_min, 0):
+                x_min = 0.0
+            if np.isclose(x_max, 0):
+                x_max = 0.0
+            if np.isclose(y_min, 0):
+                y_min = 0.0
+            if np.isclose(y_max, 0):
+                y_max = 0.0
 
             return {
                 'freq_range': (float(min_freq), float(max_freq)),
@@ -2770,8 +2853,13 @@ class Nyquist(VGroup):
         y_min, y_max = self._validate_range(self.y_range)
 
         # Calculate sane step sizes
-        x_step = 1 if self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
-        y_step = 1 if self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
+        x_step = 1 if 2< self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
+        y_step = 1 if 2< self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
+        
+        if self.x_span <=2:
+            x_step = abs(self.x_span/4)
+        if self.y_span <= 2:
+            y_step = abs(self.y_span/4)
 
         self.plane = ComplexPlane(
             x_range=[x_min, x_max, x_step],
@@ -2780,7 +2868,7 @@ class Nyquist(VGroup):
             background_line_style={
                 "stroke_color": GREY,
                 "stroke_width": 1,
-                "stroke_opacity": 0.7
+                "stroke_opacity": 0
             },
             axis_config={
                 "stroke_width": 0,
@@ -2808,21 +2896,95 @@ class Nyquist(VGroup):
         
         # Create unit circle if requested
         if self.show_unit_circle:
-            unit_circle = Circle(
-                radius=0.5,
-                color=RED,
+            unit_circle_solid = ParametricFunction(
+                lambda t: self.plane.number_to_point(np.exp(1j * t)),
+                t_range=[0, 2 * np.pi],
+                color=self.unit_circle_color,
                 stroke_width=1.5,
-                stroke_opacity=0.7
+                stroke_opacity=0.7,
             )
-            unit_circle.move_to(self.plane.number_to_point(-1 + 0j))
+            unit_circle = DashedVMobject(
+            unit_circle_solid,
+            num_dashes=30,       
+            dashed_ratio=0.5,   
+            )
             self.unit_circle = unit_circle
         else:
-            self.unit_circle = VGroup()  # Empty group
+            self.unit_circle = VGroup()
         
+        # --- Create Grid Lines ---
+        corner_magnitudes = [
+        np.linalg.norm([x_min, y_min]),
+        np.linalg.norm([x_max, y_min]),
+        np.linalg.norm([x_min, y_max]),
+        np.linalg.norm([x_max, y_max]),
+        ]
+        max_magnitude_visible = max(corner_magnitudes)
+        db_levels = np.array([-10, -6, -4, -2, 0, 2, 4, 6, 10])
+
+        # Convert dB to magnitude: mag = 10^(dB / 20)
+        magnitude_radii = 10 ** (db_levels / 20)
+
+        # Keep only radii that are visible in current axes
+        visible_radii = [r for r in magnitude_radii if r <= max_magnitude_visible * 1.1]
+
         # Create grid lines
-        self.grid_lines = self.plane.get_background_lines()
+        self.grid_lines = VGroup()
+
+        for r, db in zip(magnitude_radii, db_levels):
+            if r > max_magnitude_visible * 1.1:
+                continue
+
+            circle = ParametricFunction(
+                lambda t, r=r: self.plane.number_to_point(r * np.exp(1j * t)),
+                t_range=[0, 2 * np.pi]
+            )
+            #self.grid_lines.add(circle)
+
+            # Optional: add a dB label on the circle (on the positive real axis)
+            label_point = self.plane.number_to_point(r + 0j)
+            db_label = MathTex(f"{db}\\,\\text{{dB}}", font_size=24).move_to(label_point + RIGHT * 0.2)
+            #self.grid_lines.add(db_label)
+
+        # 5. Radial lines (constant phase)
+        plane_origin_point = self.plane.number_to_point(0)
+        phase_angles = np.linspace(0, 2 * np.pi, 12, endpoint=False)  # Every 30 degrees
+        x_bounds = (x_min, x_max)
+        y_bounds = (y_min, y_max)
+
+        for angle in phase_angles:
+            # Direction vector
+            dx = np.cos(angle)
+            dy = np.sin(angle)
+            tx = float('inf') if dx == 0 else max(
+                (x_bounds[0] / dx) if dx < 0 else (x_bounds[1] / dx), 0
+            )
+            ty = float('inf') if dy == 0 else max(
+                (y_bounds[0] / dy) if dy < 0 else (y_bounds[1] / dy), 0
+            )
+            # Smallest positive scale to stay within bounds
+            scale = min(tx, ty)
+            # End point in complex plane
+            end_plane_point = scale * (dx + 1j * dy)
+            end_scene_point = self.plane.number_to_point(end_plane_point)
+            radial_line = Line(
+                plane_origin_point,
+                end_scene_point,
+                color=BLUE,
+                stroke_width=0.7,
+                stroke_opacity=1,
+            )
+            desired_dash_length = 0.4
+            line_length = radial_line.get_length()
+            num_dashes = max(1, int(line_length / desired_dash_length))
+            dashed_radial_line = DashedVMobject(
+                radial_line, num_dashes=num_dashes,
+                dashed_ratio=0.5
+            )
+            self.grid_lines.add(dashed_radial_line)
+
+        # Set visibility of grid lines
         self.grid_lines.set_opacity(1 if self._show_grid else 0)
-        
         # Group all axes components
         self.axes_components = VGroup(
             self.plane,
@@ -2895,28 +3057,69 @@ class Nyquist(VGroup):
         self.nyquist_plot.set_stroke(width=self.plot_stroke_width)
 
         tip_length = 0.2 # Define the desired length of the triangular tip
-        point_skip = 5 # Number of points to skip to get a direction vector
+        point_skip = 3 # Number of points to skip to get a direction vector
 
+        if (len(all_pos_points) >= point_skip + 1) and self.show_positive_freq==True and self.num_poles_at_zero>0:
+            middle_idx = int(len(all_pos_points)*0.2)
+            start_dir_idx = max(0, middle_idx - point_skip//2)
+            end_dir_idx = min(len(all_pos_points)-1, middle_idx + point_skip//2)
+
+            if start_dir_idx < end_dir_idx: 
+                tip_location = all_pos_points[end_dir_idx]
+
+                # Calculate the direction vector from start_dir_idx to end_dir_idx
+                direction_vector = all_pos_points[end_dir_idx] - all_pos_points[start_dir_idx]
+
+                # Calculate the angle of the direction vector
+                angle = angle_of_vector(direction_vector)
+                # Create a small triangle pointing upwards initially
+                arrow_tip = Triangle(fill_opacity=1, stroke_width=0)
+                # Rotate it to point in the direction of the curve
+                arrow_tip.rotate(angle - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
+                # Scale it to the desired size
+                arrow_tip.set_height(tip_length)
+                # Color it the plot color
+                arrow_tip.set_color(self.plotcolor)
+                # Move it to the tip location
+                arrow_tip.move_to(tip_location)
+                self.nyquist_plot.add(arrow_tip)
+        if (len(all_neg_points) >= point_skip + 1) and self.show_negative_freq==True and self.num_poles_at_zero>0:
+            middle_idx_neg = int(len(all_neg_points)*0.8)
+        
+        # Calculate start and end indices centered around the middle
+            start_dir_idx_neg = max(0, middle_idx_neg - point_skip//2)
+            end_dir_idx_neg = min(len(all_neg_points)-1, middle_idx_neg + point_skip//2)
+
+            if start_dir_idx_neg != end_dir_idx_neg: 
+                tip_location_neg = all_neg_points[end_dir_idx_neg]
+
+                # Calculate the direction vector from point1_idx_neg to point2_idx_neg
+                # Note: This vector points in the direction of increasing negative frequency (towards -infinity)
+                direction_vector_neg = all_neg_points[end_dir_idx_neg] - all_neg_points[start_dir_idx_neg]
+
+                # Calculate the angle of the direction vector
+                angle_neg = angle_of_vector(direction_vector_neg)
+
+                # Create a small triangle pointing upwards initially
+                arrow_tip_neg = Triangle(fill_opacity=1, stroke_width=0)
+                # Rotate it to point in the direction of the curve
+                arrow_tip_neg.rotate(angle_neg - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
+                # Scale it to the desired size
+                arrow_tip_neg.set_height(tip_length)
+                # Color it the plot color
+                arrow_tip_neg.set_color(self.plotcolor)
+                # Move it to the tip location
+                arrow_tip_neg.move_to(tip_location_neg)
+                self.nyquist_plot.add(arrow_tip_neg)
         # Ensure there are enough points in the positive frequency part before placing an arrow
-        if (len(all_pos_points) >= point_skip + 1) and self.show_positive_freq==True:
+        if (len(all_pos_points) >= point_skip + 1) and self.show_positive_freq==True and self.num_poles_at_zero==0:
             
             middle_idx = len(all_pos_points) // 2
             start_dir_idx = max(0, middle_idx - point_skip//2)
             end_dir_idx = min(len(all_pos_points)-1, middle_idx + point_skip//2)
 
-            # Ensure indices are within bounds
-            #start_dir_idx = max(0, min(start_dir_idx, len(all_pos_points) - point_skip - 1))
-            #end_dir_idx = start_dir_idx + point_skip # Recalculate end based on adjusted start
-
-            # Ensure start is before end
-            #if start_dir_idx >= end_dir_idx:
-                #start_dir_idx = max(0, end_dir_idx - 1)
-
-
-            if start_dir_idx < end_dir_idx: # Ensure distinct points for direction
-                # The tip will be placed at the 'end_dir_idx' point
+            if start_dir_idx < end_dir_idx: 
                 tip_location = all_pos_points[end_dir_idx]
-
                 # Calculate the direction vector from start_dir_idx to end_dir_idx
                 direction_vector = all_pos_points[end_dir_idx] - all_pos_points[start_dir_idx]
 
@@ -2935,10 +3138,8 @@ class Nyquist(VGroup):
                 arrow_tip.move_to(tip_location)
                 self.nyquist_plot.add(arrow_tip)
 
-        # Arrow for negative frequencies
-        # Ensure there are enough points in the negative frequency part before placing an arrow
-        if (len(all_neg_points) >= point_skip + 1) and self.show_negative_freq==True:
-        
+      
+        if (len(all_neg_points) >= point_skip + 1) and self.show_negative_freq==True and self.num_poles_at_zero==0:
             middle_idx_neg = len(all_neg_points) // 2
         
         # Calculate start and end indices centered around the middle
@@ -2990,7 +3191,7 @@ class Nyquist(VGroup):
                 self.axes_components.add(minus_one_marker)
             if self.show_minus_one_label:
                 minus_one_label = MathTex("-1", font_size=20, color=RED)
-                minus_one_label.next_to(minus_one_marker, DOWN, buff=0.1)
+                minus_one_label.next_to(minus_one_marker, DOWN+LEFT, buff=0.01)
                 self.axes_components.add(minus_one_label)
 
         self.box = SurroundingRectangle(self.plane, buff=0, color=WHITE, stroke_width=2)
@@ -3003,7 +3204,9 @@ class Nyquist(VGroup):
         
         if orientation == "horizontal":
             # For x-axis ticks (top and bottom)
-            step = 1 if self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
+            step = 1 if 2< self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
+            if self.x_span <=2:
+                step = abs(self.x_span/4)
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
@@ -3032,7 +3235,9 @@ class Nyquist(VGroup):
                 ))
                 
         else:  # vertical (y-axis ticks - left and right)
-            step = 1 if self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
+            step = 1 if 2<self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
+            if self.y_span <= 2:
+                step = abs(self.y_span/4)
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
@@ -3068,7 +3273,9 @@ class Nyquist(VGroup):
         
         if orientation == "horizontal":
             # X-axis labels (bottom only)
-            step = 1 if self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
+            step = 1 if 2<self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
+            if self.x_span <=2:
+                step = abs(self.x_span/4)
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
@@ -3080,12 +3287,18 @@ class Nyquist(VGroup):
 
             for x_val in values:
                 point = axes.c2p(x_val, axes.y_range[0])
-                label = MathTex(f"{x_val:.1f}", font_size=18)
+                if np.isclose(x_val, 0):
+                    label_text = "0.0"
+                else:
+                    label_text = f"{x_val:.1f}"
+                label = MathTex(label_text, font_size=18)
                 label.move_to([point[0], point[1] - 0.3, 0])  # Position below axis
                 labels.add(label)
                 
         else:  # vertical (y-axis labels - left only)
-            step = 1 if self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
+            step = 1 if 2<self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
+            if self.y_span <= 2:
+                step = abs(self.y_span/4)
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
@@ -3097,7 +3310,11 @@ class Nyquist(VGroup):
 
             for y_val in values:
                 point = axes.c2p(axes.x_range[0], y_val)
-                label = MathTex(f"{y_val:.1f}", font_size=18)
+                if np.isclose(y_val, 0):
+                    label_text = "0.0"
+                else:
+                    label_text = f"{y_val:.1f}"
+                label = MathTex(label_text, font_size=18)
                 label.move_to([point[0] - 0.3, point[1], 0])  # Position left of axis
                 labels.add(label)
         
@@ -3242,3 +3459,65 @@ class Nyquist(VGroup):
             ws = np.inf
         
         return gm, pm, sm, wg, wp, ws
+    
+    def show_margins(self, margin_color=YELLOW, font_size=20):
+        """Add visual indicators for phase and gain margins."""
+        gm, pm, _, wg, wp, _ = self._calculate_stability_margins()
+        
+        self.margin_indicators = VGroup()
+        # Add gain margin indicator (point where phase crosses -180°)
+        if gm != np.inf:
+            # Find the point on the plot closest to wg
+            idx = np.argmin(np.abs(self.frequencies - wg))
+            point = self.plane.number_to_point(self.real_part[idx] + 1j*self.imag_part[idx])
+            
+            gm_dot = Dot(point, color=margin_color, radius=0.06)
+            gm_label = MathTex(f"GM = {gm:.2f}\\text{{ dB}}", 
+                             font_size=font_size, color=margin_color)
+            gm_label.next_to(gm_dot, UP, buff=0.1)
+            
+            # Draw line from origin to gain margin point
+            origin = self.plane.number_to_point(0 + 0j)
+            gm_line = Line(origin, point, color=margin_color, stroke_width=1.5)
+            gm_line.set_opacity(0.7)
+            
+            self.margin_indicators.add(gm_dot, gm_label, gm_line)
+        
+        # Add phase margin indicator (point where magnitude crosses 1)
+        if pm != np.inf:
+            # Find the point where |G(jw)| = 1 (0 dB)
+            mag = np.abs(self.response)
+            idx = np.argmin(np.abs(mag - 1))
+            point = self.plane.number_to_point(self.real_part[idx] + 1j*self.imag_part[idx])
+            
+            pm_dot = Dot(point, color=margin_color, radius=0.06)
+            pm_label = MathTex(f"PM = {pm:.2f}^\\circ", 
+                             font_size=font_size, color=margin_color)
+            pm_label.next_to(pm_dot, RIGHT, buff=0.1)
+            
+            # Draw line from origin to phase margin point
+            origin = self.plane.number_to_point(0 + 0j)
+            pm_line = DoubleArrow(origin, point, color=margin_color, stroke_width=1.5)
+            pm_line.set_opacity(0.7)
+            
+            # Draw angle arc for phase margin
+            angle = np.angle(self.real_part[idx] + 1j*self.imag_part[idx])  # Angle in radians
+            arc = Arc(
+                radius=1,
+                start_angle=-np.pi,
+                angle=-angle-0.5*np.pi,
+                arc_center=origin,
+                color=margin_color,
+                stroke_width=1.5,
+                fill_opacity = 0
+            )
+            
+            
+            # Add angle label
+            angle_label = MathTex(f"{pm:.0f}^\\circ", 
+                                 font_size=font_size, color=margin_color)
+            angle_label.move_to(arc.point_from_proportion(0.5) * 1.2)
+            
+            self.margin_indicators.add(pm_dot, pm_label, arc, angle_label)
+        
+        self.add(self.margin_indicators)
