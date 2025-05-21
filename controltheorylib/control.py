@@ -102,14 +102,14 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag',
         spring.add(helical_spring)  
     return spring
 
-def fixed_world(start, end, spacing=None, mirror="no", line_or="right", color=WHITE):
+def fixed_world(start, end, spacing=None, mirror=False, line_or="right", color=WHITE):
     """
     Generate a fixed-world representation
     
     :param start: Startpoint of the fixed world (numpy array or tuple)
     :param end: Endpoint of the fixed world (numpy array or tuple)
     :param spacing: Spacing between diagonal lines
-    :param mirror: If "yes", mirrors the fixed world orientation
+    :param mirror: If true, mirrors the fixed world orientation
     :param line_or: Orientation of diagonal lines ("right" or "left")
     :return: A Manim VGroup representing the fixed world
     """
@@ -144,7 +144,7 @@ def fixed_world(start, end, spacing=None, mirror="no", line_or="right", color=WH
         diagonal_dir = diagonal_dir / diagonal_dir_norm
     
     # Apply mirroring if needed (properly accounting for the original angle)
-    if mirror == "yes":
+    if mirror ==True:
         # Calculate the reflection matrix for the main line direction
         u = unit_dir[0]
         v = unit_dir[1]
@@ -176,7 +176,7 @@ def fixed_world(start, end, spacing=None, mirror="no", line_or="right", color=WH
 
 
 # Mass function
-def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect',color=WHITE, text="m"):
+def mass(pos= ORIGIN, width=1.5, height=1.5, radius=1.5, font_size=None, type='rect',color=WHITE, text="m"):
     """
     Generate a mass animation object.
     :param pos: Position of centre of mass of the object.
@@ -190,23 +190,23 @@ def mass(pos= ORIGIN, size=1.5, font_size=None, type='rect',color=WHITE, text="m
     if type not in ['rect', 'circ']:
         warnings.warn("Invalid type. Defaulting to 'rect'.", UserWarning)
         type = 'rect'
-    if size <= 0:
+    if height <= 0:
         warnings.warn("Size must be a positive value, Setting to default value (1.5).", UserWarning)
-        size = 1.5
+        height = 1.5
     if font_size is None: #scale font according to size
-        font_size=50*(size/1.5)
+        font_size=50*(height/1.5)
     elif font_size <= 0:
         warnings.warn("Font size must be a positive value, Setting to default value (50).", UserWarning)
-        font_size = 50*(size/1.5)
+        font_size = 50*(height/1.5)
 
     mass = VGroup()
     text = MathTex(text, font_size=font_size, color=color)
 
     # Create shape
     if type == 'rect':
-        shape = Rectangle(width=size, height=size,color=color)
+        shape = Rectangle(width=width, height=height,color=color)
     else:  # type == "circ"
-        shape = Circle(radius=size/2, color=color)
+        shape = Circle(radius=radius/2, color=color)
 
     # Positioning
     shape.move_to(pos)
@@ -2408,7 +2408,7 @@ class BodePlot(VGroup):
 class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
                  color=BLUE, stroke_width=2, label="Nyquist Plot", y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
-                 font_size_labels=20, show_unit_circle=False, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
+                 font_size_labels=20, show_unit_circle=False, unit_circle_dashed=True, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
                   show_positive_freq=True, show_negative_freq=True, **kwargs):
         """
         Create a Nyquist plot visualization for a given system.
@@ -2445,6 +2445,7 @@ class Nyquist(VGroup):
         self.show_minus_one_marker = show_minus_one_marker
         self.show_positive_freq = show_positive_freq
         self.show_negative_freq = show_negative_freq
+        self.unit_circle_dashed = unit_circle_dashed
 
         self.axes_components = VGroup()
         self.nyquist_plot = VMobject()
@@ -2903,12 +2904,15 @@ class Nyquist(VGroup):
                 stroke_width=1.5,
                 stroke_opacity=0.7,
             )
-            unit_circle = DashedVMobject(
-            unit_circle_solid,
-            num_dashes=30,       
-            dashed_ratio=0.5,   
-            )
-            self.unit_circle = unit_circle
+            if self.unit_circle_dashed:
+                unit_circle = DashedVMobject(
+                unit_circle_solid,
+                num_dashes=30,       
+                dashed_ratio=0.5,   
+                )
+                self.unit_circle = unit_circle
+            else:
+                self.unit_circle = unit_circle_solid
         else:
             self.unit_circle = VGroup()
         
@@ -3410,14 +3414,13 @@ class Nyquist(VGroup):
 
     def _calculate_stability_margins(self):
         """
-        Calculate gain margin, phase margin, and stability margin.
-        Same implementation as in BodePlot class.
+        Calculate gain margin, phase margin, and modulus margin.
         """
         # Calculate Bode data for margin calculations
         w = np.logspace(
             np.log10(self.freq_range[0]),
             np.log10(self.freq_range[1]),
-            1000
+            10000
         )
         _, mag, phase = signal.bode(self.system, w)
         
@@ -3451,22 +3454,24 @@ class Nyquist(VGroup):
         
         # Calculate stability margin (minimum distance to -1 point)
         if len(w) > 0:
-            nyquist = (1 + 10**(mag/20) * np.exp(1j * phase * np.pi/180))
-            sm = 1 / np.min(np.abs(nyquist))
-            ws = w[np.argmin(np.abs(nyquist))]
+            # Compute L(jω) in complex form
+            sys_response = signal.freqresp(self.system, w)[1]
+            distances = np.abs(sys_response + 1)  # Distance from -1
+            mm = 1 / np.min(distances)
+            wm = w[np.argmin(distances)]  # Frequency at which MM occurs
         else:
-            sm = np.inf
-            ws = np.inf
+            mm = np.inf
+            wm = np.inf
         
-        return gm, pm, sm, wg, wp, ws
+        return gm, pm, mm, wg, wp, wm
     
-    def show_margins(self, margin_color=YELLOW, font_size=20):
+    def show_margins(self, margin_color=YELLOW, font_size=20, show_pm=True, show_gm=True, show_mm=True):
         """Add visual indicators for phase and gain margins."""
-        gm, pm, _, wg, wp, _ = self._calculate_stability_margins()
+        gm, pm, mm, wg, wp, wm = self._calculate_stability_margins()
         
         self.margin_indicators = VGroup()
         # Add gain margin indicator (point where phase crosses -180°)
-        if gm != np.inf:
+        if gm != np.inf and show_gm==True:
             # Find the point on the plot closest to wg
             idx = np.argmin(np.abs(self.frequencies - wg))
             point = self.plane.number_to_point(self.real_part[idx] + 1j*self.imag_part[idx])
@@ -3484,7 +3489,7 @@ class Nyquist(VGroup):
             self.margin_indicators.add(gm_dot, gm_label, gm_line)
         
         # Add phase margin indicator (point where magnitude crosses 1)
-        if pm != np.inf:
+        if pm != np.inf and show_pm==True:
             # Find the point where |G(jw)| = 1 (0 dB)
             mag = np.abs(self.response)
             idx = np.argmin(np.abs(mag - 1))
@@ -3502,22 +3507,135 @@ class Nyquist(VGroup):
             
             # Draw angle arc for phase margin
             angle = np.angle(self.real_part[idx] + 1j*self.imag_part[idx])  # Angle in radians
-            arc = Arc(
-                radius=1,
-                start_angle=-np.pi,
-                angle=-angle-0.5*np.pi,
-                arc_center=origin,
+            start_angle = np.pi  
+            end_angle = start_angle + np.deg2rad(pm)
+            
+            arc = ParametricFunction(
+                lambda t: self.plane.number_to_point(np.exp(1j * t)),
+                t_range=[start_angle, end_angle, 0.01],
                 color=margin_color,
-                stroke_width=1.5,
-                fill_opacity = 0
+                stroke_width=4,
+                stroke_opacity=0.7,
+                fill_opacity=0
             )
             
-            
+            tip_location = arc.get_point_from_function(start_angle)
+            # Calculate the direction vector from start_dir_idx to end_dir_idx
+            direction_vector = arc.get_point_from_function(start_angle)-arc.get_point_from_function(end_angle)
+
+            # Calculate the angle of the direction vector
+            angle = angle_of_vector(direction_vector)
+            tip_length=0.12
+            # Create a small triangle pointing upwards initially
+            arrow_tip = Triangle(fill_opacity=1, stroke_width=0)
+            # Rotate it to point in the direction of the curve
+            #arrow_tip.rotate(angle - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
+            # Scale it to the desired size
+            arrow_tip.set_height(tip_length)
+                # Color it the plot color
+            arrow_tip.set_color(margin_color)
+                # Move it to the tip location
+            arrow_tip.move_to(tip_location)
             # Add angle label
-            angle_label = MathTex(f"{pm:.0f}^\\circ", 
-                                 font_size=font_size, color=margin_color)
-            angle_label.move_to(arc.point_from_proportion(0.5) * 1.2)
+            angle_label = MathTex(f"PM = {pm:.0f}^\\circ", 
+                               font_size=font_size, color=margin_color)
+            angle_label.next_to(arc,LEFT,buff=0.1)
             
-            self.margin_indicators.add(pm_dot, pm_label, arc, angle_label)
+            self.margin_indicators.add(arc, angle_label, arrow_tip)
         
+        if mm != np.inf and show_mm==True:
+            idx = np.argmin(np.abs(self.frequencies - wm))
+            nyquist_point = self.real_part[idx] + 1j * self.imag_part[idx]
+            nyquist_dot = Dot(self.plane.number_to_point(nyquist_point), color=ORANGE, radius=0.06)
+
+            # Label
+            mm_label = MathTex(f"\\frac{{1}}{{\\text{{MM}}}} = {1/mm:.2f}", font_size=font_size, color=ORANGE)
+            mm_label.next_to(nyquist_dot, UP, buff=0.1)
+
+            # Line from -1 to Nyquist curve
+            critical_point = -1 + 0j
+            mm_line = DoubleArrow(
+                self.plane.number_to_point(critical_point),
+                self.plane.number_to_point(nyquist_point),
+                color=ORANGE,
+                stroke_width=1.5
+            )
+            mm_line.set_opacity(0.7)
+            r = np.abs(nyquist_point + 1)
+            # Draw dashed circle centered at -1 with radius = min distance
+            mm_circle = ParametricFunction(
+                lambda t: self.plane.number_to_point(-1 + r*np.exp(1j*t)),
+                t_range=[0, 2*np.pi, 0.1],
+                color=margin_color,
+                stroke_width=2,
+                stroke_opacity=0.7,
+                fill_opacity=0
+            )
+            self.margin_indicators.add(mm_line, nyquist_dot, mm_label, mm_circle)
         self.add(self.margin_indicators)
+
+    def get_plot_animations(self):
+        """Return animations for plotting the Nyquist diagram in stages"""
+        return {
+            'axes': self._get_axes_animations(),
+            'grid': self._get_grid_animations(),
+            'plot': self._get_nyquist_animation(),
+            'labels': self._get_label_animations(),
+            'unit_circle': self._get_unit_circle_animation()
+        }
+
+    def _get_axes_animations(self):
+        """Animations for creating axes"""
+        anims = []
+        anims.append(Create(self.box))
+        anims.append(Create(self.plane))
+        anims.append(Create(DashedLine(self.plane.x_axis.get_start(), 
+                                    self.plane.x_axis.get_end(),
+                                    dash_length=0.05)))
+        anims.append(Create(DashedLine(self.plane.y_axis.get_start(),
+                                    self.plane.y_axis.get_end(),
+                                    dash_length=0.05)))
+        return anims
+
+    def _get_grid_animations(self):
+        """Animations for grid lines"""
+        if not self._show_grid:
+            return []
+        return [Create(self.grid_lines)]
+
+    def _get_nyquist_animation(self):
+        """Animation for Nyquist plot"""
+        anims = [Create(self.nyquist_plot)]
+        
+        # Add arrow tips if they exist
+        for submob in self.nyquist_plot.submobjects:
+            if isinstance(submob, Triangle):
+                anims.append(FadeIn(submob))
+        
+        return anims
+
+    def _get_label_animations(self):
+        """Animations for labels and ticks"""
+        anims = []
+        anims.append(Write(self.x_label))
+        anims.append(Write(self.y_label))
+        
+        # Add tick animations
+        for mob in self.axes_components:
+            if isinstance(mob, VGroup) and "tick" in str(mob).lower():
+                anims.append(Create(mob))
+        
+        # Add -1 marker if visible
+        if (-1 in self.x_range and 0 in self.y_range and 
+            hasattr(self, 'minus_one_marker')):
+            anims.append(FadeIn(self.minus_one_marker))
+            if hasattr(self, 'minus_one_label'):
+                anims.append(Write(self.minus_one_label))
+        
+        return anims
+
+    def _get_unit_circle_animation(self):
+        """Animation for unit circle"""
+        if not self.show_unit_circle:
+            return []
+        return [Create(self.unit_circle)]

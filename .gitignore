@@ -1,6 +1,6 @@
 # ignore _pycache__
 __pycache__
-
+media
 # ignore build folder
 build/lib/controltheorylib
 

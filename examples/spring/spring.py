@@ -1,0 +1,31 @@
+from manim import *
+from controltheorylib import control
+
+class springExample(Scene):
+    def construct(self):
+        text1 = Text("Spring function usage example").shift(2*UP)
+        self.play(Write(text1), run_time=0.7)
+        self.wait(0.5)
+        s1 = control.spring(start=UP, end=2*DOWN)
+        self.play(Create(s1))
+        self.wait(1)
+        text2 = Text("Set type to helical").move_to(text1)
+        self.play(ReplacementTransform(text1,text2))
+        s2 = control.spring(start=UP, end=2*DOWN, type='helical')
+        self.play(ReplacementTransform(s1,s2))
+        self.wait(1)
+        text3 = Text("num_coils = 4").move_to(text2)
+        self.play(ReplacementTransform(text2,text3))
+        s3 = control.spring(start=UP, end=2*DOWN, type='helical', num_coils=4)
+        self.play(ReplacementTransform(s2,s3))
+        self.wait(1)
+        text4 = Text("coil_width = 0.6").move_to(text3)
+        self.play(ReplacementTransform(text3,text4))
+        s4 = control.spring(start=UP, end=2*DOWN, type='helical', num_coils=4, coil_width=0.6)
+        self.play(ReplacementTransform(s3,s4))
+        self.wait(1)
+        text5 = Text("Change end position, color = RED").move_to(text4)
+        self.play(ReplacementTransform(text4,text5))
+        s5 = control.spring(start=UP, end=2*DOWN+2*RIGHT, type='helical', num_coils=4, coil_width=0.6, color=RED)
+        self.play(ReplacementTransform(s4,s5))
+        self.wait(1)

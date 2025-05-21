@@ -14,7 +14,7 @@ class MassSpringSys(Scene):
         omega_d = omega*np.sqrt(1-zeta**2)
         A = 2      # amplitude
         phi = 0     # phase
-        t_end = 6/(zeta*omega) + 1 if zeta > 0 else 8
+        t_end = 6/(zeta*omega) if zeta > 0 else 8
 
         #Create fixed world 
         fixed = control.fixed_world([-5,3.5,0],[-1,3.5,0])
@@ -28,7 +28,6 @@ class MassSpringSys(Scene):
         #Create spring and damper
         spring = control.spring(spring_start,spring_eq)
         damper_box, damper_rod = control.damper(damper_start,damper_eq)
-
 
         #Create spring and damper labels
         k = MathTex("k").next_to(spring,LEFT, buff=0.5)
