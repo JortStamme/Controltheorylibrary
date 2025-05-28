@@ -11,7 +11,7 @@ my_template = TexTemplate()
 my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 
 # Spring function
-def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag", color=WHITE, **kwargs):
+def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag", **kwargs):
     """
     Generates a spring shape as a Manim VGroup between two points.
 
@@ -69,18 +69,18 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag",
     if type == 'zigzag':
     
     # Vertical segments at the top and bottom
-        bottom_vertical = Line(start, start+unit_dir*0.2, color=color, **kwargs)
-        top_vertical = Line(end, end-unit_dir*0.2, color=color, **kwargs)
+        bottom_vertical = Line(start, start+unit_dir*0.2, **kwargs)
+        top_vertical = Line(end, end-unit_dir*0.2, **kwargs)
     
     # Small diagonals at the start and end
-        small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width, color=color, **kwargs)
+        small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width, **kwargs)
     
         coil_spacing = (total_length-0.6)/num_coils
     # Zigzag pattern
         conn_diag_lines_left = VGroup(*[
             Line(
                 end-unit_dir*(0.4+i*coil_spacing)-perp_vector*coil_width,
-                end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width, color=color, **kwargs
+                end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width, **kwargs
             )
         for i in range(num_coils)
      ])
@@ -88,11 +88,11 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag",
         conn_diag_lines_right = VGroup(*[
             Line(
             end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width,
-            end-unit_dir*(0.4+(i+1)*coil_spacing)-perp_vector*coil_width, color=color, **kwargs
+            end-unit_dir*(0.4+(i+1)*coil_spacing)-perp_vector*coil_width, **kwargs
             )
         for i in range(num_coils-1)
      ])
-        small_start_diag = Line(conn_diag_lines_left[-1].get_end(), start+unit_dir*0.2, color=color, **kwargs)
+        small_start_diag = Line(conn_diag_lines_left[-1].get_end(), start+unit_dir*0.2, **kwargs)
 
         spring.add(top_vertical, small_end_diag, small_start_diag, bottom_vertical,
                conn_diag_lines_left,conn_diag_lines_right)
@@ -116,12 +116,12 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag",
         y_rot = x*unit_dir[1]-y*perp_vector[1]
 
         points = np.array([x_rot+start[0], y_rot+start[1], np.zeros(num_pts)]).T
-        helical_spring = VMobject().set_points_as_corners(points).set_stroke(color=color, **stroke_kwargs)
+        helical_spring = VMobject().set_points_as_corners(points).set_stroke(**stroke_kwargs)
         
         spring.add(helical_spring)  
     return spring
 
-def fixed_world(start=2*LEFT, end=2*RIGHT, spacing=None, mirror=False, line_or="right", diag_line_length=0.3, color=WHITE, **kwargs):
+def fixed_world(start=2*LEFT, end=2*RIGHT, spacing=None, mirror=False, line_or="right", diag_line_length=0.3, **kwargs):
     """
     Generates a fixed-world shape as a Manim VGroup between two points with diagonal support lines.
 
@@ -192,7 +192,7 @@ def fixed_world(start=2*LEFT, end=2*RIGHT, spacing=None, mirror=False, line_or="
         diagonal_dir = reflection_matrix @ diagonal_dir
 
     # Create the main line
-    ceiling_line = Line(start=start, end=end, color=color, **kwargs)
+    ceiling_line = Line(start=start, end=end, **kwargs)
     
     if total_length == 0:
         positions = [0]
@@ -204,7 +204,7 @@ def fixed_world(start=2*LEFT, end=2*RIGHT, spacing=None, mirror=False, line_or="
         Line(
             start=start + i * spacing * unit_dir,
             end=start + i * spacing * unit_dir + diag_line_length * diagonal_dir
-        , color=color, **kwargs)
+        , **kwargs)
         for i in range(num_lines)
     ])
 
@@ -314,17 +314,28 @@ def circ_mass(pos= ORIGIN, radius=1.5, font_size=None, label="m", label_color=WH
     return circ_mass
 
 # Damper function
-def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None,color=WHITE):
+def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None, **kwargs):
     """
-    Generate a damper animation object.
-    
-    :param start: Startpoint of the damper
-    :param end: Endpoint of the damper
-    :param width: Width of the damper
-    :param box_height: height of box
-    :return: Returns a grouped object, damper_box, damper_rod.
-    """
+    Generates a damper shape as a Manim VGroup between two points. 
 
+    PARAMETERS
+    ----------
+    start : np.ndarray | Sequence[float]
+        The start point of the damper.
+    end : np.ndarray | Sequence[float]
+        The end point of the damper.
+    width : float
+        Width of the damper box.
+    box_height : float | None
+        Height of the damper box. If None, defaults to half the total length.
+    **kwargs : Any
+        Additional keyword arguments passed to Manim's Line constructor (e.g., stroke_width, opacity).
+
+    RETURNS
+    -------
+    VGroup
+        A Manim VGroup containing the damper box and damper rod.
+    """
     # Validate inputs
     if  width <= 0:
         warnings.warn("Width must be a positive value, Setting to default value (0.5).", UserWarning)
@@ -349,21 +360,21 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None,color=WHITE):
     perp_vector = np.array([-unit_dir[1], unit_dir[0], 0])
 
     # Vertical parts of the damper
-    damp_vertical_top = Line(end, end-(unit_dir*(total_length-box_height*0.75)), color=color)
-    damp_vertical_bottom = Line(start, start+unit_dir*0.2)
+    damp_vertical_top = Line(end, end-(unit_dir*(total_length-box_height*0.75)), **kwargs)
+    damp_vertical_bottom = Line(start, start+unit_dir*0.2, **kwargs)
     
     # Horizontal part of the damper
-    damp_hor_top = Line(damp_vertical_top.get_end()-(perp_vector*(width/2-0.02)), damp_vertical_top.get_end()+(perp_vector*(width/2-0.02)), color=color)
+    damp_hor_top = Line(damp_vertical_top.get_end()-(perp_vector*(width/2-0.02)), damp_vertical_top.get_end()+(perp_vector*(width/2-0.02)), **kwargs)
     
     # Box for damper
-    hor_damper = Line(damp_vertical_bottom.get_end()- (perp_vector*width)/2, damp_vertical_bottom.get_end()+ (perp_vector*width)/2 )  
-    right_wall = Line(hor_damper.get_start(), hor_damper.get_start()+(unit_dir*box_height))    
-    left_wall = Line(hor_damper.get_end(), hor_damper.get_end()+(unit_dir*box_height))
-    left_closing = Line(left_wall.get_end(), left_wall.get_end()-perp_vector*(width/2-0.05))
-    right_closing = Line(right_wall.get_end(), right_wall.get_end()+perp_vector*(width/2-0.05))
+    hor_damper = Line(damp_vertical_bottom.get_end()- (perp_vector*width)/2, damp_vertical_bottom.get_end()+ (perp_vector*width)/2, **kwargs)  
+    right_wall = Line(hor_damper.get_start(), hor_damper.get_start()+(unit_dir*box_height), **kwargs)    
+    left_wall = Line(hor_damper.get_end(), hor_damper.get_end()+(unit_dir*box_height), **kwargs)
+    left_closing = Line(left_wall.get_end(), left_wall.get_end()-perp_vector*(width/2-0.05), **kwargs)
+    right_closing = Line(right_wall.get_end(), right_wall.get_end()+perp_vector*(width/2-0.05), **kwargs)
     
-    damper_box = VGroup(hor_damper, left_wall, right_wall, damp_vertical_bottom,left_closing, right_closing).set_stroke(color=color)
-    damper_rod = VGroup(damp_vertical_top,damp_hor_top).set_stroke(color=color)
+    damper_box = VGroup(hor_damper, left_wall, right_wall, damp_vertical_bottom,left_closing, right_closing)
+    damper_rod = VGroup(damp_vertical_top,damp_hor_top)
 
     # Combine all components to form the damper
     return VGroup(damper_box,damper_rod)

@@ -7,5 +7,5 @@ from scipy import signal
 class Test_TF(Scene):
     def construct(self):
         
-        fix = control.circ_mass(color=RED)
+        fix = control.damper(color=RED)
         self.add(fix)
