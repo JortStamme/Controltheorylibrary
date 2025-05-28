@@ -11,17 +11,32 @@ my_template = TexTemplate()
 my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 
 # Spring function
-def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag', color=WHITE):
+def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag", color=WHITE, **kwargs):
     """
-    Generate a spring animation object that adapts to any given start and end points.
+    Generates a spring shape as a Manim VGroup between two points.
 
-    :param start: Start point of the spring.
-    :param end: End point of the spring.
-    :param num_coils: Number of coils in the spring.
-    :param coil_width: The width of the coils.
-    :param type: Spring type ('zigzag' or 'helical').
-    :param color: Changes color of the spring
-    :return: A Manim VGroup representing the spring
+    PARAMETERS
+    ----------
+    start : np.ndarray
+        The start point of the spring.
+    end : np.ndarray
+        The end point of the spring.
+    num_coils : int
+        Number of coils in the spring. Must be a positive integer.
+    coil_width : float
+        Width of the coils (amplitude of the wave).
+    type : str
+        Type of spring shape to generate: either "zigzag" or "helical".
+    color : Color
+        Color of the spring.
+
+    **kwargs : Any
+        Additional parameters passed to Manim's Line and VMobject constructors.
+
+    RETURNS
+    -------
+    VGroup
+        A Manim VGroup containing the constructed spring.
     """
 
     # Validate parameters
@@ -33,9 +48,9 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag',
         warnings.warn("coild_width must be a positive value, setting to default value (0.5)", UserWarning)
         coil_width=0.5
     
-    if type not in ['zigzag', 'helical']:
+    if type not in ["zigzag", "helical"]:
         warnings.warn("Invalid spring type, setting to default ('zigzag')", UserWarning)
-        type = 'zigzag'
+        type = "zigzag"
 
     # Convert start and end to numpy arrays
     start = np.array(start, dtype=float)
@@ -54,18 +69,18 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag',
     if type == 'zigzag':
     
     # Vertical segments at the top and bottom
-        bottom_vertical = Line(start, start+unit_dir*0.2, color=color)
-        top_vertical = Line(end, end-unit_dir*0.2, color=color)
+        bottom_vertical = Line(start, start+unit_dir*0.2, color=color, **kwargs)
+        top_vertical = Line(end, end-unit_dir*0.2, color=color, **kwargs)
     
     # Small diagonals at the start and end
-        small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width, color=color)
+        small_end_diag = Line(end-unit_dir*0.2, end-unit_dir*0.4-perp_vector*coil_width, color=color, **kwargs)
     
         coil_spacing = (total_length-0.6)/num_coils
     # Zigzag pattern
         conn_diag_lines_left = VGroup(*[
             Line(
                 end-unit_dir*(0.4+i*coil_spacing)-perp_vector*coil_width,
-                end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width, color=color
+                end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width, color=color, **kwargs
             )
         for i in range(num_coils)
      ])
@@ -73,16 +88,20 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag',
         conn_diag_lines_right = VGroup(*[
             Line(
             end-unit_dir*(0.4+(i+0.5)*coil_spacing)+perp_vector*coil_width,
-            end-unit_dir*(0.4+(i+1)*coil_spacing)-perp_vector*coil_width, color=color
+            end-unit_dir*(0.4+(i+1)*coil_spacing)-perp_vector*coil_width, color=color, **kwargs
             )
         for i in range(num_coils-1)
      ])
-        small_start_diag = Line(conn_diag_lines_left[-1].get_end(), start+unit_dir*0.2, color=color)
+        small_start_diag = Line(conn_diag_lines_left[-1].get_end(), start+unit_dir*0.2, color=color, **kwargs)
 
         spring.add(top_vertical, small_end_diag, small_start_diag, bottom_vertical,
                conn_diag_lines_left,conn_diag_lines_right)
 
     elif type == 'helical':
+        stroke_kwargs = kwargs.copy()
+        if "stroke_width" in stroke_kwargs:
+            stroke_kwargs["width"] = stroke_kwargs.pop("stroke_width")
+
         num_pts = 1000  # Smooth helical shape
         coil_spacing = (total_length-2*coil_width)/num_coils
         alpha = np.pi*(2*num_coils+1)/(total_length-2*coil_width)
@@ -97,7 +116,7 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type='zigzag',
         y_rot = x*unit_dir[1]-y*perp_vector[1]
 
         points = np.array([x_rot+start[0], y_rot+start[1], np.zeros(num_pts)]).T
-        helical_spring = VMobject().set_points_as_corners(points).set_stroke(color=color)
+        helical_spring = VMobject().set_points_as_corners(points).set_stroke(color=color, **stroke_kwargs)
         
         spring.add(helical_spring)  
     return spring
@@ -1559,7 +1578,7 @@ class BodePlot(VGroup):
         return y_labels
     
     # Check whether a title should be added
-    def title(self, text, font_size=40, color=WHITE, use_math_tex=False):
+    def title(self, text, font_size=35, color=WHITE, use_math_tex=False):
         """
         Add a title to the Bode plot.
         
@@ -1571,6 +1590,7 @@ class BodePlot(VGroup):
         self.title_font_size = font_size
         self._use_math_tex = use_math_tex
         self._has_title = True  # Mark that a title exists
+
         self.title_buff = (self.title_font_size/40)*0.3 + (40-self.title_font_size)*0.02
         # Remove existing title if present
         if self._title is not None:
@@ -1789,8 +1809,11 @@ class BodePlot(VGroup):
         """Create the Bode plot curves for the visible plots."""
         log_w = np.log10(self.frequencies)
         
+        clipped_magnitudes = np.clip(self.magnitudes, 
+                            self.magnitude_yrange[0], 
+                            self.magnitude_yrange[1])
         # Magnitude plot
-        mag_points = [self.mag_axes.coords_to_point(x, y) for x, y in zip(log_w, self.magnitudes)]
+        mag_points = [self.mag_axes.coords_to_point(x, y) for x, y in zip(log_w, clipped_magnitudes)]
         self.mag_plot = VMobject().set_points_as_corners(mag_points)
         self.mag_plot.set_color(color=self.plotcolor).set_stroke(width=self.plot_stroke_width)
         
@@ -2464,11 +2487,33 @@ class Nyquist(VGroup):
         self.y_axis_label = y_axis_label
         self.x_axis_label = x_axis_label
 
+        self.x_min, self.x_max = self._validate_range(self.x_range)
+        self.y_min, self.y_max = self._validate_range(self.y_range)
+
+        self.x_span = self.x_max - self.x_min
+        self.y_span = self.y_max - self.y_min
+
+        self.x_step = self._calculate_step(self.x_span)
+        self.y_step = self._calculate_step(self.y_span)
+        
         # Create all components
         self.create_axes()
         self.calculate_nyquist_data()
         self.plot_nyquist_response()
         self.add_plot_components()
+    
+    def _calculate_step(self, span):
+        """Helper to calculate step size based on span."""
+        if span <= 2:
+            return 0.5
+        elif 2 < span < 4:
+            return 1
+        elif 4 <= span <= 10:
+            return 2
+        elif 10 < span < 30:
+            return 5
+        else:
+            return 10
 
     def _parse_system_input(self, system):
         """Parse different input formats for the system specification."""
@@ -2769,11 +2814,11 @@ class Nyquist(VGroup):
             # Based on the span, round off to nearest integer x
             # Round off to 0.5
             if self.x_span <= 2:
-                x_min=x_min
-                x_max=x_max
+                x_min=np.floor(x_min/0.5)*0.5
+                x_max=np.ceil(x_max/0.5)*0.5
             if self.y_span <= 2:
-                y_min=y_min
-                y_max=y_max
+                y_min=np.floor(y_min/0.5)*0.5
+                y_max=np.ceil(y_max/0.5)*0.5
 
             if 2<self.x_span < 4:
                 x_min=np.floor(x_min)
@@ -2854,13 +2899,8 @@ class Nyquist(VGroup):
         y_min, y_max = self._validate_range(self.y_range)
 
         # Calculate sane step sizes
-        x_step = 1 if 2< self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
-        y_step = 1 if 2< self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
-        
-        if self.x_span <=2:
-            x_step = abs(self.x_span/4)
-        if self.y_span <= 2:
-            y_step = abs(self.y_span/4)
+        x_step = self.x_step
+        y_step = self.y_step
 
         self.plane = ComplexPlane(
             x_range=[x_min, x_max, x_step],
@@ -2897,13 +2937,29 @@ class Nyquist(VGroup):
         
         # Create unit circle if requested
         if self.show_unit_circle:
-            unit_circle_solid = ParametricFunction(
-                lambda t: self.plane.number_to_point(np.exp(1j * t)),
-                t_range=[0, 2 * np.pi],
-                color=self.unit_circle_color,
-                stroke_width=1.5,
-                stroke_opacity=0.7,
-            )
+            x_min, x_max = self.plane.x_range[0], self.plane.x_range[1]
+            r=1
+            if (r < x_min) or (r < -x_max):
+                self.unit_circle = VGroup()
+            else:
+                t_left = np.arccos(np.clip(x_max / r, -1, 1)) if x_max < r else 0
+                t_right = np.arccos(np.clip(x_min / r, -1, 1)) if x_min > -r else np.pi
+                t_ranges = [
+                [t_left, t_right],
+                [2 * np.pi - t_right, 2 * np.pi - t_left]
+                ]
+                unit_circle_parts = VGroup()
+                for t_start, t_end in t_ranges:
+                    if t_end > t_start:  # Only add if the arc is valid
+                        part = ParametricFunction(
+                            lambda t: self.plane.number_to_point(np.exp(1j * t)),
+                            t_range=[t_start, t_end],
+                            color=self.unit_circle_color,
+                            stroke_width=1.5,
+                            stroke_opacity=0.7,
+                        )
+                        unit_circle_parts.add(part)
+                unit_circle_solid = unit_circle_parts
             if self.unit_circle_dashed:
                 unit_circle = DashedVMobject(
                 unit_circle_solid,
@@ -3035,10 +3091,11 @@ class Nyquist(VGroup):
 
 
          # Positive frequencies
-        all_pos_points=[]
-        for re, im in zip(self.real_part, self.imag_part):
-            if x_min <= re <= x_max and y_min <= im <= y_max:
-                all_pos_points.append(self.plane.number_to_point(re + 1j*im))
+        all_pos_points = [
+        self.plane.number_to_point(re + 1j * im)
+            for re, im in zip(self.real_part, self.imag_part)
+                if x_min <= re <= x_max and y_min <= im <= y_max
+        ]                
 
         all_neg_points = []
         for re, im in zip(self.neg_real_part, self.neg_imag_part):
@@ -3063,117 +3120,72 @@ class Nyquist(VGroup):
         tip_length = 0.2 # Define the desired length of the triangular tip
         point_skip = 3 # Number of points to skip to get a direction vector
 
-        if (len(all_pos_points) >= point_skip + 1) and self.show_positive_freq==True and self.num_poles_at_zero>0:
-            middle_idx = int(len(all_pos_points)*0.2)
-            start_dir_idx = max(0, middle_idx - point_skip//2)
-            end_dir_idx = min(len(all_pos_points)-1, middle_idx + point_skip//2)
+        def get_index_at_path_percentage(points, percentage):
+            if len(points) < 2:
+                return 0 # Or handle as an error/no arrow case
 
-            if start_dir_idx < end_dir_idx: 
-                tip_location = all_pos_points[end_dir_idx]
-
-                # Calculate the direction vector from start_dir_idx to end_dir_idx
-                direction_vector = all_pos_points[end_dir_idx] - all_pos_points[start_dir_idx]
-
-                # Calculate the angle of the direction vector
-                angle = angle_of_vector(direction_vector)
-                # Create a small triangle pointing upwards initially
-                arrow_tip = Triangle(fill_opacity=1, stroke_width=0)
-                # Rotate it to point in the direction of the curve
-                arrow_tip.rotate(angle - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
-                # Scale it to the desired size
-                arrow_tip.set_height(tip_length)
-                # Color it the plot color
-                arrow_tip.set_color(self.plotcolor)
-                # Move it to the tip location
-                arrow_tip.move_to(tip_location)
-                self.nyquist_plot.add(arrow_tip)
-        if (len(all_neg_points) >= point_skip + 1) and self.show_negative_freq==True and self.num_poles_at_zero>0:
-            middle_idx_neg = int(len(all_neg_points)*0.8)
-        
-        # Calculate start and end indices centered around the middle
-            start_dir_idx_neg = max(0, middle_idx_neg - point_skip//2)
-            end_dir_idx_neg = min(len(all_neg_points)-1, middle_idx_neg + point_skip//2)
-
-            if start_dir_idx_neg != end_dir_idx_neg: 
-                tip_location_neg = all_neg_points[end_dir_idx_neg]
-
-                # Calculate the direction vector from point1_idx_neg to point2_idx_neg
-                # Note: This vector points in the direction of increasing negative frequency (towards -infinity)
-                direction_vector_neg = all_neg_points[end_dir_idx_neg] - all_neg_points[start_dir_idx_neg]
-
-                # Calculate the angle of the direction vector
-                angle_neg = angle_of_vector(direction_vector_neg)
-
-                # Create a small triangle pointing upwards initially
-                arrow_tip_neg = Triangle(fill_opacity=1, stroke_width=0)
-                # Rotate it to point in the direction of the curve
-                arrow_tip_neg.rotate(angle_neg - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
-                # Scale it to the desired size
-                arrow_tip_neg.set_height(tip_length)
-                # Color it the plot color
-                arrow_tip_neg.set_color(self.plotcolor)
-                # Move it to the tip location
-                arrow_tip_neg.move_to(tip_location_neg)
-                self.nyquist_plot.add(arrow_tip_neg)
-        # Ensure there are enough points in the positive frequency part before placing an arrow
-        if (len(all_pos_points) >= point_skip + 1) and self.show_positive_freq==True and self.num_poles_at_zero==0:
+            cumulative_lengths = [0.0]
+            for i in range(1, len(points)):
+                segment_length = np.linalg.norm(points[i] - points[i-1])
+                cumulative_lengths.append(cumulative_lengths[-1] + segment_length)
             
-            middle_idx = len(all_pos_points) // 2
-            start_dir_idx = max(0, middle_idx - point_skip//2)
-            end_dir_idx = min(len(all_pos_points)-1, middle_idx + point_skip//2)
+            total_length = cumulative_lengths[-1]
+            target_length = total_length * percentage
 
-            if start_dir_idx < end_dir_idx: 
+            # Find the index where cumulative_length first exceeds target_length
+            for i, length in enumerate(cumulative_lengths):
+                if length >= target_length:
+                    return i
+            return len(points) - 1 # Fallback to the last point
+        
+        self.arrow_tips = VGroup()
+        # --- Positive frequencies ---
+        if (len(all_pos_points) >= point_skip + 1) and self.show_positive_freq:
+            if self.num_poles_at_zero > 0:
+                middle_idx = get_index_at_path_percentage(all_pos_points, 0.2)
+            else:
+                middle_idx = get_index_at_path_percentage(all_pos_points, 0.5)
+
+            start_dir_idx = max(0, middle_idx - point_skip // 2)
+            end_dir_idx = min(len(all_pos_points) - 1, middle_idx + point_skip // 2)
+
+            if start_dir_idx < end_dir_idx:
                 tip_location = all_pos_points[end_dir_idx]
-                # Calculate the direction vector from start_dir_idx to end_dir_idx
                 direction_vector = all_pos_points[end_dir_idx] - all_pos_points[start_dir_idx]
-
-                # Calculate the angle of the direction vector
                 angle = angle_of_vector(direction_vector)
 
-                # Create a small triangle pointing upwards initially
                 arrow_tip = Triangle(fill_opacity=1, stroke_width=0)
-                # Rotate it to point in the direction of the curve
-                arrow_tip.rotate(angle - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
-                # Scale it to the desired size
+                arrow_tip.rotate(angle - PI / 2)
                 arrow_tip.set_height(tip_length)
-                # Color it the plot color
                 arrow_tip.set_color(self.plotcolor)
-                # Move it to the tip location
                 arrow_tip.move_to(tip_location)
                 self.nyquist_plot.add(arrow_tip)
 
-      
-        if (len(all_neg_points) >= point_skip + 1) and self.show_negative_freq==True and self.num_poles_at_zero==0:
-            middle_idx_neg = len(all_neg_points) // 2
-        
-        # Calculate start and end indices centered around the middle
-            start_dir_idx_neg = max(0, middle_idx_neg - point_skip//2)
-            end_dir_idx_neg = min(len(all_neg_points)-1, middle_idx_neg + point_skip//2)
+        # --- Negative frequencies ---
+        if (len(all_neg_points) >= point_skip + 1) and self.show_negative_freq:
+            # Similar logic for negative frequencies.
+            if self.num_poles_at_zero > 0:
+                # For poles at zero, the negative frequency plot also starts/ends far from origin.
+                # Place arrow at 80% to show direction along the sweep (approaching 0 frequency).
+                middle_idx_neg = get_index_at_path_percentage(all_neg_points, 0.8)
+            else:
+                # For no poles at zero, place in the middle of the visible path.
+                middle_idx_neg = get_index_at_path_percentage(all_neg_points, 0.5)
 
+            start_dir_idx_neg = max(0, middle_idx_neg - point_skip // 2)
+            end_dir_idx_neg = min(len(all_neg_points) - 1, middle_idx_neg + point_skip // 2)
 
-            if start_dir_idx_neg != end_dir_idx_neg: # Ensure distinct points for direction
-                # The tip will be placed at the 'point2_idx_neg' point
+            if start_dir_idx_neg != end_dir_idx_neg:
                 tip_location_neg = all_neg_points[end_dir_idx_neg]
-
-                # Calculate the direction vector from point1_idx_neg to point2_idx_neg
-                # Note: This vector points in the direction of increasing negative frequency (towards -infinity)
                 direction_vector_neg = all_neg_points[end_dir_idx_neg] - all_neg_points[start_dir_idx_neg]
-
-                # Calculate the angle of the direction vector
                 angle_neg = angle_of_vector(direction_vector_neg)
 
-                # Create a small triangle pointing upwards initially
                 arrow_tip_neg = Triangle(fill_opacity=1, stroke_width=0)
-                # Rotate it to point in the direction of the curve
-                arrow_tip_neg.rotate(angle_neg - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
-                # Scale it to the desired size
+                arrow_tip_neg.rotate(angle_neg - PI / 2)
                 arrow_tip_neg.set_height(tip_length)
-                # Color it the plot color
                 arrow_tip_neg.set_color(self.plotcolor)
-                # Move it to the tip location
                 arrow_tip_neg.move_to(tip_location_neg)
                 self.nyquist_plot.add(arrow_tip_neg)
-
 
         self.add(self.nyquist_plot)
 
@@ -3181,25 +3193,25 @@ class Nyquist(VGroup):
     def add_plot_components(self):
         """Add additional plot components like ticks, labels, etc."""
         # Add ticks to axes
-        x_ticks = self.create_ticks(self.plane, orientation="horizontal")
-        y_ticks = self.create_ticks(self.plane, orientation="vertical")
+        self.x_ticks = self.create_ticks(self.plane, orientation="horizontal")
+        self.y_ticks = self.create_ticks(self.plane, orientation="vertical")
         
         # Add tick labels
-        x_labels = self.create_tick_labels(self.plane, orientation="horizontal")
-        y_labels = self.create_tick_labels(self.plane, orientation="vertical")
+        self.x_labels = self.create_tick_labels(self.plane, orientation="horizontal")
+        self.y_labels = self.create_tick_labels(self.plane, orientation="vertical")
         
         # Add -1 point marker if it's in view
         if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
             if self.show_minus_one_marker:
-                minus_one_marker = MathTex("+", color = RED, font_size=40).move_to(self.plane.number_to_point(-1 + 0j))
-                self.axes_components.add(minus_one_marker)
+                self.minus_one_marker = MathTex("+", color = RED, font_size=40).move_to(self.plane.number_to_point(-1 + 0j))
+                self.axes_components.add(self.minus_one_marker)
             if self.show_minus_one_label:
-                minus_one_label = MathTex("-1", font_size=20, color=RED)
-                minus_one_label.next_to(minus_one_marker, DOWN+LEFT, buff=0.01)
-                self.axes_components.add(minus_one_label)
+                self.minus_one_label = MathTex("-1", font_size=20, color=RED)
+                self.minus_one_label.next_to(self.minus_one_marker, DOWN+LEFT, buff=0.01)
+                self.axes_components.add(self.minus_one_label)
 
         self.box = SurroundingRectangle(self.plane, buff=0, color=WHITE, stroke_width=2)
-        self.axes_components.add(x_ticks, y_ticks, x_labels, y_labels, self.box)
+        self.axes_components.add(self.x_ticks, self.y_ticks, self.x_labels, self.y_labels, self.box)
 
     def create_ticks(self, axes, y_range=None, orientation="horizontal"):
         """Generalized tick creation for both axes using c2p method"""
@@ -3208,9 +3220,7 @@ class Nyquist(VGroup):
         
         if orientation == "horizontal":
             # For x-axis ticks (top and bottom)
-            step = 1 if 2< self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
-            if self.x_span <=2:
-                step = abs(self.x_span/4)
+            step = self.x_step
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
@@ -3239,9 +3249,7 @@ class Nyquist(VGroup):
                 ))
                 
         else:  # vertical (y-axis ticks - left and right)
-            step = 1 if 2<self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
-            if self.y_span <= 2:
-                step = abs(self.y_span/4)
+            step = self.y_step
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
@@ -3277,9 +3285,7 @@ class Nyquist(VGroup):
         
         if orientation == "horizontal":
             # X-axis labels (bottom only)
-            step = 1 if 2<self.x_span < 4 else (2 if 4<=self.x_span<=10 else (5 if 10<self.x_span<30 else 10))
-            if self.x_span <=2:
-                step = abs(self.x_span/4)
+            step = self.x_step
             values = np.arange(
                 self.x_range[0],
                 self.x_range[1] + step/2,
@@ -3300,9 +3306,7 @@ class Nyquist(VGroup):
                 labels.add(label)
                 
         else:  # vertical (y-axis labels - left only)
-            step = 1 if 2<self.y_span < 4 else (2 if 4<=self.y_span<=10 else (5 if 10<self.y_span<30 else 10))
-            if self.y_span <= 2:
-                step = abs(self.y_span/4)
+            step = self.y_step
             values = np.arange(
                 self.y_range[0],
                 self.y_range[1] + step/2,
@@ -3420,7 +3424,7 @@ class Nyquist(VGroup):
         w = np.logspace(
             np.log10(self.freq_range[0]),
             np.log10(self.freq_range[1]),
-            10000
+            30000
         )
         _, mag, phase = signal.bode(self.system, w)
         
@@ -3448,6 +3452,8 @@ class Nyquist(VGroup):
             wp = np.interp(0, [mag[idx], mag[idx+1]], [w[idx], w[idx+1]])
             phase_at_wp = np.interp(wp, w, phase)
             pm = 180 + phase_at_wp
+            #if pm -0:
+                #pm = 0.0
         else:
             wp = np.inf
             pm = np.inf
@@ -3465,114 +3471,159 @@ class Nyquist(VGroup):
         
         return gm, pm, mm, wg, wp, wm
     
-    def show_margins(self, margin_color=YELLOW, font_size=20, show_pm=True, show_gm=True, show_mm=True):
+    def show_margins(self, pm_color=YELLOW,mm_color=ORANGE, gm_color=GREEN_E, font_size=18, show_pm=True, show_gm=True, show_mm=True):
         """Add visual indicators for phase and gain margins."""
         gm, pm, mm, wg, wp, wm = self._calculate_stability_margins()
-        
+        self.show_gm = show_gm
+        self.show_pm = show_pm
+        self.show_mm = show_mm
+        all_animations = [] # everything combined
+        gm_anims = []
+        pm_anims = [] 
+        mm_anims = [] 
+
         self.margin_indicators = VGroup()
         # Add gain margin indicator (point where phase crosses -180°)
         if gm != np.inf and show_gm==True:
+            gm_group = VGroup()
             # Find the point on the plot closest to wg
             idx = np.argmin(np.abs(self.frequencies - wg))
             point = self.plane.number_to_point(self.real_part[idx] + 1j*self.imag_part[idx])
             
-            gm_dot = Dot(point, color=margin_color, radius=0.06)
-            gm_label = MathTex(f"GM = {gm:.2f}\\text{{ dB}}", 
-                             font_size=font_size, color=margin_color)
-            gm_label.next_to(gm_dot, UP, buff=0.1)
-            
             # Draw line from origin to gain margin point
             origin = self.plane.number_to_point(0 + 0j)
-            gm_line = Line(origin, point, color=margin_color, stroke_width=1.5)
-            gm_line.set_opacity(0.7)
-            
-            self.margin_indicators.add(gm_dot, gm_label, gm_line)
+            gm_line = DoubleArrow(origin, point, color=gm_color, stroke_width=4, buff=0.05, tip_length=0.15)
+            if gm == np.isclose(gm,0,atol=1e-1):
+                self.gm_label = MathTex(f"\\frac{{1}}{{\\text{{GM}}}} = \\text{{inf}}", 
+                             font_size=font_size, color=gm_color)
+            else:
+                self.gm_label = MathTex(f"\\frac{{1}}{{\\text{{GM}}}} = {1/gm:.2f}", 
+                             font_size=font_size, color=gm_color)
+            self.gm_label.next_to(gm_line,UP, buff=0.1)
+            gm_group.add(self.gm_label,gm_line)
+            self.margin_indicators.add(gm_group)
+            gm_anims.extend([Create(gm_line)])
+            gm_anims.extend([Write(self.gm_label)])
         
         # Add phase margin indicator (point where magnitude crosses 1)
         if pm != np.inf and show_pm==True:
+            pm_group = VGroup()
             # Find the point where |G(jw)| = 1 (0 dB)
             mag = np.abs(self.response)
             idx = np.argmin(np.abs(mag - 1))
             point = self.plane.number_to_point(self.real_part[idx] + 1j*self.imag_part[idx])
             
-            pm_dot = Dot(point, color=margin_color, radius=0.06)
-            pm_label = MathTex(f"PM = {pm:.2f}^\\circ", 
-                             font_size=font_size, color=margin_color)
-            pm_label.next_to(pm_dot, RIGHT, buff=0.1)
+            self.pm_dot = Dot(point, color=pm_color, radius=0.06)
+            self.pm_label = MathTex(f"PM = {pm:.2f}^\\circ", 
+                             font_size=font_size, color=pm_color)
+            self.pm_label.next_to(self.pm_dot, RIGHT, buff=0.1)
             
             # Draw line from origin to phase margin point
             origin = self.plane.number_to_point(0 + 0j)
-            pm_line = DoubleArrow(origin, point, color=margin_color, stroke_width=1.5)
-            pm_line.set_opacity(0.7)
             
             # Draw angle arc for phase margin
             angle = np.angle(self.real_part[idx] + 1j*self.imag_part[idx])  # Angle in radians
             start_angle = np.pi  
             end_angle = start_angle + np.deg2rad(pm)
             
-            arc = ParametricFunction(
+            self.arc = ParametricFunction(
                 lambda t: self.plane.number_to_point(np.exp(1j * t)),
-                t_range=[start_angle, end_angle, 0.01],
-                color=margin_color,
+                t_range=[start_angle, end_angle,  0.01],
+                color=pm_color,
                 stroke_width=4,
                 stroke_opacity=0.7,
                 fill_opacity=0
             )
-            
-            tip_location = arc.get_point_from_function(start_angle)
-            # Calculate the direction vector from start_dir_idx to end_dir_idx
-            direction_vector = arc.get_point_from_function(start_angle)-arc.get_point_from_function(end_angle)
+            pm_anims.extend([Create(self.arc)])
+            if pm!=0:
+                tip_location = self.arc.get_point_from_function(start_angle)
+                # Calculate the direction vector from start_dir_idx to end_dir_idx
+                direction_vector = self.arc.get_point_from_function(start_angle)-self.arc.get_point_from_function(end_angle)
 
-            # Calculate the angle of the direction vector
-            angle = angle_of_vector(direction_vector)
-            tip_length=0.12
-            # Create a small triangle pointing upwards initially
-            arrow_tip = Triangle(fill_opacity=1, stroke_width=0)
-            # Rotate it to point in the direction of the curve
-            #arrow_tip.rotate(angle - PI/2) # Subtract PI/2 because Triangle points up (angle PI/2)
-            # Scale it to the desired size
-            arrow_tip.set_height(tip_length)
+                # Calculate the angle of the direction vector
+                angle = angle_of_vector(direction_vector)
+                tip_length=0.12
+                # Create a small triangle pointing upwards initially
+                self.arrow_tip = Triangle(fill_opacity=1, stroke_width=0)
+                self.arrow_tip.set_height(tip_length)
                 # Color it the plot color
-            arrow_tip.set_color(margin_color)
+                self.arrow_tip.set_color(pm_color)
                 # Move it to the tip location
-            arrow_tip.move_to(tip_location)
-            # Add angle label
-            angle_label = MathTex(f"PM = {pm:.0f}^\\circ", 
-                               font_size=font_size, color=margin_color)
-            angle_label.next_to(arc,LEFT,buff=0.1)
-            
-            self.margin_indicators.add(arc, angle_label, arrow_tip)
+                self.arrow_tip.move_to(tip_location)
+                angle_label = MathTex(f"PM = {pm:.0f}^\\circ", 
+                               font_size=font_size, color=pm_color)
+                angle_label.next_to(self.arc,LEFT,buff=0.1)
+                pm_group.add(self.arrow_tip, angle_label)
+                pm_anims.extend([Create(self.arrow_tip)])
+                pm_anims.extend([Write(angle_label)])
+            else:
+                self.angle_label = MathTex(f"PM = {pm:.0f}^\\circ", 
+                               font_size=font_size, color=pm_color)
+                self.angle_label.next_to(self.plane.number_to_point(-1 + 0j),UP,buff=0.2)
+                pm_group.add(self.angle_label)
+                pm_anims.extend([Write(self.angle_label)])
+            pm_group.add(self.arc)
+            self.margin_indicators.add(pm_group)
         
         if mm != np.inf and show_mm==True:
+            mm_group = VGroup()
             idx = np.argmin(np.abs(self.frequencies - wm))
             nyquist_point = self.real_part[idx] + 1j * self.imag_part[idx]
-            nyquist_dot = Dot(self.plane.number_to_point(nyquist_point), color=ORANGE, radius=0.06)
+            self.mm_dot = Dot(self.plane.number_to_point(nyquist_point), color=mm_color, radius=0.04)
 
             # Label
-            mm_label = MathTex(f"\\frac{{1}}{{\\text{{MM}}}} = {1/mm:.2f}", font_size=font_size, color=ORANGE)
-            mm_label.next_to(nyquist_dot, UP, buff=0.1)
+            self.mm_label = MathTex(f"\\frac{{1}}{{\\text{{MM}}}} = {1/mm:.2f}", font_size=font_size, color=ORANGE)
+            self.mm_label.next_to(self.mm_dot, 2*DOWN+0.05*RIGHT, buff=0.05)
 
             # Line from -1 to Nyquist curve
             critical_point = -1 + 0j
-            mm_line = DoubleArrow(
+            self.mm_line = DoubleArrow(
                 self.plane.number_to_point(critical_point),
                 self.plane.number_to_point(nyquist_point),
-                color=ORANGE,
-                stroke_width=1.5
+                color=mm_color,
+                stroke_width=4, buff=0.01, tip_length=0.15
             )
-            mm_line.set_opacity(0.7)
             r = np.abs(nyquist_point + 1)
             # Draw dashed circle centered at -1 with radius = min distance
             mm_circle = ParametricFunction(
                 lambda t: self.plane.number_to_point(-1 + r*np.exp(1j*t)),
                 t_range=[0, 2*np.pi, 0.1],
-                color=margin_color,
+                color=mm_color,
                 stroke_width=2,
                 stroke_opacity=0.7,
                 fill_opacity=0
             )
-            self.margin_indicators.add(mm_line, nyquist_dot, mm_label, mm_circle)
+            desired_dash_length = 0.05
+            line_length = 2*np.pi*r
+            num_dashes = max(1, int(line_length / desired_dash_length))
+            self.dashed_mm_circle = DashedVMobject(
+                mm_circle, num_dashes=num_dashes,
+                dashed_ratio=0.5
+            )
+            mm_group.add(self.mm_line, self.mm_dot, self.mm_label, self.dashed_mm_circle)
+            mm_anims.extend([Create(self.dashed_mm_circle)])
+            mm_anims.extend([Create(self.mm_dot)])
+            mm_anims.extend([Create(self.mm_line)])
+            mm_anims.extend([Write(self.mm_label)])
+            
+            self.margin_indicators.add(mm_group)
         self.add(self.margin_indicators)
+        return {
+            'animations': {
+                'combined': all_animations,
+                'margins': {
+                    'pm': pm_anims,
+                    'gm': gm_anims,
+                    'mm': mm_anims
+                }
+            },
+            'groups': {
+                'all': self.margin_indicators,  # Everything combined
+                'pm': pm_group,
+                'gm': gm_group,
+                'mm': mm_group
+            }
+        }
 
     def get_plot_animations(self):
         """Return animations for plotting the Nyquist diagram in stages"""
@@ -3581,7 +3632,8 @@ class Nyquist(VGroup):
             'grid': self._get_grid_animations(),
             'plot': self._get_nyquist_animation(),
             'labels': self._get_label_animations(),
-            'unit_circle': self._get_unit_circle_animation()
+            'unit_circle': self._get_unit_circle_animation(),
+            'minus_one': self._get_minus_one_animations()
         }
 
     def _get_axes_animations(self):
@@ -3605,12 +3657,12 @@ class Nyquist(VGroup):
 
     def _get_nyquist_animation(self):
         """Animation for Nyquist plot"""
-        anims = [Create(self.nyquist_plot)]
-        
-        # Add arrow tips if they exist
-        for submob in self.nyquist_plot.submobjects:
-            if isinstance(submob, Triangle):
-                anims.append(FadeIn(submob))
+        anims = []
+        anims.append(Create(self.nyquist_plot))
+        if hasattr(self, 'arrow_tips') and len(self.arrow_tips) > 0:
+            for arrow in self.arrow_tips:
+                anims.append(Create(arrow), run_time=0.1
+                )
         
         return anims
 
@@ -3619,19 +3671,23 @@ class Nyquist(VGroup):
         anims = []
         anims.append(Write(self.x_label))
         anims.append(Write(self.y_label))
+        anims.append(Write(self.x_ticks))
+        anims.append(Write(self.y_ticks))
+        anims.append(Write(self.x_labels))
+        anims.append(Write(self.y_labels))
         
-        # Add tick animations
-        for mob in self.axes_components:
-            if isinstance(mob, VGroup) and "tick" in str(mob).lower():
-                anims.append(Create(mob))
-        
+        return anims
+
+    def _get_minus_one_animations(self):
+        "animations for the minus one marker and label"
+        anims = []
         # Add -1 marker if visible
-        if (-1 in self.x_range and 0 in self.y_range and 
-            hasattr(self, 'minus_one_marker')):
-            anims.append(FadeIn(self.minus_one_marker))
-            if hasattr(self, 'minus_one_label'):
-                anims.append(Write(self.minus_one_label))
-        
+        if self.show_minus_one_marker:
+            anims.append(Create(self.minus_one_marker))
+
+        if self.show_minus_one_label:
+            anims.append(Create(self.minus_one_label))
+
         return anims
 
     def _get_unit_circle_animation(self):

@@ -46,8 +46,6 @@ class MassSpringSys(Scene):
         # Add axis labels
         axis_labels = axis.get_axis_labels(x_label=MathTex("t"), y_label=MathTex("y"))
         
-        #axis.add_coordinates() #uncomment to add coordinates
-        
         time = ValueTracker(0)
         def displacement(t):
             return mass_y_eq + A*np.exp(-zeta*omega*t)*np.cos(omega_d*t+phi)
