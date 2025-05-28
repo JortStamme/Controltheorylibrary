@@ -7,5 +7,5 @@ from scipy import signal
 class Test_TF(Scene):
     def construct(self):
         
-        fix = control.fixed_world(diag_line_length=0.2)
+        fix = control.circ_mass(color=RED)
         self.add(fix)

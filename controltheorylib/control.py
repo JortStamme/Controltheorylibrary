@@ -211,23 +211,40 @@ def fixed_world(start=2*LEFT, end=2*RIGHT, spacing=None, mirror=False, line_or="
     return VGroup(ceiling_line, diagonal_lines)
 
 
-# Mass function
-def mass(pos= ORIGIN, width=1.5, height=1.5, radius=1.5, font_size=None, type='rect',color=WHITE, text="m"):
+# Mass functions
+def rect_mass(pos= ORIGIN, width=1.5, height=1.5, font_size=None, label="m", label_color=WHITE, **kwargs):
     """
-    Generate a mass animation object.
-    :param pos: Position of centre of mass of the object.
-    :param type: Mass type, 'rect' for rectangular or 'circ' for circular.
-    :param size: Size of the mass element.
-    :param text: Text inside the object.
-    :param font_size: Font size of the text.
-    :return: A Manim VGroup representing the mass.
+    Generates a mass object as a rectangle with centered text.
+
+    PARAMETERS
+    ----------
+    pos : np.ndarray | Sequence[float]
+        The position of the center of mass.
+    width : float
+        Width of the rectangular mass.
+    height : float
+        Height of the rectangular mass.
+    font_size : float | None
+        Font size of the mass label. If None, scaled proportionally to height.
+    label : str
+        Text displayed inside the mass.
+    label_color : Color
+        Color of the label.
+    **kwargs : Any
+        Additional arguments passed to the Rectangle constructor 
+        (e.g., stroke_width, fill_color, fill_opacity).
+
+    RETURNS
+    -------
+    VGroup
+        A Manim VGroup containing the rectangular mass and its label.
     """
     # Validate inputs
-    if type not in ['rect', 'circ']:
-        warnings.warn("Invalid type. Defaulting to 'rect'.", UserWarning)
-        type = 'rect'
     if height <= 0:
-        warnings.warn("Size must be a positive value, Setting to default value (1.5).", UserWarning)
+        warnings.warn("Height must be a positive value, Setting to default value (1.5).", UserWarning)
+        height = 1.5
+    if width <= 0:
+        warnings.warn("Width must be a positive value, Setting to default value (1.5).", UserWarning)
         height = 1.5
     if font_size is None: #scale font according to size
         font_size=50*(height/1.5)
@@ -235,21 +252,66 @@ def mass(pos= ORIGIN, width=1.5, height=1.5, radius=1.5, font_size=None, type='r
         warnings.warn("Font size must be a positive value, Setting to default value (50).", UserWarning)
         font_size = 50*(height/1.5)
 
-    mass = VGroup()
-    text = MathTex(text, font_size=font_size, color=color)
+    rect_mass = VGroup()
+    label = MathTex(label, font_size=font_size, color = label_color)
 
     # Create shape
-    if type == 'rect':
-        shape = Rectangle(width=width, height=height,color=color)
-    else:  # type == "circ"
-        shape = Circle(radius=radius/2, color=color)
+    shape = Rectangle(width=width, height=height, **kwargs)
 
     # Positioning
     shape.move_to(pos)
-    text.move_to(pos)
+    label.move_to(pos)
 
-    mass.add(shape, text)
-    return mass
+    rect_mass.add(shape, label)
+    return rect_mass
+
+def circ_mass(pos= ORIGIN, radius=1.5, font_size=None, label="m", label_color=WHITE, **kwargs):
+    """
+    Generates a mass object as a circle with centered text.
+
+    PARAMETERS
+    ----------
+    pos : np.ndarray | Sequence[float]
+        The position of the center of mass.
+    radius : float
+        Radius of the circular mass.
+    font_size : float | None
+        Font size of the mass label. If None, scaled proportionally to radius.
+    label : str
+        Text displayed inside the mass.
+    label_color : Color
+        Color of the label
+    **kwargs : Any
+        Additional arguments passed to the Circle constructor 
+        (e.g., stroke_width, fill_color, fill_opacity).
+
+    RETURNS
+    -------
+    VGroup
+        A Manim VGroup containing the circular mass and its label.
+    """
+    # Validate inputs
+    if radius <= 0:
+        warnings.warn("Size must be a positive value, Setting to default value (1.5).", UserWarning)
+        radius = 1.5
+    if font_size is None: #scale font according to size
+        font_size=50*(radius/1.5)
+    elif font_size <= 0:
+        warnings.warn("Font size must be a positive value, Setting to default value (50).", UserWarning)
+        font_size = 50*(radius/1.5)
+
+    circ_mass = VGroup()
+    label = MathTex(label, font_size=font_size, color=label_color)
+
+    # Create shape
+    shape = Circle(radius=radius/2, **kwargs)
+
+    # Positioning
+    shape.move_to(pos)
+    label.move_to(pos)
+
+    circ_mass.add(shape, label)
+    return circ_mass
 
 # Damper function
 def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None,color=WHITE):
