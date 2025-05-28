@@ -7,5 +7,5 @@ from scipy import signal
 class Test_TF(Scene):
     def construct(self):
         
-        spring = control.spring(type="helical",stroke_width=8, opacity=0.4)
-        self.add(spring)
+        fix = control.fixed_world(diag_line_length=0.2)
+        self.add(fix)

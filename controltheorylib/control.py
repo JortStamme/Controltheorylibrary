@@ -24,7 +24,7 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag",
     num_coils : int
         Number of coils in the spring. Must be a positive integer.
     coil_width : float
-        Width of the coils (amplitude of the wave).
+        Width of the coils.
     type : str
         Type of spring shape to generate: either "zigzag" or "helical".
     color : Color
@@ -121,16 +121,33 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag",
         spring.add(helical_spring)  
     return spring
 
-def fixed_world(start, end, spacing=None, mirror=False, line_or="right", color=WHITE):
+def fixed_world(start=2*LEFT, end=2*RIGHT, spacing=None, mirror=False, line_or="right", diag_line_length=0.3, color=WHITE, **kwargs):
     """
-    Generate a fixed-world representation
-    
-    :param start: Startpoint of the fixed world (numpy array or tuple)
-    :param end: Endpoint of the fixed world (numpy array or tuple)
-    :param spacing: Spacing between diagonal lines
-    :param mirror: If true, mirrors the fixed world orientation
-    :param line_or: Orientation of diagonal lines ("right" or "left")
-    :return: A Manim VGroup representing the fixed world
+    Generates a fixed-world shape as a Manim VGroup between two points with diagonal support lines.
+
+    PARAMETERS
+    ----------
+    start : np.ndarray 
+        The start point of the fixed-world line.
+    end : np.ndarray
+        The end point of the fixed-world line.
+    spacing : float | None, optional
+        Distance between the diagonal support lines. If None, it is automatically calculated.
+    mirror : bool, optional
+        Whether to mirror the diagonal lines across the main line.
+    diag_line_length : float, optional
+        Length of the diagonal hatch lines.
+    line_or : str, optional
+        Direction of diagonal lines: "right" (default) or "left".
+    color : Color
+        Color of the main and diagonal lines.
+    **kwargs : Any
+        Additional keyword arguments passed to Manim's Line constructor (e.g., stroke_width, opacity).
+
+    RETURNS
+    -------
+    VGroup
+        A Manim VGroup containing the ceiling line and the diagonal support lines.
     """
     start = np.array(start, dtype=float)
     end = np.array(end, dtype=float)
@@ -175,7 +192,7 @@ def fixed_world(start, end, spacing=None, mirror=False, line_or="right", color=W
         diagonal_dir = reflection_matrix @ diagonal_dir
 
     # Create the main line
-    ceiling_line = Line(start=start, end=end, color=color)
+    ceiling_line = Line(start=start, end=end, color=color, **kwargs)
     
     if total_length == 0:
         positions = [0]
@@ -186,8 +203,8 @@ def fixed_world(start, end, spacing=None, mirror=False, line_or="right", color=W
     diagonal_lines = VGroup(*[
         Line(
             start=start + i * spacing * unit_dir,
-            end=start + i * spacing * unit_dir + 0.3 * diagonal_dir
-        , color=color)
+            end=start + i * spacing * unit_dir + diag_line_length * diagonal_dir
+        , color=color, **kwargs)
         for i in range(num_lines)
     ])
 
