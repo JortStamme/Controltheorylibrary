@@ -377,8 +377,477 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None, **kwargs):
     damper_rod = VGroup(damp_vertical_top,damp_hor_top)
 
     # Combine all components to form the damper
-    return VGroup(damper_box,damper_rod)
+    return VGroup(damper_box, damper_rod)
 
+
+class PoleZeroMap(VGroup):
+    def __init__(self, num, den, x_range=None, y_range=None, 
+                 y_axis_label="\\mathrm{Imaginary} \ \\mathrm{Axis} \ (\\mathrm{s^{-1}})"
+                 , x_axis_label="\\mathrm{Real} \ \\mathrm{Axis} \ (\\mathrm{s^{-1}})",
+                 font_size_labels=28, show_unit_circle=False, **kwargs):
+        """
+        Creates a Manim pole-zero plot with enhanced visualization features.
+
+        :param num: Symbolic expression for the numerator (use s for continuous-time and z for discrete-time)
+        :param den: Symbolic expression for the denominator (use s for continuous-time and z for discrete-time)
+        :param x_range: Sets the x_range
+        :param y_range: Sets the y_range
+        :param title: Title of the plot
+        """
+        super().__init__(**kwargs)
+        self.num = num
+        self.den = den
+        self.x_range = x_range
+        self.y_range = y_range
+        self.y_axis_label = y_axis_label
+        self.x_axis_label = x_axis_label
+        self.font_size_labels = font_size_labels
+
+        # Initialize components
+        self.axis = None
+        self.zeros = None
+        self.poles = None
+        self.stable = None
+        self.unstable = None
+        self.unit_circle = None
+        self.axis_labels = None
+        self.title_text = None
+        self.show_unit_circle = show_unit_circle
+
+        self.tick_style = {
+            "color": WHITE,
+            "stroke_width": 1.2
+        }
+        # Create the plot
+        self._determine_system_type()
+        self._calculate_poles_zeros()
+        self._determine_ranges()
+        self._create_plot_components()
+        
+    def _determine_system_type(self):
+        """Check if the system is continuous or discrete-time"""
+        if 's' in str(self.num) or 's' in str(self.den):  # Continuous-time system (Laplace domain)
+            self.system_type = 'continuous'
+            self.variable = sp.symbols('s')
+        elif 'z' in str(self.num) or 'z' in str(self.den):  # Discrete-time system (Z-domain)
+            self.system_type = 'discrete'
+            self.variable = sp.symbols('z')
+        else:
+            raise ValueError("Unable to determine if the system is continuous or discrete.")
+    
+    def _calculate_poles_zeros(self):
+        """Factorize numerator and denominator and compute poles/zeros"""
+        num_factored = sp.factor(self.num, self.variable)
+        den_factored = sp.factor(self.den, self.variable)
+        
+        zeros_gr = sp.solve(num_factored, self.variable)
+        poles_gr = sp.solve(den_factored, self.variable)
+        
+        # Convert to numerical values
+        self.zero_coords = [(float(sp.re(z)), float(sp.im(z))) for z in zeros_gr]
+        self.pole_coords = [(float(sp.re(p)), float(sp.im(p))) for p in poles_gr]
+        
+        # Extract real and imaginary parts
+        self.zero_real_parts = [z[0] for z in self.zero_coords]
+        self.zero_imag_parts = [z[1] for z in self.zero_coords]
+        self.pole_real_parts = [p[0] for p in self.pole_coords]
+        self.pole_imag_parts = [p[1] for p in self.pole_coords]
+    
+    def _determine_ranges(self):
+        """Determine the x and y ranges if not specified"""
+        # Calculate max and min for real and imaginary parts
+        max_zero_real = max(self.zero_real_parts) if self.zero_real_parts else 0
+        min_zero_real = min(self.zero_real_parts) if self.zero_real_parts else 0
+        max_zero_imag = max(self.zero_imag_parts) if self.zero_imag_parts else 0
+        min_zero_imag = min(self.zero_imag_parts) if self.zero_imag_parts else 0
+
+        max_pole_real = max(self.pole_real_parts) if self.pole_real_parts else 0
+        min_pole_real = min(self.pole_real_parts) if self.pole_real_parts else 0
+        max_pole_imag = max(self.pole_imag_parts) if self.pole_imag_parts else 0
+        min_pole_imag = min(self.pole_imag_parts) if self.pole_imag_parts else 0
+        
+        self.x_step = 1
+        self.y_step = 1
+        # Determine x_range
+        if self.x_range is None:
+            x_range_max = max(max_zero_real, max_pole_real)
+            x_range_min = min(min_zero_real, min_pole_real)
+            self.x_range = [x_range_min-2, x_range_max+2, self.x_step]
+        
+        # Determine y_range
+        if self.y_range is None:
+            y_range_max = max(max_zero_imag, max_pole_imag)
+            y_range_min = min(min_zero_imag, min_pole_imag)
+            self.y_range = [y_range_min-2, y_range_max+2, self.y_step]
+        
+
+    
+    def _create_plot_components(self):
+        """Create all the visual components of the pole-zero plot"""
+        # Create axis
+
+        self.axis = ComplexPlane(
+            x_range=self.x_range,
+            y_range=self.y_range,
+            y_length=6, x_length=10,
+            background_line_style={
+                "stroke_color": GREY,
+                "stroke_width": 1,
+                "stroke_opacity": 0
+            },
+            axis_config={
+                "stroke_width": 0,
+                "include_ticks": False,
+                "include_tip": False
+            },
+        )
+        x_start, x_end = self.axis.x_axis.get_start(), self.axis.x_axis.get_end()
+        y_start, y_end = self.axis.y_axis.get_start(), self.axis.y_axis.get_end()
+
+        dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+
+        self.surrbox = SurroundingRectangle(self.axis, buff=0, color=WHITE, stroke_width=2)
+        # Add axis labels
+        re_label = MathTex(self.x_axis_label, font_size=self.font_size_labels).next_to(self.surrbox, DOWN, buff=0.55)
+        im_label = MathTex(self.y_axis_label, font_size=self.font_size_labels).rotate(PI/2).next_to(self.surrbox, LEFT, buff=0.55)
+        self.axis_labels = VGroup(re_label, im_label)
+        self.axis.add(self.axis_labels)
+        
+        # Plot zeros (blue circles)
+        zero_markers = [
+            Circle(radius=0.15, color=BLUE).move_to(self.axis.n2p(complex(x, y))) 
+            for x, y in self.zero_coords
+        ]
+        self.zeros = VGroup(*zero_markers)
+        
+        # Plot poles (red crosses)
+        pole_markers = [
+            Cross(scale_factor=0.15, color=RED).move_to(self.axis.n2p(complex(x, y))) 
+            for x, y in self.pole_coords
+        ]
+        self.poles = VGroup(*pole_markers)
+        
+        # Create stable/unstable regions
+        #self._create_stability_regions()
+        
+        # Add title if specified
+
+        self.x_ticks = self.create_ticks(self.axis, orientation="horizontal")
+        self.y_ticks = self.create_ticks(self.axis, orientation="vertical")
+        self.x_tick_labels = self.create_tick_labels(self.axis, orientation="horizontal")
+        self.y_tick_labels = self.create_tick_labels(self.axis, orientation="vertical")  
+
+        # Add all components to the group
+        self.add(self.axis, self.zeros, self.poles, self.surrbox, dashed_x_axis, dashed_y_axis, 
+                 self.x_ticks, self.y_ticks, self.x_tick_labels,self.y_tick_labels)
+        
+        if self.show_unit_circle or self.system_type == 'discrete':
+            x_min, x_max = self.axis.x_range[0], self.axis.x_range[1]
+            r=1
+            if (r < x_min) or (r < -x_max):
+                self.unit_circle = VGroup()
+            else:
+                t_left = np.arccos(np.clip(x_max / r, -1, 1)) if x_max < r else 0
+                t_right = np.arccos(np.clip(x_min / r, -1, 1)) if x_min > -r else np.pi
+                t_ranges = [
+                [t_left, t_right],
+                [2 * np.pi - t_right, 2 * np.pi - t_left]
+                ]
+                unit_circle_parts = VGroup()
+                for t_start, t_end in t_ranges:
+                    if t_end > t_start:  # Only add if the arc is valid
+                        part = ParametricFunction(
+                            lambda t: self.axis.number_to_point(np.exp(1j*t)),
+                            t_range=[t_start, t_end],
+                            color=WHITE,
+                            stroke_width=1.5,
+                            stroke_opacity=0.7,
+                        )
+                        unit_circle_parts.add(part)
+                        unit_circle_solid = unit_circle_parts
+                        self.unit_circle=unit_circle_solid
+                    #self.unit_circle = DashedVMobject(
+                    #unit_circle_solid,
+                    #num_dashes=30,       
+                    #dashed_ratio=0.5,   
+                    #)
+                #else:
+                    #self.unit_circle = VGroup()
+        else:
+            self.unit_circle = VGroup()
+        self.add(self.unit_circle)
+
+    def create_tick_labels(self, axes, orientation="horizontal"):
+        """Create tick labels using c2p method"""
+        labels = VGroup()
+        
+        if orientation == "horizontal":
+            # X-axis labels (bottom only)
+            step = self.x_step
+            values = np.arange(
+                self.x_range[0],
+                self.x_range[1] + step/2,
+                step
+            )
+
+            if self.x_range[0] <= 0 <= self.x_range[1]:
+                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+
+            for x_val in values:
+                point = axes.c2p(x_val, axes.y_range[0])
+                if np.isclose(x_val, 0):
+                    label_text = "0.0"
+                else:
+                    label_text = f"{x_val:.1f}"
+                label = MathTex(label_text, font_size=18)
+                label.move_to([point[0], point[1] - 0.3, 0])  # Position below axis
+                labels.add(label)
+                
+        else:  # vertical (y-axis labels - left only)
+            step = self.y_step
+            values = np.arange(
+                self.y_range[0],
+                self.y_range[1] + step/2,
+                step
+            )
+
+            if self.y_range[0] <= 0 <= self.y_range[1]:
+                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+
+            for y_val in values:
+                point = axes.c2p(axes.x_range[0], y_val)
+                if np.isclose(y_val, 0):
+                    label_text = "0.0"
+                else:
+                    label_text = f"{y_val:.1f}"
+                label = MathTex(label_text, font_size=18)
+                label.move_to([point[0] - 0.3, point[1], 0])  # Position left of axis
+                labels.add(label)
+        
+        return labels
+    
+    def create_ticks(self, axes, orientation="horizontal"):
+        """Generalized tick creation for both axes using c2p method"""
+        ticks = VGroup()
+        tick_length = 0.1
+        
+        if orientation == "horizontal":
+            # For x-axis ticks (top and bottom)
+            step = self.x_step
+            values = np.arange(
+                self.x_range[0],
+                self.x_range[1] + step/2,
+                step
+            )
+
+            # make sure that 0 is included
+            if self.x_range[0] <= 0 <= self.x_range[1]:
+                values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+
+            for x_val in values:
+                # Bottom ticks
+                bottom_point = axes.c2p(x_val, axes.y_range[0])
+                ticks.add(Line(
+                    [bottom_point[0], bottom_point[1], 0],
+                    [bottom_point[0], bottom_point[1] + tick_length, 0],
+                    **self.tick_style
+                ))
+                
+                # Top ticks
+                top_point = axes.c2p(x_val, axes.y_range[1])
+                ticks.add(Line(
+                    [top_point[0], top_point[1] - tick_length, 0],
+                    [top_point[0], top_point[1], 0],
+                    **self.tick_style
+                ))
+                
+        else:  # vertical (y-axis ticks - left and right)
+            step = self.y_step
+            values = np.arange(
+                self.y_range[0],
+                self.y_range[1] + step/2,
+                step
+            )
+
+            # Make sure that 0 is included
+            if self.y_range[0] <= 0 <= self.y_range[1]:
+                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+
+            for y_val in values:
+                # Left ticks
+                left_point = axes.c2p(axes.x_range[0], y_val)
+                ticks.add(Line(
+                    [left_point[0], left_point[1], 0],
+                    [left_point[0] + tick_length, left_point[1], 0],
+                    **self.tick_style
+                ))
+                
+                # Right ticks
+                right_point = axes.c2p(axes.x_range[1], y_val)
+                ticks.add(Line(
+                    [right_point[0] - tick_length, right_point[1], 0],
+                    [right_point[0], right_point[1], 0],
+                    **self.tick_style
+                ))
+        
+        return ticks
+    
+    def add_stability_regions(self, show_stable=True, show_unstable=True, stable_label="Stable", unstable_label="Unstable"
+                              , stable_color=BLUE, unstable_color=RED, use_mathtex = False, fill_opacity=0.2, label_font_size = 30
+                              , **kwargs):
+        """Create the stability regions based on system type"""
+        if self.system_type == 'continuous':
+            # Highlight unstable region (right-half plane)
+            if self.x_range[1] > 0 and show_unstable==True:
+                right_edge = self.axis.c2p(self.x_range[1], 0)[0]  # Get x-coordinate of right edge
+                left_edge = self.axis.c2p(0, 0)[0]  # Get x-coordinate of y-axis
+            
+                width_unst = right_edge - left_edge
+                height_unst = abs(self.axis.c2p(0, self.y_range[1])[1] - self.axis.c2p(0, self.y_range[0])[1])
+            
+                unstable_region = Rectangle(
+                    width=width_unst, 
+                    height=height_unst,
+                    color=unstable_color, 
+                    fill_opacity=fill_opacity, 
+                    stroke_opacity=0
+                ).move_to(
+                self.axis.n2p(complex(self.x_range[1]/2, 0))  # Center in the unstable region
+                )
+                if use_mathtex==True:
+                    text_unst = MathTex(unstable_label, font_size=label_font_size).move_to(unstable_region, aligned_edge=UP).shift(0.2*DOWN)
+                else:
+                    text_unst = Text(unstable_label, font_size=label_font_size).move_to(unstable_region, aligned_edge=UP).shift(0.2*DOWN)
+                
+                if width_unst <= 2:
+                    text_unst.shift(RIGHT)
+                
+                self.unstable = VGroup(unstable_region, text_unst)
+                self.add(self.unstable)
+            
+            # Highlight stable region (left-half plane)
+            if self.x_range[0] < 0 and show_stable==True:
+                left_edge = self.axis.c2p(self.x_range[0], 0)[0]  # Get x-coordinate of left edge
+                right_edge = self.axis.c2p(0, 0)[0]  # Get x-coordinate of y-axis
+                
+                width_st = right_edge - left_edge
+                height_st = abs(self.axis.c2p(0, self.y_range[1])[1] - self.axis.c2p(0, self.y_range[0])[1])
+                
+                stable_region = Rectangle(
+                    width=width_st, 
+                    height=height_st,
+                    color=stable_color, 
+                    fill_opacity=fill_opacity, 
+                    stroke_opacity=0
+                ).move_to(
+                    self.axis.n2p(complex(self.x_range[0]/2, 0))  # Center in the stable region
+                )
+                
+                text_stab = Text(stable_label, font_size=label_font_size).move_to(stable_region, aligned_edge=UP).shift(0.2*DOWN)
+                if width_st <= 2:
+                    text_stab.shift(0.2*LEFT)
+                
+                self.stable = VGroup(stable_region, text_stab)
+                self.add(self.stable)
+
+        
+        elif self.system_type == 'discrete':
+            # Unit circle for discrete systems
+            radius_in_scene_units = np.linalg.norm(self.axis.n2p(1) - self.axis.n2p(0))
+
+            self.unit_circle = Circle(
+                radius=radius_in_scene_units,
+                color=WHITE,
+                stroke_width=1.5,
+                stroke_opacity=0.7,
+            )
+            self.unit_circle.move_to(self.axis.n2p(0))
+            
+            self.axis.add(self.unit_circle)
+            self.add(self.unit_circle)
+            
+            # Stable region (inside unit circle)
+            stable_region = Circle(
+                radius=1, 
+                stroke_opacity=0, 
+                fill_opacity=0.2, 
+                color=BLUE
+            ).move_to(self.axis.n2p(0+0j))
+            
+            text_stab = Text("Stable", font_size=35).move_to(stable_region, aligned_edge=UP)
+            text_stab.shift(0.5*UP)
+            
+            # Unstable region (outside unit circle)
+            unstable_region = Rectangle(
+                width=self.axis.get_width()-self.axis_labels[0].get_width()-0.3,
+                height=self.axis.get_height()-self.axis_labels[1].get_width()-0.3,
+                color=RED, 
+                fill_opacity=0.2, 
+                stroke_opacity=0
+            ).move_to(self.axis, aligned_edge=LEFT)
+            unstable_region.shift(0.2*DOWN)
+            
+            text_unst = Text("Unstable", font_size=35).move_to(
+                self.axis.get_center() + 2.5*RIGHT+2.5*UP)
+            
+            unstable_region.set_z_index(-1)  # Send to background
+            stable_region.set_z_index(1)  # Bring stable region to front
+
+            self.stable = VGroup(stable_region, text_stab)
+            self.unstable = VGroup(unstable_region, text_unst)
+            self.add(self.unstable)
+            self.add(self.stable)
+            self.add(self.unit_circle)
+            self.add(self.stable, self.unstable)
+            
+        return self
+    def title(self, text, font_size=25, color=WHITE, use_math_tex=False):
+        """
+        Add or update the title of the pole-zero plot.
+        
+        :param text: The title text
+        :param font_size: Font size of the title
+        :param color: Color of the title
+        :param use_math_tex: Whether to render as MathTex
+        """
+        # Remove existing title if present
+        if self.title_text in self:
+            self.remove(self.title_text)
+        
+        # Create new title
+        if use_math_tex:
+            self.title_text = MathTex(text, font_size=font_size, color=color)
+        else:
+            self.title_text = Text(text, font_size=font_size, color=color)
+        
+        # Position the title
+        self.title_text.next_to(self.axis, UP, buff=0.2)
+        self.add(self.title_text)
+        
+        return self
+    
+    def get_plot_animations(self):
+        """Return animations for plotting the pole-zero map in stages"""
+        animations = {
+            'axis': [Create(self.axis)],
+            'zeros': [Create(self.zeros)],
+            'poles': [Create(self.poles)],
+            'stability': [],
+            'title': []
+        }
+        
+        if self.stable:
+            animations['stability'].append(Create(self.stable))
+        if self.unstable:
+            animations['stability'].append(Create(self.unstable))
+        if self.unit_circle:
+            animations['stability'].append(Create(self.unit_circle))
+        if self.title_text:
+            animations['title'].append(Write(self.title_text))
+        
+        return animations
+    
 #Pole-zero map function
 def pzmap(num, den, x_range=None, y_range=None, title=None):
     """

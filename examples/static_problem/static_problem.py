@@ -61,8 +61,8 @@ class CoupledSpringDamper(Scene):
         floor = control.fixed_world(3.5*LEFT, 3.5*RIGHT, mirror=True, line_or="left").shift(3*DOWN)
         
         # Masses
-        m1 = control.mass(width=4,height=1.5, text="m_1",color=BLUE).next_to(floor,UP, buff=1.5).align_to(floor,LEFT)
-        m2 = control.mass(width=7,height=1.5, text="m_2",color=BLUE).next_to(m1,UP, buff=1.5).align_to(m1,LEFT)
+        m1 = control.rect_mass(width=4,height=1.5, label="m_1",color=BLUE).next_to(floor,UP, buff=1.5).align_to(floor,LEFT)
+        m2 = control.rect_mass(width=7,height=1.5, label="m_2",color=BLUE).next_to(m1,UP, buff=1.5).align_to(m1,LEFT)
         
         #springs and their labels
         k1 = control.spring(start=[-3,-3,0], end=[-3,-1.5,0], coil_width=0.4, num_coils=4)
@@ -76,15 +76,17 @@ class CoupledSpringDamper(Scene):
         springs = VGroup(k1,k2,k3,k1_label,k2_label,k3_label)
 
         #dampers and their labels
-        c1 = control.damper(start=[-2,-3,0], end=[-2,-1.5,0])
-        c2 = control.damper(start=[-2,0,0], end=[-2,1.5,0])
-        c3 = control.damper(start=[0,-3,0], end=[0,-1.5,0])
+        c1_box, c1_rod = control.damper(start=[-2,-3,0], end=[-2,-1.5,0])
+        c2_box, c2_rod = control.damper(start=[-2,0,0], end=[-2,1.5,0])
+        c3_box, c3_rod = control.damper(start=[0,-3,0], end=[0,-1.5,0])
 
-        c1_label = MathTex("c_1", font_size=35).next_to(c1,RIGHT, buff=0.2)
-        c2_label = MathTex("c_2", font_size=35).next_to(c2,RIGHT, buff=0.2)
-        c3_label = MathTex("c_3", font_size=35).next_to(c3,RIGHT, buff=0.2)
+        c1_label = MathTex("c_1", font_size=35).next_to(c1_rod,RIGHT, buff=0.2)
+        c2_label = MathTex("c_2", font_size=35).next_to(c2_rod,RIGHT, buff=0.2)
+        c3_label = MathTex("c_3", font_size=35).next_to(c3_rod,RIGHT, buff=0.2)
 
-        dampers = VGroup(c1,c2,c3,c1_label,c2_label,c3_label)
+        dampers_boxes = VGroup(c1_box, c2_box, c3_box)
+        dampers_rods = VGroup(c1_rod, c2_rod, c3_rod)
+        dampers_labels = VGroup(c1_label, c2_label, c3_label)
 
         #Force arrows
         f1 = Arrow(start=[-0.7,0,0], end=[-0.7,1,0], buff=0)
@@ -106,7 +108,7 @@ class CoupledSpringDamper(Scene):
 
         position = VGroup(x1_line,x1_arrow,x1_label,x2_line,x2_arrow,x2_label)
 
-        self.add(floor, m1, m2,springs,dampers,forces,position)
+        self.add(floor, m1, m2,springs,forces,position)
 
         m1_initial_pos = m1.get_center()
         m2_initial_pos = m2.get_center()
@@ -148,21 +150,21 @@ class CoupledSpringDamper(Scene):
             k3_label.next_to(k3,LEFT, buff=0.3)
             
             # Update dampers
-            c1.become(control.damper(
+            c1_rod.become(control.damper(
                 start=[-2,-3,0], 
                 end=[-2,-1.5 + x1,0]
             ))
-            c2.become(control.damper(
+            c2_rod.become(control.damper(
                 start=[-2,x1,0], 
                 end=[-2,1.5 + x2,0]
             ))
-            c3.become(control.damper(
+            c3_rod.become(control.damper(
                 start=[0,-3,0], 
                 end=[0,-1.5 + x1,0]
             ))
-            c1_label.next_to(c1,RIGHT, buff=0.2)
-            c2_label.next_to(c2,RIGHT, buff=0.2)
-            c3_label.next_to(c3,RIGHT, buff=0.2)
+            c1_label.next_to(c1_rod,RIGHT, buff=0.2)
+            c2_label.next_to(c2_rod,RIGHT, buff=0.2)
+            c3_label.next_to(c3_rod,RIGHT, buff=0.2)
 
             # Update position indicators
             x1_line.become(Line(
@@ -170,8 +172,8 @@ class CoupledSpringDamper(Scene):
                 end=[0.6,-0.75 + x1,0]
             ))
             x1_arrow.become(Arrow(
-                start=[0.6,-0.75 + x1,0], 
-                end=[0.6,-0.75 + x1 + 0.7,0], 
+                start=[0.6,-0.75+x1,0], 
+                end=[0.6,-0.75,0], 
                 buff=0, 
                 stroke_width=8
             ))
@@ -182,8 +184,8 @@ class CoupledSpringDamper(Scene):
                 end=[3.6,2.25 + x2,0]
             ))
             x2_arrow.become(Arrow(
-                start=[3.6,2.25 + x2,0], 
-                end=[3.6,2.25 + x2 + 0.7,0], 
+                end=[3.6,2.25+x2,0], 
+                start=[3.6,2.25,0], 
                 buff=0, 
                 stroke_width=8
             ))
@@ -196,7 +198,7 @@ class CoupledSpringDamper(Scene):
         # Create the animation
         self.play(
             UpdateFromAlphaFunc(
-                VGroup(m1, m2, k1, k2, k3, c1, c2, c3, k1_label, k2_label, k3_label, c1_label, c2_label, c3_label,f1,f2,f1_label,f2_label, x1_line, x1_arrow, x1_label, x2_line, x2_arrow, x2_label),
+                VGroup(m1, m2, k1, k2, k3, c1_rod, c2_rod, c3_rod, k1_label, k2_label, k3_label, c1_label, c2_label, c3_label,f1,f2,f1_label,f2_label, x1_line, x1_arrow, x1_label, x2_line, x2_arrow, x2_label),
                 update_system,
                 run_time=15,
                 rate_func=linear
