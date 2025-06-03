@@ -382,17 +382,40 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None, **kwargs):
 
 class PoleZeroMap(VGroup):
     def __init__(self, num, den, x_range=None, y_range=None, 
-                 y_axis_label="\\mathrm{Imaginary} \ \\mathrm{Axis} \ (\\mathrm{s^{-1}})"
-                 , x_axis_label="\\mathrm{Real} \ \\mathrm{Axis} \ (\\mathrm{s^{-1}})",
+                 y_axis_label=None, x_axis_label=None,
                  font_size_labels=28, show_unit_circle=False, **kwargs):
         """
-        Creates a Manim pole-zero plot with enhanced visualization features.
+        Generates a pole-zero map as a Manim VGroup for continuous- or discrete-time systems.
 
-        :param num: Symbolic expression for the numerator (use s for continuous-time and z for discrete-time)
-        :param den: Symbolic expression for the denominator (use s for continuous-time and z for discrete-time)
-        :param x_range: Sets the x_range
-        :param y_range: Sets the y_range
-        :param title: Title of the plot
+        This class takes a symbolic transfer function (numerator and denominator) and visualizes
+        its poles and zeros in the complex plane. It supports customizable axes, automatic
+        scaling, optional unit circle display (for discrete-time systems), and labeled axes.
+
+        PARAMETERS
+        ----------
+        num : sympy expression
+            The numerator of the transfer function (in terms of 's' or 'z').
+        den : sympy expression
+            The denominator of the transfer function (in terms of 's' or 'z').
+        x_range : list[float] | None
+            Range for the real axis in the form [min, max, step]. If None, automatically determined.
+        y_range : list[float] | None
+            Range for the imaginary axis in the form [min, max, step]. If None, automatically determined.
+        x_axis_label : str
+            Label for the real axis.
+        y_axis_label : str
+            Label for the imaginary axis.
+        font_size_labels : int
+            Font size for axis labels (default: 28).
+        show_unit_circle : bool
+            Whether to show the unit circle (used for analyzing discrete-time systems).
+        **kwargs : Any
+            Additional keyword arguments passed to the VGroup constructor.
+
+        RETURNS
+        -------
+        VGroup
+            A Manim VGroup containing the complex axis, poles, zeros, optional unit circle, and tick labels.
         """
         super().__init__(**kwargs)
         self.num = num
@@ -420,6 +443,18 @@ class PoleZeroMap(VGroup):
         }
         # Create the plot
         self._determine_system_type()
+        if self.y_axis_label == None:
+            if self.system_type== 'discrete':
+                self.y_axis_label = "\\mathrm{Imaginary} \ \\mathrm{Axis} \ (\\mathrm{z^{-1}})"
+            else:
+                self.y_axis_label = "\\mathrm{Imaginary} \ \\mathrm{Axis} \ (\\mathrm{s^{-1}})"
+        
+        if self.x_axis_label == None:
+            if self.system_type== 'discrete':
+                self.x_axis_label = "\\mathrm{Real} \ \\mathrm{Axis} \ (\\mathrm{z^{-1}})"
+            else:
+                self.x_axis_label = "\\mathrm{Real} \ \\mathrm{Axis} \ (\\mathrm{s^{-1}})"
+
         self._calculate_poles_zeros()
         self._determine_ranges()
         self._create_plot_components()
@@ -466,19 +501,36 @@ class PoleZeroMap(VGroup):
         max_pole_imag = max(self.pole_imag_parts) if self.pole_imag_parts else 0
         min_pole_imag = min(self.pole_imag_parts) if self.pole_imag_parts else 0
         
-        self.x_step = 1
-        self.y_step = 1
         # Determine x_range
         if self.x_range is None:
             x_range_max = max(max_zero_real, max_pole_real)
             x_range_min = min(min_zero_real, min_pole_real)
-            self.x_range = [x_range_min-2, x_range_max+2, self.x_step]
-        
+            x_total_range = x_range_max - x_range_min
+            self.x_step = max(0.1, min(10.0, x_total_range / 4))
+            self.x_range = [x_range_min-1, x_range_max+1, self.x_step]
+        else:
+            x_range_max = self.x_range[1]
+            x_range_min = self.x_range[0]
+            if self.x_range[2] is None:
+                x_total_range = x_range_max - x_range_min
+                self.x_step = max(0.1, min(10.0, x_total_range / 4))
+            else:
+                self.x_step = self.x_range[2]
         # Determine y_range
         if self.y_range is None:
             y_range_max = max(max_zero_imag, max_pole_imag)
             y_range_min = min(min_zero_imag, min_pole_imag)
-            self.y_range = [y_range_min-2, y_range_max+2, self.y_step]
+            y_total_range = y_range_max - y_range_min
+            self.y_step = max(0.1, min(10.0, y_total_range / 4))
+            self.y_range = [y_range_min-1, y_range_max+1, self.y_step]
+        else:
+            y_range_max = self.y_range[1]
+            y_range_min = self.y_range[0]
+            if self.y_range[2] is None:
+                y_total_range = y_range_max - y_range_min
+                self.y_step = max(0.1, min(10.0, y_total_range / 4))
+            else:
+                self.y_step = self.y_range[2]
         
 
     
@@ -504,8 +556,8 @@ class PoleZeroMap(VGroup):
         x_start, x_end = self.axis.x_axis.get_start(), self.axis.x_axis.get_end()
         y_start, y_end = self.axis.y_axis.get_start(), self.axis.y_axis.get_end()
 
-        dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
-        dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        self.dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        self.dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
 
         self.surrbox = SurroundingRectangle(self.axis, buff=0, color=WHITE, stroke_width=2)
         # Add axis labels
@@ -539,7 +591,7 @@ class PoleZeroMap(VGroup):
         self.y_tick_labels = self.create_tick_labels(self.axis, orientation="vertical")  
 
         # Add all components to the group
-        self.add(self.axis, self.zeros, self.poles, self.surrbox, dashed_x_axis, dashed_y_axis, 
+        self.add(self.axis, self.zeros, self.poles, self.surrbox, self.dashed_x_axis, self.dashed_y_axis, 
                  self.x_ticks, self.y_ticks, self.x_tick_labels,self.y_tick_labels)
         
         if self.show_unit_circle or self.system_type == 'discrete':
@@ -587,19 +639,16 @@ class PoleZeroMap(VGroup):
             step = self.x_step
             values = np.arange(
                 self.x_range[0],
-                self.x_range[1] + step/2,
+                self.x_range[1]+step/6,
                 step
             )
 
-            if self.x_range[0] <= 0 <= self.x_range[1]:
-                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+           # if self.x_range[0] <= 0 <= self.x_range[1]:
+                # values = np.sort(np.unique(np.concatenate([values, [0.0]])))
 
             for x_val in values:
                 point = axes.c2p(x_val, axes.y_range[0])
-                if np.isclose(x_val, 0):
-                    label_text = "0.0"
-                else:
-                    label_text = f"{x_val:.1f}"
+                label_text = f"{x_val:.1f}"
                 label = MathTex(label_text, font_size=18)
                 label.move_to([point[0], point[1] - 0.3, 0])  # Position below axis
                 labels.add(label)
@@ -608,19 +657,16 @@ class PoleZeroMap(VGroup):
             step = self.y_step
             values = np.arange(
                 self.y_range[0],
-                self.y_range[1] + step/2,
+                self.y_range[1]+step/5,
                 step
             )
 
-            if self.y_range[0] <= 0 <= self.y_range[1]:
-                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+            #if self.y_range[0] <= 0 <= self.y_range[1]:
+                # values = np.sort(np.unique(np.concatenate([values, [0.0]])))
 
             for y_val in values:
                 point = axes.c2p(axes.x_range[0], y_val)
-                if np.isclose(y_val, 0):
-                    label_text = "0.0"
-                else:
-                    label_text = f"{y_val:.1f}"
+                label_text = f"{y_val:.1f}"
                 label = MathTex(label_text, font_size=18)
                 label.move_to([point[0] - 0.3, point[1], 0])  # Position left of axis
                 labels.add(label)
@@ -637,13 +683,13 @@ class PoleZeroMap(VGroup):
             step = self.x_step
             values = np.arange(
                 self.x_range[0],
-                self.x_range[1] + step/2,
+                self.x_range[1],
                 step
             )
 
             # make sure that 0 is included
-            if self.x_range[0] <= 0 <= self.x_range[1]:
-                values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+            #if self.x_range[0] <= 0 <= self.x_range[1]:
+               # values = np.sort(np.unique(np.concatenate([values, [0.0]])))
 
             for x_val in values:
                 # Bottom ticks
@@ -666,13 +712,13 @@ class PoleZeroMap(VGroup):
             step = self.y_step
             values = np.arange(
                 self.y_range[0],
-                self.y_range[1] + step/2,
+                self.y_range[1],
                 step
             )
 
             # Make sure that 0 is included
-            if self.y_range[0] <= 0 <= self.y_range[1]:
-                 values = np.sort(np.unique(np.concatenate([values, [0.0]])))
+            #if self.y_range[0] <= 0 <= self.y_range[1]:
+                 #values = np.sort(np.unique(np.concatenate([values, [0.0]])))
 
             for y_val in values:
                 # Left ticks
@@ -694,8 +740,7 @@ class PoleZeroMap(VGroup):
         return ticks
     
     def add_stability_regions(self, show_stable=True, show_unstable=True, stable_label="Stable", unstable_label="Unstable"
-                              , stable_color=BLUE, unstable_color=RED, use_mathtex = False, fill_opacity=0.2, label_font_size = 30
-                              , **kwargs):
+                              , stable_color=BLUE, unstable_color=RED, use_mathtex = False, fill_opacity=0.2, label_font_size = 30):
         """Create the stability regions based on system type"""
         if self.system_type == 'continuous':
             # Highlight unstable region (right-half plane)
@@ -753,53 +798,94 @@ class PoleZeroMap(VGroup):
 
         
         elif self.system_type == 'discrete':
-            # Unit circle for discrete systems
-            radius_in_scene_units = np.linalg.norm(self.axis.n2p(1) - self.axis.n2p(0))
-
-            self.unit_circle = Circle(
-                radius=radius_in_scene_units,
-                color=WHITE,
-                stroke_width=1.5,
-                stroke_opacity=0.7,
-            )
-            self.unit_circle.move_to(self.axis.n2p(0))
-            
-            self.axis.add(self.unit_circle)
-            self.add(self.unit_circle)
             
             # Stable region (inside unit circle)
-            stable_region = Circle(
-                radius=1, 
-                stroke_opacity=0, 
-                fill_opacity=0.2, 
-                color=BLUE
-            ).move_to(self.axis.n2p(0+0j))
-            
-            text_stab = Text("Stable", font_size=35).move_to(stable_region, aligned_edge=UP)
-            text_stab.shift(0.5*UP)
+            x_min, x_max = self.axis.x_range[0], self.axis.x_range[1]
+            r=1
+            if (r < x_min) or (r < -x_max):
+                self.stable_region = VGroup()
+            else:
+                t_left = np.arccos(np.clip(x_max / r, -1, 1)) if x_max < r else 0
+                t_right = np.arccos(np.clip(x_min / r, -1, 1)) if x_min > -r else np.pi
+                t_ranges = [
+                [t_left, t_right],
+                [2 * np.pi - t_right, 2 * np.pi - t_left]
+                ]
+                unit_circle_parts = VGroup()
+                for t_start, t_end in t_ranges:
+                    if t_end > t_start:  # Only add if the arc is valid
+                        part = ParametricFunction(
+                            lambda t: self.axis.number_to_point(np.exp(1j*t)),
+                            t_range=[t_start, t_end],
+                            color=WHITE,
+                            stroke_width=1.5,
+                            stroke_opacity=0,
+                            fill_opacity=fill_opacity,
+                            fill_color = stable_color
+                        )
+                        unit_circle_parts.add(part)
+                        unit_circle_solid = unit_circle_parts
+                        self.stable_region=unit_circle_solid
+            if use_mathtex==False:
+                self.text_stable = Text(stable_label, font_size=label_font_size).move_to(self.stable_region, aligned_edge=UP)
+            else:
+                self.text_stable = MathTex(stable_label, font_size=label_font_size).move_to(self.stable_region, aligned_edge=UP)
+
+            self.text_stable.shift(0.5*UP)
+            self.stable = VGroup(self.stable_region, self.text_stable)
+
+            if show_stable == True:
+                self.add(self.stable)
             
             # Unstable region (outside unit circle)
-            unstable_region = Rectangle(
-                width=self.axis.get_width()-self.axis_labels[0].get_width()-0.3,
-                height=self.axis.get_height()-self.axis_labels[1].get_width()-0.3,
-                color=RED, 
-                fill_opacity=0.2, 
+            x_min, x_max = self.axis.x_range[0], self.axis.x_range[1]
+            y_min, y_max = self.axis.y_range[0], self.axis.y_range[1]
+            
+            # Create a rectangle covering the whole axis
+            full_rect = Rectangle(
+                width=self.axis.get_x_axis().length,
+                height=self.axis.get_y_axis().length,
+                color=unstable_color,
+                fill_opacity=fill_opacity,
                 stroke_opacity=0
-            ).move_to(self.axis, aligned_edge=LEFT)
-            unstable_region.shift(0.2*DOWN)
-            
-            text_unst = Text("Unstable", font_size=35).move_to(
-                self.axis.get_center() + 2.5*RIGHT+2.5*UP)
-            
-            unstable_region.set_z_index(-1)  # Send to background
-            stable_region.set_z_index(1)  # Bring stable region to front
+            ).align_to(self.surrbox, RIGHT)
 
-            self.stable = VGroup(stable_region, text_stab)
-            self.unstable = VGroup(unstable_region, text_unst)
-            self.add(self.unstable)
-            self.add(self.stable)
-            self.add(self.unit_circle)
-            self.add(self.stable, self.unstable)
+            subtraction_circle = Circle( 
+                radius=1,  # Unit circle to be stretched later
+                color=unstable_color,
+                fill_opacity=0,
+                stroke_opacity=0
+            )
+
+            # Move to the origin in data space
+            subtraction_circle.move_to(self.axis.n2p(0 + 0j))
+
+            visual_unit_x_length = self.axis.x_axis.get_unit_size()
+            visual_unit_y_length = self.axis.y_axis.get_unit_size()
+
+            # Scale the unit circle so its visual radius is 1 unit in axis coordinates
+            subtraction_circle.scale(np.array([visual_unit_x_length, visual_unit_y_length, 1]),
+                                    about_point=self.axis.n2p(0 + 0j))
+
+            # Subtract the unit circle from the full rectangle
+            self.unstable_region = Difference(
+                full_rect,
+                subtraction_circle, 
+                color=unstable_color,
+                fill_opacity=fill_opacity,
+                stroke_opacity=0
+            )
+            if use_mathtex==False:    
+                self.text_unstable = Text(unstable_label, font_size=label_font_size)
+            else:
+                self.text_unstable = MathTex(unstable_label, font_size=label_font_size)
+            self.text_unstable.align_to(full_rect, UP + LEFT)
+            self.text_unstable.shift(0.4 * DOWN + 0.4 * RIGHT)
+            self.unstable = VGroup(self.unstable_region, self.text_unstable)
+            if show_unstable==True:
+                self.add(self.unstable)
+            self.unstable_region.set_z_index(-1)  # Send to background
+            self.stable_region.set_z_index(-1)  # Bring stable region to fron
             
         return self
     def title(self, text, font_size=25, color=WHITE, use_math_tex=False):
@@ -1668,22 +1754,50 @@ class BodePlot(VGroup):
                  phase_label = "Phase (deg)",xlabel = "Frequency (rad/s)", 
                  font_size_ylabels = 20, font_size_xlabel=20,**kwargs):
         """
-        Create a Bode plot visualization for a given system.
-        Parameters:
-        - system: Can be one of:
-            * scipy.signal.lti or transfer function coefficients (list/tuple of arrays)
-            * Symbolic expressions for numerator and denominator (using 's' as variable)
-            * Tuple of (numerator_expr, denominator_expr) as strings or sympy expressions
-        - freq_range: tuple (min_freq, max_freq) in rad/s
-        - magnitude_yrange: tuple (min_db, max_db) for magnitude plot
-        - phase_yrange: tuple (min_deg, max_deg) for phase plot
-        -color: color of the bode plot
-        -stroke_width: stroke width of the plot
-        -mag_label: Label on the magnitude y-axis 
-        -phase_label: Label on the phase y-axis
-        -xlabel: Label on the frequency x-axis
-        -font_size_ylabels: The font size of the labels on the y-axis
-        -font_size_xlabels: The font size of the labels on the x-axis
+        Generates a Bode plot visualization as a Manim VGroup for continuous- or discrete-time systems.
+
+        This class takes a system representation (transfer function, poles/zeros, or state-space)
+        and visualizes its frequency response with magnitude (in dB) and phase (in degrees) plots.
+        It supports automatic range determination, customizable axes, grid display, and stability analysis.
+
+        PARAMETERS
+        ----------
+        system : various
+            System representation, which can be one of:
+            - scipy.signal.lti or transfer function coefficients (list/tuple of arrays)
+            - Symbolic expressions for numerator/denominator (using 's' as variable)
+            - Tuple of (numerator_expr, denominator_expr) as strings or sympy expressions
+        freq_range : tuple[float] | None
+            Frequency range in rad/s as (min_freq, max_freq). If None, automatically determined.
+        magnitude_yrange : tuple[float] | None
+            Magnitude range in dB as (min_db, max_db). If None, automatically determined.
+        phase_yrange : tuple[float] | None
+            Phase range in degrees as (min_deg, max_deg). If None, automatically determined.
+        color : str
+            Color of the Bode plot curves (default: BLUE).
+        stroke_width : float
+            Stroke width of the plot curves (default: 2).
+        mag_label : str
+            Label for the magnitude axis (default: "Magnitude (dB)").
+        phase_label : str
+            Label for the phase axis (default: "Phase (deg)").
+        xlabel : str
+            Label for the frequency axis (default: "Frequency (rad/s)").
+        font_size_ylabels : int
+            Font size for y-axis labels (default: 20).
+        font_size_xlabel : int
+            Font size for x-axis label (default: 20).
+        **kwargs : Any
+            Additional keyword arguments passed to the VGroup constructor.
+
+        RETURNS
+        -------
+        VGroup
+            A Manim VGroup containing:
+            - Magnitude plot with logarithmic frequency axis and linear dB scale
+            - Phase plot with logarithmic frequency axis and linear degree scale
+            - Axis labels and ticks
+            - Optional grid lines, title, and stability indicators
         """
         super().__init__(**kwargs)
         self.system = self._parse_system_input(system)
