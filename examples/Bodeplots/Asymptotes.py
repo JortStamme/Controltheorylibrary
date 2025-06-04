@@ -11,7 +11,8 @@ class BodeAsymp(Scene):
 
         bode1 = BodePlot(system1)
         bode1.grid_on()
-        bode1.show_asymptotes()
+        
+        bode1.show_asymptotes(stroke_width=1.35)
     
         
         self.play(Create(bode1.mag_box),Create(bode1.phase_box))
@@ -29,7 +30,7 @@ class BodeAsymp(Scene):
         self.wait(0.5)
         self.play(Create(bode1.mag_plot),Create(bode1.phase_plot))
         self.wait(2)
-        self.play(Create(bode1.mag_asymp_plot))
+        self.play(Create(bode1.mag_asymp_plot), run_time=1.5)
         self.wait(0.5)
-        self.play(Create(bode1.phase_asymp_plot))
+        self.play(Create(bode1.phase_asymp_plot), run_time=2.5)
         self.wait(2)

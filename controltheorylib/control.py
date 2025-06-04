@@ -3644,16 +3644,16 @@ class Nyquist(VGroup):
         x_start, x_end = self.plane.x_axis.get_start(), self.plane.x_axis.get_end()
         y_start, y_end = self.plane.y_axis.get_start(), self.plane.y_axis.get_end()
 
-        dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
-        dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        self.dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        self.dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
 
         # Add labels
-        self.x_label = MathTex(self.x_axis_label, font_size=self.font_size_labels)
-        self.y_label = MathTex(self.y_axis_label, font_size=self.font_size_labels)
+        self.x_axislabel = MathTex(self.x_axis_label, font_size=self.font_size_labels)
+        self.y_axislabel = MathTex(self.y_axis_label, font_size=self.font_size_labels)
         
         # Position labels
-        self.x_label.next_to(self.plane.x_axis.get_right(), RIGHT, buff=0.2)
-        self.y_label.next_to(self.plane.y_axis.get_top(), UP, buff=0.2)
+        self.x_axislabel.next_to(self.plane.x_axis.get_right(), RIGHT, buff=0.2)
+        self.y_axislabel.next_to(self.plane.y_axis.get_top(), UP, buff=0.2)
         
         # Create plot title if specified
         if self._title:
@@ -3772,10 +3772,10 @@ class Nyquist(VGroup):
         # Group all axes components
         self.axes_components = VGroup(
             self.plane,
-            self.x_label,
-            self.y_label,
+            self.x_axislabel,
+            self.y_axislabel,
             self.grid_lines,
-            self.unit_circle, dashed_x_axis,dashed_y_axis
+            self.unit_circle, self.dashed_x_axis, self.dashed_y_axis
         )
         
         # Add to main group
@@ -3921,8 +3921,8 @@ class Nyquist(VGroup):
         self.y_ticks = self.create_ticks(self.plane, orientation="vertical")
         
         # Add tick labels
-        self.x_labels = self.create_tick_labels(self.plane, orientation="horizontal")
-        self.y_labels = self.create_tick_labels(self.plane, orientation="vertical")
+        self.x_ticklabels = self.create_tick_labels(self.plane, orientation="horizontal")
+        self.y_ticklabels = self.create_tick_labels(self.plane, orientation="vertical")
         
         # Add -1 point marker if it's in view
         if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
@@ -3935,7 +3935,7 @@ class Nyquist(VGroup):
                 self.axes_components.add(self.minus_one_label)
 
         self.box = SurroundingRectangle(self.plane, buff=0, color=WHITE, stroke_width=2)
-        self.axes_components.add(self.x_ticks, self.y_ticks, self.x_labels, self.y_labels, self.box)
+        self.axes_components.add(self.x_ticks, self.y_ticks, self.x_ticklabels, self.y_ticklabels, self.box)
 
     def create_ticks(self, axes, y_range=None, orientation="horizontal"):
         """Generalized tick creation for both axes using c2p method"""
