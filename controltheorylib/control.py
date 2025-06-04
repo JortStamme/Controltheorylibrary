@@ -744,7 +744,7 @@ class PoleZeroMap(VGroup):
         """Create the stability regions based on system type"""
         if self.system_type == 'continuous':
             # Highlight unstable region (right-half plane)
-            if self.x_range[1] > 0 and show_unstable==True:
+            if self.x_range[1] > 0:
                 right_edge = self.axis.c2p(self.x_range[1], 0)[0]  # Get x-coordinate of right edge
                 left_edge = self.axis.c2p(0, 0)[0]  # Get x-coordinate of y-axis
             
@@ -761,18 +761,19 @@ class PoleZeroMap(VGroup):
                 self.axis.n2p(complex(self.x_range[1]/2, 0))  # Center in the unstable region
                 )
                 if use_mathtex==True:
-                    text_unst = MathTex(unstable_label, font_size=label_font_size).move_to(self.unstable_region, aligned_edge=UP).shift(0.2*DOWN)
+                    self.text_unstable = MathTex(unstable_label, font_size=label_font_size).move_to(self.unstable_region, aligned_edge=UP).shift(0.2*DOWN)
                 else:
-                    text_unst = Text(unstable_label, font_size=label_font_size).move_to(self.unstable_region, aligned_edge=UP).shift(0.2*DOWN)
+                    self.text_unstable = Text(unstable_label, font_size=label_font_size).move_to(self.unstable_region, aligned_edge=UP).shift(0.2*DOWN)
                 
                 if width_unst <= 2:
-                    text_unst.shift(RIGHT)
+                    self.text_unstable.shift(RIGHT)
                 
-                self.unstable = VGroup(self.unstable_region, text_unst)
-                self.add(self.unstable)
+                self.unstable = VGroup(self.unstable_region, self.text_unstable)
+                if show_unstable == True:
+                    self.add(self.unstable)
             
             # Highlight stable region (left-half plane)
-            if self.x_range[0] < 0 and show_stable==True:
+            if self.x_range[0] < 0:
                 left_edge = self.axis.c2p(self.x_range[0], 0)[0]  # Get x-coordinate of left edge
                 right_edge = self.axis.c2p(0, 0)[0]  # Get x-coordinate of y-axis
                 
@@ -789,12 +790,16 @@ class PoleZeroMap(VGroup):
                     self.axis.n2p(complex(self.x_range[0]/2, 0))  # Center in the stable region
                 )
                 
-                text_stab = Text(stable_label, font_size=label_font_size).move_to(self.stable_region, aligned_edge=UP).shift(0.2*DOWN)
+                if use_mathtex==True:
+                    self.text_stable = MathTex(stable_label, font_size=label_font_size).move_to(self.stable_region, aligned_edge=UP).shift(0.2*DOWN)
+                else:
+                    self.text_stable = Text(stable_label, font_size=label_font_size).move_to(self.stable_region, aligned_edge=UP).shift(0.2*DOWN)
                 if width_st <= 2:
-                    text_stab.shift(0.2*LEFT)
+                    self.text_stable.shift(0.2*LEFT)
                 
-                self.stable = VGroup(self.stable_region, text_stab)
-                self.add(self.stable)
+                self.stable = VGroup(self.stable_region, self.text_stable)
+                if show_stable==True:
+                    self.add(self.stable)
 
         
         elif self.system_type == 'discrete':
@@ -2736,7 +2741,7 @@ class BodePlot(VGroup):
 
             self.phase_asymp[i] = current_phase
 
-    def show_asymptotes(self, color=YELLOW, stroke_width=2, opacity=1):
+    def show_asymptotes(self, color=YELLOW, **kwargs):
         """Plot asymptotes using separate break frequencies for magnitude and phase"""
         self._remove_existing_asymptotes()
         self.show_asymptotes_r = True
@@ -2775,7 +2780,7 @@ class BodePlot(VGroup):
             )
             
             segment = Line(start_point, end_point, color=color,
-                        stroke_width=stroke_width, stroke_opacity=opacity)
+                        **kwargs)
             self.mag_asymp_plot.add(segment)
 
         # ===== Phase Plot =====
@@ -2794,7 +2799,7 @@ class BodePlot(VGroup):
 
             if np.abs(point2_h[0] - point1_h[0]) > 1e-6: # Only draw if there's horizontal distance
                  horizontal_segment = Line(point1_h, point2_h, color=color,
-                                           stroke_width=stroke_width, stroke_opacity=opacity)
+                                           **kwargs)
                  self.phase_asymp_plot.add(horizontal_segment)
 
             # Draw vertical segment if phase changes
@@ -2803,7 +2808,7 @@ class BodePlot(VGroup):
                  point2_v = self.phase_axes.coords_to_point(np.log10(freq2), phase2) # Vertical segment ends at freq2, phase2
 
                  vertical_segment = Line(point1_v, point2_v, color=color,
-                                         stroke_width=stroke_width, stroke_opacity=opacity)
+                                         **kwargs)
                  self.phase_asymp_plot.add(vertical_segment)
 
         # Add to plot
@@ -2821,7 +2826,7 @@ class BodePlot(VGroup):
             if hasattr(self, attr) and getattr(self, attr) in getattr(self, attr.split('_')[0] + '_components'):
                 getattr(self, attr.split('_')[0] + '_components').remove(getattr(self, attr))
 
-    def show_margins(self, show_values=True, margin_color=YELLOW, text_color=WHITE, font_size=24):
+    def show_margins(self, show_values=True, show_pm=True, show_gm=True, pm_color=YELLOW, gm_color=YELLOW, text_color=WHITE, font_size=24, **kwargs):
         """
         Show gain and phase margins on the Bode plot if possible.
         
@@ -2848,10 +2853,7 @@ class BodePlot(VGroup):
             self.zerodB_line = DashedLine(
                 self.mag_axes.c2p(x_min, 0),
                 self.mag_axes.c2p(x_max, 0),
-                color=margin_color,
-                stroke_width=1,
-                stroke_opacity=0.7
-            )
+                color=pm_color, **kwargs)
             margin_group.add(self.zerodB_line)
             all_animations.extend([Create(self.zerodB_line)])
             part1_anims.extend([Create(self.zerodB_line)])
@@ -2861,17 +2863,14 @@ class BodePlot(VGroup):
             self.minus180deg_line = DashedLine(
                 self.phase_axes.c2p(x_min, -180),
                 self.phase_axes.c2p(x_max, -180),
-                color=margin_color,
-                stroke_width=1,
-                stroke_opacity=0.7
-            )
+                color=gm_color,**kwargs)
             margin_group.add(self.minus180deg_line)
             all_animations.extend([Create(self.minus180deg_line)])
             part1_anims.extend([Create(self.minus180deg_line)])
 
             
         # Only proceed if we have valid margins
-        if gm != np.inf and pm != np.inf:
+        if gm != np.inf and show_gm==True:
             log_wg = np.log10(wg)
             log_wp = np.log10(wp)
             
@@ -2880,28 +2879,32 @@ class BodePlot(VGroup):
                 # Find phase at gain crossover frequency (wg)
                 phase_at_wg = np.interp(wg, self.frequencies, self.phases)
                 gain_at_wp = np.interp(wg, self.frequencies, self.magnitudes)
+                mag_at_wp = np.interp(wp, self.frequencies, self.magnitudes)
+                phase_at_wp = np.interp(wp,self.frequencies, self.phases)
                 # Add line at gain crossover frequency (wg)
-                self.vert_gain_line = DashedLine(
-                    self.phase_axes.c2p(log_wg, self.phase_yrange[1]),
-                    self.phase_axes.c2p(log_wg, phase_at_wg),
-                    color=margin_color,
-                    stroke_width=1, stroke_opacity=0.7
+                self.vert_gain_line = DashedLine(self.mag_axes.c2p(log_wp, mag_at_wp),
+                                                 self.mag_axes.c2p(log_wp, self.magnitude_yrange[0])
+                    ,
+                    color=pm_color,
+                    **kwargs
                 )
+            
                 margin_group.add(self.vert_gain_line)
                 all_animations.extend([Create(self.vert_gain_line)])
                 part2_anims.extend([Create(self.vert_gain_line)])
                 self.gm_dot = Dot(
                     self.phase_axes.c2p(log_wg, -180),
-                    color=margin_color, radius=0.05
+                    color=gm_color, radius=0.05
                 )
                 margin_group.add(self.gm_dot)
                 all_animations.extend([Create(self.gm_dot)])
                 part2_anims.extend([Create(self.gm_dot)])
 
                 self.gm_vector = Arrow(self.mag_axes.c2p(log_wg, 0),
-                            self.mag_axes.c2p(log_wg, gain_at_wp),
-                    color=margin_color,
-                    stroke_width=1.5, buff=0, tip_length=0.15)
+                            self.mag_axes.c2p(log_wg, gain_at_wp),color=gm_color,
+                    buff=0)
+                gm_vector_width = max(1.5, min(8.0, 0.75/self.gm_vector.get_length()))
+                self.gm_vector.set_stroke(width=gm_vector_width)
                 margin_group.add(self.gm_vector)
                 all_animations.extend([Create(self.gm_vector)])
                 part3_anims.extend([Create(self.gm_vector)])
@@ -2919,39 +2922,46 @@ class BodePlot(VGroup):
                     margin_group.add(self.gm_text)
                     all_animations.extend([Write(self.gm_text)])
                     part3_anims.extend([Write(self.gm_text)])
+
+        if pm != np.inf and show_pm==True:
             
+            log_wg = np.log10(wg)
+            log_wp = np.log10(wp)
             # ===== Phase Margin =====
             if self._show_magnitude:
                 # Find magnitude at phase crossover frequency (wp)
                 mag_at_wp = np.interp(wp, self.frequencies, self.magnitudes)
                 phase_at_wp = np.interp(wp,self.frequencies, self.phases)
+                phase_at_wg = np.interp(wg, self.frequencies, self.phases)
+                gain_at_wp = np.interp(wg, self.frequencies, self.magnitudes)
                 # Add line at phase crossover frequency (wp)
                 self.vert_phase_line = DashedLine(
-                    self.mag_axes.c2p(log_wp, self.magnitude_yrange[0]),
-                    self.mag_axes.c2p(log_wp, mag_at_wp),
-                    color=margin_color,
-                    stroke_width=1, stroke_opacity=0.7
+                    self.phase_axes.c2p(log_wg, phase_at_wg),
+                    self.phase_axes.c2p(log_wg, self.phase_yrange[1])
+                    ,
+                    color=gm_color, **kwargs
                 )
-                margin_group.add(self.vert_phase_line)
+                margin_group.add(self.vert_gain_line)
                 all_animations.extend([Create(self.vert_phase_line)])
                 part2_anims.extend([Create(self.vert_phase_line)])
 
                 # Add dot at 0 dB point
                 self.pm_dot = Dot(
                     self.mag_axes.c2p(log_wp, 0),
-                    color=margin_color, radius=0.05
+                    color=pm_color, radius=0.05
                 )
                 margin_group.add(self.pm_dot)
                 all_animations.extend([Create(self.pm_dot)])
                 part2_anims.extend([Create(self.pm_dot)])
 
-                pm_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
+                self.pm_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
                             self.phase_axes.c2p(log_wp, phase_at_wp),
-                    color=margin_color,
-                    stroke_width=1.5, buff=0, tip_length=0.15)
-                margin_group.add(pm_vector)
-                all_animations.extend([Create(pm_vector)])
-                part3_anims.extend([Create(pm_vector)])
+                    color=pm_color,buff=0)
+                pm_vector_width = max(1.5, min(8.0, 0.75/self.pm_vector.get_length()))
+                self.pm_vector.set_stroke(width=pm_vector_width)
+                margin_group.add(self.pm_vector)
+                all_animations.extend([Create(self.pm_vector)])
+                part3_anims.extend([Create(self.pm_vector)])
 
                 # Add text label if requested
                 if show_values:
@@ -2980,7 +2990,7 @@ class BodePlot(VGroup):
                 'all': margin_group,  # Everything combined
                 'reference': VGroup(self.zerodB_line, self.minus180deg_line),
                 'crossover': VGroup(self.gm_dot, self.pm_dot, self.vert_gain_line, self.vert_phase_line),
-                'indicators': VGroup(self.gm_vector, pm_vector, self.gm_text, self.pm_text)
+                'indicators': VGroup(self.gm_vector, self.pm_vector, self.gm_text, self.pm_text)
             }
         }
 
@@ -3107,21 +3117,63 @@ class Nyquist(VGroup):
                  font_size_labels=20, show_unit_circle=False, unit_circle_dashed=True, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
                   show_positive_freq=True, show_negative_freq=True, **kwargs):
         """
-        Create a Nyquist plot visualization for a given system.
-        
-        Parameters:
-        - system: Can be one of:
-            * scipy.signal.lti or transfer function coefficients (list/tuple of arrays)
-            * Symbolic expressions for numerator and denominator (using 's' as variable)
-            * Tuple of (numerator_expr, denominator_expr) as strings or sympy expressions
-        - freq_range: tuple (min_freq, max_freq) in rad/s (default: auto-determined)
-        - x_range: tuple (min_x, max_x) for real axis (default: auto-determined)
-        - y_range: tuple (min_y, max_y) for imaginary axis (default: auto-determined)
-        - color: color of the nyquist plot
-        - stroke_width: stroke width of the plot
-        - label: Label for the plot 
-        - font_size_labels: The font size of the axis labels
-        - show_unit_circle: Whether to show the unit circle (default: True)
+        Generates a Nyquist plot visualization as a Manim VGroup
+
+        The Nyquist plot displays the frequency response of a system in the complex plane by plotting
+        the real and imaginary parts of the transfer function evaluated along the imaginary axis (s = jω).
+        This visualization includes critical stability analysis features like the (-1,0) point,
+        gain/phase margins, and optional unit circle reference.
+
+        PARAMETERS
+        ----------
+        system : various
+            System representation, which can be one of:
+            - scipy.signal.lti or transfer function coefficients (list/tuple of arrays)
+            - Symbolic expressions for numerator/denominator (using 's' as variable)
+            - Tuple of (numerator_expr, denominator_expr) as strings or sympy expressions
+        freq_range : tuple[float] | None
+            Frequency range in rad/s as (min_freq, max_freq). If None, automatically determined.
+        x_range : tuple[float] | None
+            Real axis range as (min_x, max_x). If None, automatically determined.
+        y_range : tuple[float] | None  
+            Imaginary axis range as (min_y, max_y). If None, automatically determined.
+        color : str
+            Color of the Nyquist plot curve (default: BLUE).
+        stroke_width : float
+            Stroke width of the plot curve (default: 2).
+        y_axis_label : str
+            Label for the imaginary axis (default: "Im").
+        x_axis_label : str
+            Label for the real axis (default: "Re").
+        font_size_labels : int
+            Font size for axis labels (default: 20).
+        show_unit_circle : bool
+            Whether to display the unit circle reference (default: False).
+        unit_circle_dashed : bool
+            Whether to render unit circle as dashed (default: True).
+        circle_color : str
+            Color of the unit circle (default: RED).
+        show_minus_one_label : bool
+            Whether to show "-1" label at critical point (default: False).
+        show_minus_one_marker : bool
+            Whether to mark the (-1,0) stability point (default: True).
+        show_positive_freq : bool
+            Whether to plot positive frequency response (default: True).
+        show_negative_freq : bool
+            Whether to plot negative frequency response (default: True).
+        **kwargs : Any
+            Additional keyword arguments passed to the VGroup constructor.
+
+        RETURNS
+        -------
+        VGroup
+            A Manim VGroup containing:
+            - Complex plane with real and imaginary axes
+            - Nyquist plot curve with directional arrows
+            - Optional unit circle reference
+            - (-1,0) critical point marker
+            - Axis labels and ticks
+            - Stability margin indicators (via show_margins() method)
         """
         super().__init__(**kwargs)
         self.system = self._parse_system_input(system)
