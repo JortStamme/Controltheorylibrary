@@ -751,7 +751,7 @@ class PoleZeroMap(VGroup):
                 width_unst = right_edge - left_edge
                 height_unst = abs(self.axis.c2p(0, self.y_range[1])[1] - self.axis.c2p(0, self.y_range[0])[1])
             
-                unstable_region = Rectangle(
+                self.unstable_region = Rectangle(
                     width=width_unst, 
                     height=height_unst,
                     color=unstable_color, 
@@ -761,14 +761,14 @@ class PoleZeroMap(VGroup):
                 self.axis.n2p(complex(self.x_range[1]/2, 0))  # Center in the unstable region
                 )
                 if use_mathtex==True:
-                    text_unst = MathTex(unstable_label, font_size=label_font_size).move_to(unstable_region, aligned_edge=UP).shift(0.2*DOWN)
+                    text_unst = MathTex(unstable_label, font_size=label_font_size).move_to(self.unstable_region, aligned_edge=UP).shift(0.2*DOWN)
                 else:
-                    text_unst = Text(unstable_label, font_size=label_font_size).move_to(unstable_region, aligned_edge=UP).shift(0.2*DOWN)
+                    text_unst = Text(unstable_label, font_size=label_font_size).move_to(self.unstable_region, aligned_edge=UP).shift(0.2*DOWN)
                 
                 if width_unst <= 2:
                     text_unst.shift(RIGHT)
                 
-                self.unstable = VGroup(unstable_region, text_unst)
+                self.unstable = VGroup(self.unstable_region, text_unst)
                 self.add(self.unstable)
             
             # Highlight stable region (left-half plane)
@@ -779,7 +779,7 @@ class PoleZeroMap(VGroup):
                 width_st = right_edge - left_edge
                 height_st = abs(self.axis.c2p(0, self.y_range[1])[1] - self.axis.c2p(0, self.y_range[0])[1])
                 
-                stable_region = Rectangle(
+                self.stable_region = Rectangle(
                     width=width_st, 
                     height=height_st,
                     color=stable_color, 
@@ -789,11 +789,11 @@ class PoleZeroMap(VGroup):
                     self.axis.n2p(complex(self.x_range[0]/2, 0))  # Center in the stable region
                 )
                 
-                text_stab = Text(stable_label, font_size=label_font_size).move_to(stable_region, aligned_edge=UP).shift(0.2*DOWN)
+                text_stab = Text(stable_label, font_size=label_font_size).move_to(self.stable_region, aligned_edge=UP).shift(0.2*DOWN)
                 if width_st <= 2:
                     text_stab.shift(0.2*LEFT)
                 
-                self.stable = VGroup(stable_region, text_stab)
+                self.stable = VGroup(self.stable_region, text_stab)
                 self.add(self.stable)
 
         
@@ -1832,8 +1832,8 @@ class BodePlot(VGroup):
         self._original_mag_pos = 1.8*UP
         self._original_phase_pos = 0.4*DOWN
 
-        #self.mag_grid = VGroup()
-        #self.phase_grid = VGroup()
+        #self.mag_hor_grid = VGroup()
+        #self.phase_hor_grid = VGroup()
         #self.mag_vert_grid = VGroup()
         #self.phase_vert_grid = VGroup()
 
@@ -1932,9 +1932,9 @@ class BodePlot(VGroup):
     def _update_grid_visibility(self):
         """Directly control the stored grid components"""
         opacity = 1 if self._show_grid else 0
-        self.mag_grid.set_opacity(opacity)
+        self.mag_hor_grid.set_opacity(opacity)
         self.mag_vert_grid.set_opacity(opacity)
-        self.phase_grid.set_opacity(opacity)
+        self.phase_hor_grid.set_opacity(opacity)
         self.phase_vert_grid.set_opacity(opacity)
 
     def update_plot_visibility(self):
@@ -1959,26 +1959,26 @@ class BodePlot(VGroup):
                 self.mag_group.shift(1.8*UP)
 
             self.phase_group.next_to(self.mag_group, DOWN, buff=0.4).align_to(self.mag_group, LEFT)
-            self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
+            self.freq_ticklabels.next_to(self.phase_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([self.mag_group, self.phase_group,self.freq_labels, self.freq_xlabel,])
+            self.components_to_add.extend([self.mag_group, self.phase_group,self.freq_ticklabels, self.freq_xlabel,])
         elif self._show_magnitude:
             # Only magnitude - center it and move frequency labels
             self.mag_group.add(self.mag_axes, self.mag_components, self.mag_plot)
             #mag_group.move_to(ORIGIN)
 
             # Move frequency labels to bottom of magnitude plot
-            self.freq_labels.next_to(self.mag_axes, DOWN, buff=0.2)
+            self.freq_ticklabels.next_to(self.mag_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.mag_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([self.mag_group, self.freq_labels, self.freq_xlabel])
+            self.components_to_add.extend([self.mag_group, self.freq_ticklabels, self.freq_xlabel])
 
         elif self._show_phase:
             # Only phase - center it
             self.phase_group.add(self.phase_axes, self.phase_components, self.phase_plot)
             #phase_group.move_to(ORIGIN)
-            self.freq_labels.next_to(self.phase_axes, DOWN, buff=0.2)
+            self.freq_ticklabels.next_to(self.phase_axes, DOWN, buff=0.2)
             self.freq_xlabel.next_to(self.phase_axes,DOWN,buff=0.4)
-            self.components_to_add.extend([self.phase_group,self.freq_labels, self.freq_xlabel])
+            self.components_to_add.extend([self.phase_group,self.freq_ticklabels, self.freq_xlabel])
             # Handle title
 
 
@@ -2077,13 +2077,13 @@ class BodePlot(VGroup):
         decade_ticks = [10**exp for exp in decade_exponents]
     
         # Create frequency labels (these are the same for both plots)
-        self.freq_labels = VGroup()
+        self.freq_ticklabels = VGroup()
         for exp in decade_exponents:
             x_val = np.log10(10**exp)
             tick_point = self.phase_axes.x_axis.n2p(x_val)
             label = MathTex(f"10^{{{int(exp)}}}", font_size=20)
             label.move_to([tick_point[0]+0.1, self.phase_axes.get_bottom()[1]-0.2, 0])
-            self.freq_labels.add(label)
+            self.freq_ticklabels.add(label)
 
         # Calculate the distance from the box as a function of label font_size
         ylabel_buff = (self.font_size_ylabels/20)*0.5+(20-self.font_size_ylabels)*0.02
@@ -2091,33 +2091,33 @@ class BodePlot(VGroup):
 
         # Magnitude plot components
         self.mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
-        self.mag_y_labels = self.create_y_labels(self.mag_axes, self.magnitude_yrange)
+        self.mag_yticklabels = self.create_y_labels(self.mag_axes, self.magnitude_yrange)
         self.mag_ylabel = Text(self.magnitude_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(self.mag_box, LEFT, buff=ylabel_buff)
-        self.mag_ticks = self.create_ticks(self.mag_axes, self.magnitude_yrange, "horizontal")
-        self.mag_vert_ticks = self.create_ticks(self.mag_axes, None, "vertical")
+        self.mag_yticks = self.create_ticks(self.mag_axes, self.magnitude_yrange, "horizontal")
+        self.mag_xticks = self.create_ticks(self.mag_axes, None, "vertical")
 
         # Phase plot components
         self.phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
-        self.phase_y_labels = self.create_y_labels(self.phase_axes, self.phase_yrange)
+        self.phase_yticklabels = self.create_y_labels(self.phase_axes, self.phase_yrange)
         self.phase_ylabel = Text(self.phase_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(self.phase_box, LEFT, buff=ylabel_buff)
         self.freq_xlabel = Text(self.xlabel, font_size=self.font_size_xlabel).next_to(self.phase_box, DOWN, buff=xlabel_buff)
-        self.phase_ticks = self.create_ticks(self.phase_axes, self.phase_yrange, "horizontal")
-        self.phase_vert_ticks = self.create_ticks(self.phase_axes, None, "vertical")
+        self.phase_yticks = self.create_ticks(self.phase_axes, self.phase_yrange, "horizontal")
+        self.phase_xticks = self.create_ticks(self.phase_axes, None, "vertical")
 
             # Store grid components with proper references
-        self.mag_grid = self.create_grid(self.mag_axes, self.magnitude_yrange, "horizontal")
+        self.mag_hor_grid = self.create_grid(self.mag_axes, self.magnitude_yrange, "horizontal")
         self.mag_vert_grid = self.create_grid(self.mag_axes, None, "vertical")
-        self.phase_grid = self.create_grid(self.phase_axes, self.phase_yrange, "horizontal")
+        self.phase_hor_grid = self.create_grid(self.phase_axes, self.phase_yrange, "horizontal")
         self.phase_vert_grid = self.create_grid(self.phase_axes, None, "vertical")
 
         # Group components with proper grid references
         self.mag_components = VGroup(
-        self.mag_box, self.mag_ticks, self.mag_vert_ticks, self.mag_y_labels, self.mag_grid, self.mag_vert_grid, 
+        self.mag_box, self.mag_yticks, self.mag_xticks, self.mag_yticklabels, self.mag_hor_grid, self.mag_vert_grid, 
         self.mag_ylabel
         )
         self.phase_components = VGroup(
-        self.phase_box, self.phase_y_labels, self.phase_grid, self.phase_vert_grid,
-        self.phase_ylabel, self.phase_ticks, self.phase_vert_ticks
+        self.phase_box, self.phase_yticklabels, self.phase_hor_grid, self.phase_vert_grid,
+        self.phase_ylabel, self.phase_yticks, self.phase_xticks
         )
     
     def create_ticks(self, axes, y_range=None, orientation="horizontal"):
@@ -2845,29 +2845,29 @@ class BodePlot(VGroup):
         if self._show_magnitude:
             # Create 0dB line across the entire x-range
             x_min, x_max = self.mag_axes.x_range[0], self.mag_axes.x_range[1]
-            zerodB_line = DashedLine(
+            self.zerodB_line = DashedLine(
                 self.mag_axes.c2p(x_min, 0),
                 self.mag_axes.c2p(x_max, 0),
                 color=margin_color,
                 stroke_width=1,
                 stroke_opacity=0.7
             )
-            margin_group.add(zerodB_line)
-            all_animations.extend([Create(zerodB_line)])
-            part1_anims.extend([Create(zerodB_line)])
+            margin_group.add(self.zerodB_line)
+            all_animations.extend([Create(self.zerodB_line)])
+            part1_anims.extend([Create(self.zerodB_line)])
         if self._show_phase:
             # Create -180° line across the entire x-range
             x_min, x_max = self.phase_axes.x_range[0], self.phase_axes.x_range[1]
-            minus180_line = DashedLine(
+            self.minus180deg_line = DashedLine(
                 self.phase_axes.c2p(x_min, -180),
                 self.phase_axes.c2p(x_max, -180),
                 color=margin_color,
                 stroke_width=1,
                 stroke_opacity=0.7
             )
-            margin_group.add(minus180_line)
-            all_animations.extend([Create(minus180_line)])
-            part1_anims.extend([Create(minus180_line)])
+            margin_group.add(self.minus180deg_line)
+            all_animations.extend([Create(self.minus180deg_line)])
+            part1_anims.extend([Create(self.minus180deg_line)])
 
             
         # Only proceed if we have valid margins
@@ -2881,34 +2881,34 @@ class BodePlot(VGroup):
                 phase_at_wg = np.interp(wg, self.frequencies, self.phases)
                 gain_at_wp = np.interp(wg, self.frequencies, self.magnitudes)
                 # Add line at gain crossover frequency (wg)
-                gain_line = DashedLine(
+                self.vert_gain_line = DashedLine(
                     self.phase_axes.c2p(log_wg, self.phase_yrange[1]),
                     self.phase_axes.c2p(log_wg, phase_at_wg),
                     color=margin_color,
                     stroke_width=1, stroke_opacity=0.7
                 )
-                margin_group.add(gain_line)
-                all_animations.extend([Create(gain_line)])
-                part2_anims.extend([Create(gain_line)])
-                gm_dot = Dot(
+                margin_group.add(self.vert_gain_line)
+                all_animations.extend([Create(self.vert_gain_line)])
+                part2_anims.extend([Create(self.vert_gain_line)])
+                self.gm_dot = Dot(
                     self.phase_axes.c2p(log_wg, -180),
                     color=margin_color, radius=0.05
                 )
-                margin_group.add(gm_dot)
-                all_animations.extend([Create(gm_dot)])
-                part2_anims.extend([Create(gm_dot)])
+                margin_group.add(self.gm_dot)
+                all_animations.extend([Create(self.gm_dot)])
+                part2_anims.extend([Create(self.gm_dot)])
 
-                GM_vector = Arrow(self.mag_axes.c2p(log_wg, 0),
+                self.gm_vector = Arrow(self.mag_axes.c2p(log_wg, 0),
                             self.mag_axes.c2p(log_wg, gain_at_wp),
                     color=margin_color,
                     stroke_width=1.5, buff=0, tip_length=0.15)
-                margin_group.add(GM_vector)
-                all_animations.extend([Create(GM_vector)])
-                part3_anims.extend([Create(GM_vector)])
+                margin_group.add(self.gm_vector)
+                all_animations.extend([Create(self.gm_vector)])
+                part3_anims.extend([Create(self.gm_vector)])
                 
                 # Add text label if requested
                 if show_values:
-                    gm_text = MathTex(
+                    self.gm_text = MathTex(
                         f"GM = {gm:.2f} dB",
                         font_size=font_size,
                         color=text_color
@@ -2916,9 +2916,9 @@ class BodePlot(VGroup):
                         self.mag_axes.c2p(log_wg, gain_at_wp),
                         UP+RIGHT, buff=0.2
                     )
-                    margin_group.add(gm_text)
-                    all_animations.extend([Write(gm_text)])
-                    part3_anims.extend([Write(gm_text)])
+                    margin_group.add(self.gm_text)
+                    all_animations.extend([Write(self.gm_text)])
+                    part3_anims.extend([Write(self.gm_text)])
             
             # ===== Phase Margin =====
             if self._show_magnitude:
@@ -2926,36 +2926,36 @@ class BodePlot(VGroup):
                 mag_at_wp = np.interp(wp, self.frequencies, self.magnitudes)
                 phase_at_wp = np.interp(wp,self.frequencies, self.phases)
                 # Add line at phase crossover frequency (wp)
-                phase_line = DashedLine(
+                self.vert_phase_line = DashedLine(
                     self.mag_axes.c2p(log_wp, self.magnitude_yrange[0]),
                     self.mag_axes.c2p(log_wp, mag_at_wp),
                     color=margin_color,
                     stroke_width=1, stroke_opacity=0.7
                 )
-                margin_group.add(phase_line)
-                all_animations.extend([Create(phase_line)])
-                part2_anims.extend([Create(phase_line)])
+                margin_group.add(self.vert_phase_line)
+                all_animations.extend([Create(self.vert_phase_line)])
+                part2_anims.extend([Create(self.vert_phase_line)])
 
                 # Add dot at 0 dB point
-                pm_dot = Dot(
+                self.pm_dot = Dot(
                     self.mag_axes.c2p(log_wp, 0),
                     color=margin_color, radius=0.05
                 )
-                margin_group.add(pm_dot)
-                all_animations.extend([Create(pm_dot)])
-                part2_anims.extend([Create(pm_dot)])
+                margin_group.add(self.pm_dot)
+                all_animations.extend([Create(self.pm_dot)])
+                part2_anims.extend([Create(self.pm_dot)])
 
-                PM_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
+                pm_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
                             self.phase_axes.c2p(log_wp, phase_at_wp),
                     color=margin_color,
                     stroke_width=1.5, buff=0, tip_length=0.15)
-                margin_group.add(PM_vector)
-                all_animations.extend([Create(PM_vector)])
-                part3_anims.extend([Create(PM_vector)])
+                margin_group.add(pm_vector)
+                all_animations.extend([Create(pm_vector)])
+                part3_anims.extend([Create(pm_vector)])
 
                 # Add text label if requested
                 if show_values:
-                    pm_text = MathTex(
+                    self.pm_text = MathTex(
                         f"PM = {pm:.2f}^\\circ",
                         font_size=font_size,
                         color=text_color
@@ -2963,9 +2963,9 @@ class BodePlot(VGroup):
                         self.phase_axes.c2p(log_wp, phase_at_wp),
                         DOWN+LEFT, buff=0.2
                     )
-                    margin_group.add(pm_text)
-                    all_animations.extend([Write(pm_text)])
-                    part3_anims.extend([Write(pm_text)])
+                    margin_group.add(self.pm_text)
+                    all_animations.extend([Write(self.pm_text)])
+                    part3_anims.extend([Write(self.pm_text)])
         
         return {
             'animations': {
@@ -2978,9 +2978,9 @@ class BodePlot(VGroup):
             },
             'markers': {
                 'all': margin_group,  # Everything combined
-                'reference': VGroup(zerodB_line, minus180_line),
-                'crossover': VGroup(gm_dot, pm_dot, gain_line, phase_line),
-                'indicators': VGroup(GM_vector, PM_vector, gm_text, pm_text)
+                'reference': VGroup(self.zerodB_line, self.minus180deg_line),
+                'crossover': VGroup(self.gm_dot, self.pm_dot, self.vert_gain_line, self.vert_phase_line),
+                'indicators': VGroup(self.gm_vector, pm_vector, self.gm_text, self.pm_text)
             }
         }
 
@@ -3057,10 +3057,10 @@ class BodePlot(VGroup):
         """Animations for grid lines"""
         anims = []
         if self._show_magnitude:
-            anims.append(Create(self.mag_grid))
+            anims.append(Create(self.mag_hor_grid))
             anims.append(Create(self.mag_vert_grid))
         if self._show_phase:
-            anims.append(Create(self.phase_grid))
+            anims.append(Create(self.phase_hor_grid))
             anims.append(Create(self.phase_vert_grid))
         return anims
 
@@ -3081,18 +3081,18 @@ class BodePlot(VGroup):
         anims = []
         if self._show_magnitude:
             anims.extend([
-                Write(self.mag_y_labels),
+                Write(self.mag_yticklabels),
                 Write(self.mag_ylabel),
-                Create(self.mag_ticks),
-                Create(self.mag_vert_ticks)
+                Create(self.mag_yticks),
+                Create(self.mag_xticks)
             ])
         if self._show_phase:
             anims.extend([
-                Write(self.phase_y_labels),
+                Write(self.phase_yticklabels),
                 Write(self.phase_ylabel),
-                Create(self.phase_ticks),
-                Create(self.phase_vert_ticks),
-                Write(self.freq_labels),
+                Create(self.phase_yticks),
+                Create(self.phase_xticks),
+                Write(self.freq_ticklabels),
                 Write(self.freq_xlabel)
             ])
         if self._title:
@@ -3103,7 +3103,7 @@ class BodePlot(VGroup):
 #Nyquist plot class
 class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
-                 color=BLUE, stroke_width=2, label="Nyquist Plot", y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
+                 color=BLUE, stroke_width=2, y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
                  font_size_labels=20, show_unit_circle=False, unit_circle_dashed=True, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
                   show_positive_freq=True, show_negative_freq=True, **kwargs):
         """
@@ -3133,7 +3133,6 @@ class Nyquist(VGroup):
             "color": WHITE,
             "stroke_width": 1.2
         }
-        self.label = label
         self.font_size_labels = font_size_labels
         self.show_unit_circle = show_unit_circle
         self.unit_circle_color = circle_color

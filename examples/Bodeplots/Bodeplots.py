@@ -12,19 +12,19 @@ class Bode(MovingCameraScene):
 
         bode1 = BodePlot(system1, magnitude_yrange=[-200,25], phase_yrange=[-270,0], freq_range=[0.1,1000])
         bode1.grid_on()
-        plot_anims1 = bode1.get_plot_animations()
-        self.play(LaggedStart(
-            *plot_anims1['axes'],
-            *plot_anims1['grid'],
-            lag_ratio=0.2,
-            run_time=3))
-        self.play(
-            *plot_anims1['magnitude'],
-            *plot_anims1['phase'],
-            run_time=2)
-        self.play(*plot_anims1['labels'],
-            run_time=1.5)
-
+        
+        self.play(Create(bode1.mag_box),Create(bode1.phase_box))
+        self.wait(0.5)
+        self.play(Create(bode1.mag_yticks),Create(bode1.mag_xticks), Create(bode1.phase_yticks),Create(bode1.phase_xticks))
+        self.wait(0.5)
+        self.play(Write(bode1.mag_yticklabels),Write(bode1.phase_yticklabels), Create(bode1.freq_ticklabels))
+        self.wait(0.5)
+        self.play(Write(bode1.mag_ylabel),Write(bode1.phase_ylabel), Create(bode1.freq_xlabel))
+        self.wait(0.5)
+        self.play(Create(bode1.mag_vert_grid),Create(bode1.mag_hor_grid), Create(bode1.phase_vert_grid),Create(bode1.phase_hor_grid))
+        self.wait(0.5)
+        self.play(Create(bode1.mag_plot),Create(bode1.phase_plot))
+        self.wait(2)
         text1 = MathTex(r"H(s)=\frac{1}{(s+2)(s+10)(s+15)}", font_size=35).next_to(bode1.mag_box, UP, buff=0.3)
         self.play(Write(text1))
         self.wait(0.5)
