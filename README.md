@@ -4,7 +4,7 @@ Controltheorylib is a Python library designed for creating high-quality mathemat
 ## Philosophy
 The core philosophy behind Controltheorylib is to make control theory concepts more accessible and intuitive through visualization. By leveraging the power of Manim, this library aims to bridge the gap between theoretical understanding and practical application. It is designed to help students, educators, and engineers gain deeper insights into dynamic systems and their behaviors through engaging animations.
 
-## Getting started 🚀
+## Getting started 
 ### Installation Dependicies
 Make sure you are in the root directory.
 To install the dependicies, type the following line of code in your system terminal or command prompt:
@@ -13,10 +13,9 @@ To install the dependicies, type the following line of code in your system termi
 
 
 ## More details
-For more details, check the documentation (add link).
+For more details, check the documentation [View PDF](https://raw.githubusercontent.com/JortStamme/Controltheorylibrary/main/Controltheorylib_manual.pdf).
 
-
-## 📬 Contact
+## Contact
 For questions or support, reach out via:
 + GitHub Issues: Open an issue
 + Email: j.r.k.stammen@student.tue.nl
