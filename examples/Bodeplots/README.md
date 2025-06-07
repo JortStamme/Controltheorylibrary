@@ -1,0 +1,6 @@
+## Description
+This folder contains multiple examples of the BodePlot class. Below, each example is explained shortly. If you are learning how to use this class, have a look at the examples below in chronological order (start with Static_example1.py).
+
+## Static_example1.py
+In this example, it is shown how one can define the system transfer function using a direct SymPy expression. Here, s is regarded as a laplace variable. After the system transfer function has been defined, the major bode plot attributes can be created using the BodePlot() class, here we change the line thickness of the bode plot using the stroke_width input. Moreover, a title is added to the plot where we use the use_math_tex input to tell the function touse MathTex (LaTex) instead of regular text. Lastly, grid lines can be added to the bode plot using the grid_on() function. To turn it back off, one can simply delete the grid_on line or set the grid off by the grid_off() function. After all plot attributes have been created, one can add them to the scene with the self.add() command. Run the scene, A static bode plot representing the system transfer function should appear. Here, the ranges are determned automatically.
+

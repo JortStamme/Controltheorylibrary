@@ -1658,6 +1658,10 @@ class BodePlot(VGroup):
         if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
             return system
 
+        # Handle sympy expression directly 
+        if isinstance(system, sp.Basic):
+            return self._symbolic_to_coefficients(system, 1)  # Denominator is 1 since it's already a complete expression
+
         # Tuple: could be symbolic or coefficient list
         if isinstance(system, tuple) and len(system) == 2:
             num, den = system
@@ -1668,7 +1672,7 @@ class BodePlot(VGroup):
             else:
                 return (num, den)  # Already numeric
 
-        # Handle string-based symbolic transfer functions (e.g., "s+1 / (s^2+2*s+1)")
+        # Handle string-based symbolic transfer functions 
         if isinstance(system, str):
             if '/' in system:
                 num_str, den_str = system.split('/', 1)
@@ -1678,10 +1682,18 @@ class BodePlot(VGroup):
 
         raise ValueError("Invalid system specification.")
 
+
     def _symbolic_to_coefficients(self, num_expr, den_expr):
         """Convert symbolic expressions to polynomial coefficients."""
         s = sp.symbols('s')
         try:
+            # If we got a complete expression (num_expr is the whole TF and den_expr is 1)
+            if den_expr == 1 and isinstance(num_expr, sp.Basic):
+                # Extract numerator and denominator from the expression
+                frac = sp.fraction(num_expr)
+                num_expr = frac[0]
+                den_expr = frac[1] if len(frac) > 1 else 1
+
             # Convert strings to sympy expressions
             if isinstance(num_expr, str):
                 num_expr = sp.sympify(num_expr.replace('^', '**'))
@@ -2056,20 +2068,20 @@ class BodePlot(VGroup):
         return y_labels
     
     # Check whether a title should be added
-    def title(self, text, font_size=35, color=WHITE, use_math_tex=False):
+    def title(self, text, font_size=30, color=WHITE, use_math_tex=False):
         """
         Add a title to the Bode plot.
         
         Parameters:
         - text: The title text (string)
-        - font_size: Font size (default: 40)
+        - font_size: Font size (default: 35)
         - use_math_tex: Whether to render as MathTex (default: False)
         """
         self.title_font_size = font_size
         self._use_math_tex = use_math_tex
         self._has_title = True  # Mark that a title exists
 
-        self.title_buff = (self.title_font_size/40)*0.3 + (40-self.title_font_size)*0.02
+        self.title_buff = (self.title_font_size/30)*0.3 + (30-self.title_font_size)*0.01
         # Remove existing title if present
         if self._title is not None:
             self.remove(self._title)

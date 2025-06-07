@@ -15,5 +15,6 @@ setup(
     tests_require=['pytest==4.4.1'],
     test_suite='tests',long_description=description,
     license='MIT',
-    long_description_content_type="text/markdown"
+    long_description_content_type="text/markdown",
+    url='https://github.com/JortStamme/Controltheorylibrary'
 )
