@@ -1620,6 +1620,7 @@ class BodePlot(VGroup):
         self.magnitude_yrange = magnitude_yrange if magnitude_yrange is not None else auto_ranges['mag_range']
         self.phase_yrange = phase_yrange if phase_yrange is not None else auto_ranges['phase_range']
         
+        
         self._title = None
         self._use_math_tex = False  # Default to normal text
         self._has_title = False
@@ -1942,9 +1943,12 @@ class BodePlot(VGroup):
         ticks = VGroup()
         
         if orientation == "horizontal":
-            span = y_range[1] - y_range[0]
-            step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
-           15 if span <= 90 else (30 if span <= 180 else 45)
+            if y_range[2] == None:
+                span = y_range[1] - y_range[0]
+                step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
+                15 if span <= 90 else (30 if span <= 180 else 45)
+            else:
+                step = y_range[2]
             tick_length = 0.1
             
             for y_val in np.arange(y_range[0], y_range[1]+1, step):
@@ -2054,9 +2058,12 @@ class BodePlot(VGroup):
     def create_y_labels(self, axes, y_range):
         """Create dynamic y-axis labels."""
         y_labels = VGroup()
-        span = y_range[1] - y_range[0]
-        step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
-               15 if span <= 90 else (30 if span <= 180 else 45)
+        if y_range[2]==None:
+            span = y_range[1] - y_range[0]
+            step = 5 if span <= 30 else (10 if span <= 60 else 20) if axes == self.mag_axes else \
+                15 if span <= 90 else (30 if span <= 180 else 45)
+        else:
+            step = y_range[2]
         
         for y_val in np.arange(y_range[0], y_range[1]+1, step):
             point = axes.c2p(axes.x_range[0], y_val)
@@ -2132,8 +2139,8 @@ class BodePlot(VGroup):
         # Step 1: Determine freq range based on features
         all_features = np.abs(np.concatenate([finite_poles, finite_zeros]))
         if len(all_features) > 0:
-            min_freq = 10**(np.floor(np.log10(np.min(all_features)))-2)
-            max_freq = 10**(np.ceil(np.log10(np.max(all_features)))+2)
+            min_freq = 10**(np.floor(np.log10(np.min(all_features)))-1)
+            max_freq = 10**(np.ceil(np.log10(np.max(all_features)))+1)
         else:
             min_freq, max_freq = 0.1, 100
 
@@ -2229,8 +2236,8 @@ class BodePlot(VGroup):
 
         return {
             'freq_range': (float(min_freq), float(max_freq)),
-            'mag_range': (float(mag_min), float(mag_max)),
-            'phase_range': (float(self.phase_min), float(self.phase_max))
+            'mag_range': (float(mag_min), float(mag_max), None),
+            'phase_range': (float(self.phase_min), float(self.phase_max), None)
         }
 
     
@@ -2591,8 +2598,13 @@ class BodePlot(VGroup):
         if hasattr(self, 'phase_asymp'):
             self.phase_min_calc = min(np.min(self.phase_min_calc), np.min(self.phase_asymp))
             self.phase_max_calc = max(np.max(self.phase_max_calc), np.max(self.phase_asymp))
-
+        
+        mag_min, mag_max = self.magnitude_yrange[0], self.magnitude_yrange[1]
+        phase_min, phase_max = self.phase_yrange[0], self.phase_yrange[1]
+        clipped_mag_asymp = np.clip(self.mag_asymp, mag_min, mag_max)
+        clipped_phase_asymp = np.clip(self.phase_asymp, phase_min, phase_max)
         self.tol=1e-6
+
         # ===== Magnitude Plot =====
         mag_break_indices = [np.argmin(np.abs(self.frequencies - f)) 
                             for f in self.mag_break_freqs]
@@ -2608,14 +2620,15 @@ class BodePlot(VGroup):
         for i in range(len(mag_break_indices)-1):
             start_idx = mag_break_indices[i]
             end_idx = mag_break_indices[i+1]
-            
+            y_start = clipped_mag_asymp[start_idx]
+            y_end = clipped_mag_asymp[end_idx]
             start_point = self.mag_axes.coords_to_point(
                 np.log10(self.frequencies[start_idx]),
-                self.mag_asymp[start_idx]
+                y_start
             )
             end_point = self.mag_axes.coords_to_point(
                 np.log10(self.frequencies[end_idx]),
-                self.mag_asymp[end_idx]
+                y_end
             )
             
             segment = Line(start_point, end_point, color=color,
@@ -2629,9 +2642,13 @@ class BodePlot(VGroup):
         for i in range(len(self.frequencies) - 1):
             freq1 = self.frequencies[i]
             freq2 = self.frequencies[i+1]
-            phase1 = self.phase_asymp[i]
-            phase2 = self.phase_asymp[i+1]
+            phase1 = clipped_phase_asymp[i]
+            phase2 = clipped_phase_asymp[i+1]
 
+        # Only draw if within frequency range
+            if not (self.freq_range[0] <= freq1 <= self.freq_range[1] and
+                    self.freq_range[0] <= freq2 <= self.freq_range[1]):
+                continue
             # Draw horizontal segment
             point1_h = self.phase_axes.coords_to_point(np.log10(freq1), phase1)
             point2_h = self.phase_axes.coords_to_point(np.log10(freq2), phase1) # Horizontal segment stays at phase1
