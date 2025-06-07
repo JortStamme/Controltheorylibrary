@@ -9,7 +9,7 @@ class CoupledSpringDamper(Scene):
         m1_val, m2_val = 1.0, 1.5  # masses
         c1_val, c2_val, c3_val = 0.2, 0.3, 0.  # damping coefficients
         k1_val, k2_val, k3_val = 1.0, 0.8, 0.5  # spring constants
-        F1_val, F2_val = 0.7, 0.5  # external forces
+        F1_val, F2_val = 0.6, 0.5  # external forces
         
         # Initial conditions [x1, x2, x1_dot, x2_dot]
         initial_conditions = [0.4, 0.7, 0, 0]
@@ -89,10 +89,10 @@ class CoupledSpringDamper(Scene):
         dampers_labels = VGroup(c1_label, c2_label, c3_label)
 
         #Force arrows
-        f1 = Arrow(start=[-0.7,0,0], end=[-0.7,1,0], buff=0)
+        f1 = Arrow(start=[-0.7,0,0], end=[-0.7,0.5,0], buff=0)
         f1_label = MathTex("F_1", font_size=35).next_to(f1, RIGHT, buff=0.1)
 
-        f2 = Arrow(start=[1,1.5,0], end=[1,0.5,0], buff=0)
+        f2 = Arrow(start=[1,1.5,0], end=[1,1.0,0], buff=0)
         f2_label = MathTex("F_2", font_size=35).next_to(f2, RIGHT, buff=0.1)
 
         forces = VGroup(f1,f2,f1_label,f2_label)
@@ -108,7 +108,7 @@ class CoupledSpringDamper(Scene):
 
         position = VGroup(x1_line,x1_arrow,x1_label,x2_line,x2_arrow,x2_label)
 
-        self.add(floor, m1, m2,springs,forces,position)
+        self.add(floor, m1, m2,springs,forces)
 
         m1_initial_pos = m1.get_center()
         m2_initial_pos = m2.get_center()
@@ -198,9 +198,9 @@ class CoupledSpringDamper(Scene):
         # Create the animation
         self.play(
             UpdateFromAlphaFunc(
-                VGroup(m1, m2, k1, k2, k3, c1_rod, c2_rod, c3_rod, k1_label, k2_label, k3_label, c1_label, c2_label, c3_label,f1,f2,f1_label,f2_label, x1_line, x1_arrow, x1_label, x2_line, x2_arrow, x2_label),
+                VGroup(m1, m2, k1, k2, k3, c1_rod, c2_rod, c3_rod, k1_label, k2_label, k3_label, c1_label, c2_label, c3_label,f1,f2,f1_label,f2_label),
                 update_system,
-                run_time=15,
+                run_time=5,
                 rate_func=linear
             )
         )

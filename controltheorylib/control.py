@@ -381,7 +381,7 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None, **kwargs):
 
 
 class PoleZeroMap(VGroup):
-    def __init__(self, num, den, x_range=None, y_range=None, 
+    def __init__(self, num, den, x_range=None, y_range=None, dashed_axis=True, 
                  y_axis_label=None, x_axis_label=None,
                  font_size_labels=28, show_unit_circle=False, **kwargs):
         """
@@ -401,6 +401,8 @@ class PoleZeroMap(VGroup):
             Range for the real axis in the form [min, max, step]. If None, automatically determined.
         y_range : list[float] | None
             Range for the imaginary axis in the form [min, max, step]. If None, automatically determined.
+        dashed_axis : bool
+            Whether the axis lines are dashed
         x_axis_label : str
             Label for the real axis.
         y_axis_label : str
@@ -436,7 +438,7 @@ class PoleZeroMap(VGroup):
         self.axis_labels = None
         self.title_text = None
         self.show_unit_circle = show_unit_circle
-
+        self.dashed_axes = dashed_axis
         self.tick_style = {
             "color": WHITE,
             "stroke_width": 1.2
@@ -445,15 +447,15 @@ class PoleZeroMap(VGroup):
         self._determine_system_type()
         if self.y_axis_label == None:
             if self.system_type== 'discrete':
-                self.y_axis_label = "\\mathrm{Imaginary} \ \\mathrm{Axis} \ (\\mathrm{z^{-1}})"
+                self.y_axis_label = "\\mathrm{Im}(z)"
             else:
-                self.y_axis_label = "\\mathrm{Imaginary} \ \\mathrm{Axis} \ (\\mathrm{s^{-1}})"
+                self.y_axis_label = "\\mathrm{Im}(s)"
         
         if self.x_axis_label == None:
             if self.system_type== 'discrete':
-                self.x_axis_label = "\\mathrm{Real} \ \\mathrm{Axis} \ (\\mathrm{z^{-1}})"
+                self.x_axis_label = "\\mathrm{Re}(z)"
             else:
-                self.x_axis_label = "\\mathrm{Real} \ \\mathrm{Axis} \ (\\mathrm{s^{-1}})"
+                self.x_axis_label = "\\mathrm{Re}(s)"
 
         self._calculate_poles_zeros()
         self._determine_ranges()
@@ -556,8 +558,12 @@ class PoleZeroMap(VGroup):
         x_start, x_end = self.axis.x_axis.get_start(), self.axis.x_axis.get_end()
         y_start, y_end = self.axis.y_axis.get_start(), self.axis.y_axis.get_end()
 
-        self.dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
-        self.dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        if self.dashed_axes==True:
+            self.x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+            self.y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        else:
+            self.x_axis = Line(x_start,x_end, color=WHITE, stroke_opacity=0.7)
+            self.y_axis = Line(y_start,y_end, color=WHITE, stroke_opacity=0.7)
 
         self.surrbox = SurroundingRectangle(self.axis, buff=0, color=WHITE, stroke_width=2)
         # Add axis labels
@@ -591,7 +597,7 @@ class PoleZeroMap(VGroup):
         self.y_tick_labels = self.create_tick_labels(self.axis, orientation="vertical")  
 
         # Add all components to the group
-        self.add(self.axis, self.zeros, self.poles, self.surrbox, self.dashed_x_axis, self.dashed_y_axis, 
+        self.add(self.axis, self.zeros, self.poles, self.surrbox, self.x_axis, self.y_axis, 
                  self.x_ticks, self.y_ticks, self.x_tick_labels,self.y_tick_labels)
         
         if self.show_unit_circle or self.system_type == 'discrete':
@@ -917,212 +923,6 @@ class PoleZeroMap(VGroup):
         self.add(self.title_text)
         
         return self
-    
-    def get_plot_animations(self):
-        """Return animations for plotting the pole-zero map in stages"""
-        animations = {
-            'axis': [Create(self.axis)],
-            'zeros': [Create(self.zeros)],
-            'poles': [Create(self.poles)],
-            'stability': [],
-            'title': []
-        }
-        
-        if self.stable:
-            animations['stability'].append(Create(self.stable))
-        if self.unstable:
-            animations['stability'].append(Create(self.unstable))
-        if self.unit_circle:
-            animations['stability'].append(Create(self.unit_circle))
-        if self.title_text:
-            animations['title'].append(Write(self.title_text))
-        
-        return animations
-    
-#Pole-zero map function
-def pzmap(num, den, x_range=None, y_range=None, title=None):
-    """
-    Creates a Manim VGroup containing the pole-zero plot with enhanced visualization features.
-
-    :param num: Symbolic expression for the numerator (use s for continuous-time and z for discrete-time)
-    :param den: Symbolic expression for the denominator (use s for continuous-time and z for discrete-time)
-    :param x_range: Sets the x_range
-    :param y_range: Sets the y_range
-    :param title: Title of the plot
-    :return: Tuple containing (axis, zero_markers, pole_markers, stable, unstable, axis_labels, unit_circle)
-    """
-
-    # Check if the system is continuous or discrete-time
-    if 's' in str(num) or 's' in str(den):  # Continuous-time system (Laplace domain)
-        system_type = 'continuous'
-        variable = sp.symbols('s')
-    elif 'z' in str(num) or 'z' in str(den):  # Discrete-time system (Z-domain)
-        system_type = 'discrete'
-        variable = sp.symbols('z')
-    else:
-        raise ValueError("Unable to determine if the system is continuous or discrete.")
-
-    # Factorize numerator and denominator
-    num_factored = sp.factor(num, variable)
-    den_factored = sp.factor(den, variable)
-
-    # Compute poles and zeros
-    zeros_gr = sp.solve(num_factored, variable)
-    poles_gr = sp.solve(den_factored, variable)
-
-    # Convert to numerical values
-    zero_coords = [(float(sp.re(z)), float(sp.im(z))) for z in zeros_gr]
-    pole_coords = [(float(sp.re(p)), float(sp.im(p))) for p in poles_gr]
-
-    # Extract real and imaginary parts of zeros and poles
-    zero_real_parts = [z[0] for z in zero_coords]
-    zero_imag_parts = [z[1] for z in zero_coords]
-    pole_real_parts = [p[0] for p in pole_coords]
-    pole_imag_parts = [p[1] for p in pole_coords]
-
-    # Calculate the max and min for real and imaginary parts
-    max_zero_real = max(zero_real_parts)
-    min_zero_real = min(zero_real_parts)
-    max_zero_imag = max(zero_imag_parts)
-    min_zero_imag = min(zero_imag_parts)
-
-    max_pole_real = max(pole_real_parts)
-    min_pole_real = min(pole_real_parts)
-    max_pole_imag = max(pole_imag_parts)
-    min_pole_imag = min(pole_imag_parts)
-    
-    # Check max x_range
-    if x_range is None:
-        if max_zero_real >= max_pole_real:
-            x_range_max = max_zero_real
-        else:
-            x_range_max = max_pole_real
-    # Check min x_range
-        if min_zero_real <= min_pole_real:
-            x_range_min = min_zero_real
-        else: 
-            x_range_min = min_pole_real
-        x_range_re = [x_range_min-1, x_range_max+1, 1]
-    else:
-        x_range_re = x_range
-    # Check max y_range
-    if y_range is None:
-        if max_zero_imag >= max_pole_imag:
-            y_range_max = max_zero_imag
-        else: 
-            y_range_max = max_pole_imag
-    # Check min y_range
-        if min_zero_imag <= min_pole_imag:
-            y_range_min = min_zero_imag
-        else:
-            y_range_min = min_pole_imag
-        y_range_im = [y_range_min-1,y_range_max+1,1]
-    else:
-        y_range_im = y_range
-
-    # Create axis
-    axis = ComplexPlane(
-    x_range= x_range_re,  
-    y_range= y_range_im,
-    background_line_style={"stroke_opacity": 0.5}
-    ).add_coordinates()
-
-    # Add axis labels
-    re_label = MathTex(r"\mathrm{Re}").next_to(axis.get_x_axis(), RIGHT, buff=0.3)
-    im_label = MathTex(r"\mathrm{Im}").next_to(axis.get_y_axis(), UP, buff=0.3)
-    axis_labels = VGroup(re_label, im_label)
-    axis.add(axis_labels)
-
-    # Plot zeros (blue circles)
-    zero_markers = [Circle(radius=0.15, color=BLUE).move_to(axis.n2p(complex(x, y))) for x, y in zero_coords]
-
-    # Plot poles (red crosses)
-    pole_markers = [Cross(scale_factor=0.2, color=RED).move_to(axis.n2p(complex(x, y))) for x, y in pole_coords]
-    
-    zeros = VGroup(*zero_markers)
-    poles = VGroup(*pole_markers)
-    
-    # set groups to None
-    stable, unstable = None, None
-    unit_circle = None
-
-    if system_type == 'continuous':
-    # Highlight unstable region (right-half plane)
-        # determine width of unstable region
-        if x_range_re[1]<=0:
-            width_unst = 0
-        else: 
-            width_unst = x_range_re[1]
-        
-        unstable_region = Rectangle(
-        width=width_unst, height=abs(y_range_im[0])+abs(y_range_im[1]),
-        color=RED, fill_opacity=0.2, stroke_opacity=0
-        ).move_to(axis.n2p(0 + 0j), aligned_edge=LEFT)
-
-        Text_unst = None
-        if width_unst > 0:
-            Text_unst = Text("Unstable", font_size=40).move_to(unstable_region, aligned_edge=UP)
-            if width_unst<=2:
-                Text_unst.shift(0.5*RIGHT)
-
-        unstable = VGroup(unstable_region, Text_unst) if Text_unst else VGroup(unstable_region)
-
-    # Highlight stable region (left-half plane)
-        if x_range_re[0]>=0:
-            width_st = 0
-        else:
-            width_st = abs(x_range_re[0])
-        
-    
-        stable_region = Rectangle(
-        width=width_st, height=abs(y_range_im[0])+abs(y_range_im[1]),
-        color=BLUE, fill_opacity=0.2, stroke_opacity = 0
-        ).move_to(axis.n2p(0+0j),aligned_edge=RIGHT)
-        Text_stab = Text("Stable", font_size=40).move_to(stable_region, aligned_edge=UP)
-        if width_st <=2:
-            Text_stab.shift(0.2*LEFT)
-        stable = VGroup(stable_region, Text_stab)
-        
-        
-    elif system_type == 'discrete': 
-        unit_circle = Circle(radius=1, color=WHITE)
-        unit_circle.move_to(axis.n2p(0+0j))
-        axis.add(unit_circle)
-
-        #stable region
-        stable_region = Circle(radius=1, stroke_opacity=0, fill_opacity=0.2, color=BLUE)
-        stable_region.move_to(axis.n2p(0+0j))
-        Text_stab = Text("Stable", font_size=35).move_to(stable_region, aligned_edge=UP)
-        Text_stab.shift(0.5*UP)
-
-        # unstable region
-        unstable_region = Rectangle(
-        width=axis.get_width()-re_label.get_width()-0.3,
-        height=axis.get_height()-im_label.get_width()-0.3,
-        color=RED, fill_opacity=0.2, stroke_opacity=0
-        ).move_to(axis, aligned_edge=LEFT)
-        unstable_region.shift(0.2*DOWN)
-        Text_unst = Text("Unstable", font_size=35).move_to(axis.get_center() + 2.5*RIGHT+2.5*UP)
-
-        unstable_region.set_z_index(-1)  # Send to background
-        stable_region.set_z_index(1)  # Bring stable region to front
-
-        stable = VGroup(stable_region, Text_stab)
-        unstable = VGroup(unstable_region, Text_unst)
-    
-    show_title = None
-    if title:
-        show_title = Text(title).next_to(axis, UP)
-
-    return axis, zeros, poles, stable, unstable, show_title
-
-#Show total pole-zero map function
-def show_pzmap(axis,zeros,poles,stable,unstable,show_title):
-    """
-    retuns Pole-zero map
-    """
-    show_pzmap = VGroup(axis, zeros, poles,stable, unstable, show_title)
-    return FadeIn(show_pzmap)
 
 
 #Control loop system classes
@@ -3113,7 +2913,7 @@ class BodePlot(VGroup):
 #Nyquist plot class
 class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
-                 color=BLUE, stroke_width=2, y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
+                 color=BLUE, stroke_width=2, axis_dashed=True, y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
                  font_size_labels=20, show_unit_circle=False, unit_circle_dashed=True, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
                   show_positive_freq=True, show_negative_freq=True, **kwargs):
         """
@@ -3141,6 +2941,8 @@ class Nyquist(VGroup):
             Color of the Nyquist plot curve (default: BLUE).
         stroke_width : float
             Stroke width of the plot curve (default: 2).
+        axis_dashed : bool
+            Whether to have the axis lines dashed or not
         y_axis_label : str
             Label for the imaginary axis (default: "Im").
         x_axis_label : str
@@ -3193,6 +2995,7 @@ class Nyquist(VGroup):
         self.show_positive_freq = show_positive_freq
         self.show_negative_freq = show_negative_freq
         self.unit_circle_dashed = unit_circle_dashed
+        self.axis_dashed = axis_dashed
 
         self.axes_components = VGroup()
         self.nyquist_plot = VMobject()
@@ -3643,10 +3446,12 @@ class Nyquist(VGroup):
         )
         x_start, x_end = self.plane.x_axis.get_start(), self.plane.x_axis.get_end()
         y_start, y_end = self.plane.y_axis.get_start(), self.plane.y_axis.get_end()
-
-        self.dashed_x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
-        self.dashed_y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
-
+        if self.axis_dashed == True:
+            self.x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+            self.y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
+        else:
+            self.x_axis = Line(x_start,x_end,color=WHITE, stroke_opacity=0.7)
+            self.y_axis = Line(y_start,y_end,color=WHITE, stroke_opacity=0.7)
         # Add labels
         self.x_axislabel = MathTex(self.x_axis_label, font_size=self.font_size_labels)
         self.y_axislabel = MathTex(self.y_axis_label, font_size=self.font_size_labels)
@@ -3775,7 +3580,7 @@ class Nyquist(VGroup):
             self.x_axislabel,
             self.y_axislabel,
             self.grid_lines,
-            self.unit_circle, self.dashed_x_axis, self.dashed_y_axis
+            self.unit_circle, self.x_axis, self.y_axis
         )
         
         # Add to main group
@@ -4052,13 +3857,13 @@ class Nyquist(VGroup):
         
         return labels
 
-    def title(self, text, font_size=40, color=WHITE, use_math_tex=False):
+    def title(self, text, font_size=30, color=WHITE, use_math_tex=False):
         """
         Add a title to the Nyquist plot.
         
         Parameters:
         - text: The title text (string)
-        - font_size: Font size (default: 40)
+        - font_size: Font size (default: 30)
         - use_math_tex: Whether to render as MathTex (default: False)
         """
         self.title_font_size = font_size
@@ -4071,13 +3876,13 @@ class Nyquist(VGroup):
         
         # Create new title
         if use_math_tex:
-            self._title = MathTex(text, font_size=self.title_font_size, color=color)
+            self.title_text = MathTex(text, font_size=self.title_font_size, color=color)
         else:
-            self._title = Text(text, font_size=self.title_font_size, color=color)
+            self.title_text = Text(text, font_size=self.title_font_size, color=color)
         
         # Position title
-        self._title.next_to(self.plane, UP, buff=0.3)
-        self.add(self._title)
+        self.title_text.next_to(self.plane, UP, buff=0.2)
+        self.add(self.title_text)
         
         return self
 
@@ -4216,17 +4021,17 @@ class Nyquist(VGroup):
             
             # Draw line from origin to gain margin point
             origin = self.plane.number_to_point(0 + 0j)
-            gm_line = DoubleArrow(origin, point, color=gm_color, stroke_width=4, buff=0.05, tip_length=0.15)
+            self.gm_line = DoubleArrow(origin, point, color=gm_color, stroke_width=4, buff=0.05, tip_length=0.15)
             if gm == np.isclose(gm,0,atol=1e-1):
                 self.gm_label = MathTex(f"\\frac{{1}}{{\\text{{GM}}}} = \\text{{inf}}", 
                              font_size=font_size, color=gm_color)
             else:
                 self.gm_label = MathTex(f"\\frac{{1}}{{\\text{{GM}}}} = {1/gm:.2f}", 
                              font_size=font_size, color=gm_color)
-            self.gm_label.next_to(gm_line,UP, buff=0.1)
-            gm_group.add(self.gm_label,gm_line)
+            self.gm_label.next_to(self.gm_line,UP, buff=0.1)
+            gm_group.add(self.gm_label,self.gm_line)
             self.margin_indicators.add(gm_group)
-            gm_anims.extend([Create(gm_line)])
+            gm_anims.extend([Create(self.gm_line)])
             gm_anims.extend([Write(self.gm_label)])
         
         # Add phase margin indicator (point where magnitude crosses 1)
@@ -4250,7 +4055,7 @@ class Nyquist(VGroup):
             start_angle = np.pi  
             end_angle = start_angle + np.deg2rad(pm)
             
-            self.arc = ParametricFunction(
+            self.pm_arc = ParametricFunction(
                 lambda t: self.plane.number_to_point(np.exp(1j * t)),
                 t_range=[start_angle, end_angle,  0.01],
                 color=pm_color,
@@ -4258,11 +4063,11 @@ class Nyquist(VGroup):
                 stroke_opacity=0.7,
                 fill_opacity=0
             )
-            pm_anims.extend([Create(self.arc)])
+            pm_anims.extend([Create(self.pm_arc)])
             if pm!=0:
-                tip_location = self.arc.get_point_from_function(start_angle)
+                tip_location = self.pm_arc.get_point_from_function(end_angle)
                 # Calculate the direction vector from start_dir_idx to end_dir_idx
-                direction_vector = self.arc.get_point_from_function(start_angle)-self.arc.get_point_from_function(end_angle)
+                direction_vector = self.pm_arc.get_point_from_function(end_angle)-self.pm_arc.get_point_from_function(start_angle)
 
                 # Calculate the angle of the direction vector
                 angle = angle_of_vector(direction_vector)
@@ -4274,19 +4079,19 @@ class Nyquist(VGroup):
                 self.arrow_tip.set_color(pm_color)
                 # Move it to the tip location
                 self.arrow_tip.move_to(tip_location)
-                angle_label = MathTex(f"PM = {pm:.0f}^\\circ", 
+                self.pm_label = MathTex(f"PM = {pm:.0f}^\\circ", 
                                font_size=font_size, color=pm_color)
-                angle_label.next_to(self.arc,LEFT,buff=0.1)
-                pm_group.add(self.arrow_tip, angle_label)
+                self.pm_label.next_to(self.pm_arc,LEFT,buff=0.1)
+                pm_group.add(self.arrow_tip, self.pm_label)
                 pm_anims.extend([Create(self.arrow_tip)])
-                pm_anims.extend([Write(angle_label)])
+                pm_anims.extend([Write(self.pm_label)])
             else:
-                self.angle_label = MathTex(f"PM = {pm:.0f}^\\circ", 
+                self.pm_label = MathTex(f"PM = {pm:.0f}^\\circ", 
                                font_size=font_size, color=pm_color)
-                self.angle_label.next_to(self.plane.number_to_point(-1 + 0j),UP,buff=0.2)
-                pm_group.add(self.angle_label)
-                pm_anims.extend([Write(self.angle_label)])
-            pm_group.add(self.arc)
+                self.pm_label.next_to(self.plane.number_to_point(-1 + 0j),UP,buff=0.2)
+                pm_group.add(self.pm_label)
+                pm_anims.extend([Write(self.pm_label)])
+            pm_group.add(self.pm_arc)
             self.margin_indicators.add(pm_group)
         
         if mm != np.inf and show_mm==True:
@@ -4320,12 +4125,12 @@ class Nyquist(VGroup):
             desired_dash_length = 0.05
             line_length = 2*np.pi*r
             num_dashes = max(1, int(line_length / desired_dash_length))
-            self.dashed_mm_circle = DashedVMobject(
+            self.mm_circle = DashedVMobject(
                 mm_circle, num_dashes=num_dashes,
                 dashed_ratio=0.5
             )
-            mm_group.add(self.mm_line, self.mm_dot, self.mm_label, self.dashed_mm_circle)
-            mm_anims.extend([Create(self.dashed_mm_circle)])
+            mm_group.add(self.mm_line, self.mm_dot, self.mm_label, self.mm_circle)
+            mm_anims.extend([Create(self.mm_circle)])
             mm_anims.extend([Create(self.mm_dot)])
             mm_anims.extend([Create(self.mm_line)])
             mm_anims.extend([Write(self.mm_label)])

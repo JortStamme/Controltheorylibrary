@@ -11,6 +11,12 @@ class Bode(MovingCameraScene):
         system1 = (num1, den1)
 
         bode1 = BodePlot(system1, magnitude_yrange=[-200,25], phase_yrange=[-270,0], freq_range=[0.1,1000])
+        s = sp.symbols('s')
+        num3 = 10
+        den3 = (s+2)*(s+10)
+        system3 = (num3, den3)
+
+        bode3 = BodePlot(system3, magnitude_yrange=[-200,25], phase_yrange=[-270,0], freq_range=[0.1,1000])
         bode1.grid_on()
         
         self.play(Create(bode1.mag_box),Create(bode1.phase_box))
@@ -59,12 +65,15 @@ class Bode(MovingCameraScene):
         arrow_label.next_to(arrow, RIGHT, buff=0.1)
         # Transform the first plot into the second plot
         self.play(
-            Transform(bode1.mag_plot, bode2.mag_plot),
-            Transform(bode1.phase_plot, bode2.phase_plot),
+            ReplacementTransform(bode1.mag_plot, bode2.mag_plot),
+            ReplacementTransform(bode1.phase_plot, bode2.phase_plot),
             GrowArrow(arrow),
             FadeIn(arrow_label),
             run_time=2)
         self.wait(2)
+        self.play(ReplacementTransform(bode2.mag_plot,bode3.mag_plot),
+                  ReplacementTransform(bode2.phase_plot,bode3.phase_plot))
+
 
         #self.play(*margin_data['animations']['parts']['reference_lines'])
         #self.wait(0.5)

@@ -11,20 +11,6 @@ To install the dependicies, type the following line of code in your system termi
 
 `pip install -r requirements.txt`
 
-When the dependicies have succesfully been installed:
-1. Navigate to the python terminal and type:
-2. `pip install wheel`
-3. `python setup.py bdist_wheel`
-4. `pip install dist\controltheorylib-0.1.0-py3-none-any.whl`
-
- ## Features
-
-+ 🎥 Seamless integration with Manim – Generate smooth mathematical animations for control theory.
-
-+ 📊 Bode, Nyquist, and Root Locus Plots – Easily animate common control theory visualizations.
-
-+ 🔧 Customizable Animations – Adjust colors, styles, and parameters for better visualization.
-
 
 ## More details
 For more details, check the documentation (add link).
