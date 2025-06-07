@@ -2296,24 +2296,51 @@ class BodePlot(VGroup):
 
     # Plot the actual data
     def plot_bode_response(self):
-        """Create the Bode plot curves for the visible plots."""
+        """Create the Bode plot curves with proper out-of-range handling."""
         log_w = np.log10(self.frequencies)
         
-        clipped_magnitudes = np.clip(self.magnitudes, 
-                            self.magnitude_yrange[0], 
-                            self.magnitude_yrange[1])
-        # Magnitude plot
-        mag_points = [self.mag_axes.coords_to_point(x, y) for x, y in zip(log_w, clipped_magnitudes)]
-        self.mag_plot = VMobject().set_points_as_corners(mag_points)
-        self.mag_plot.set_color(color=self.plotcolor).set_stroke(width=self.plot_stroke_width)
+        # Magnitude plot - don't clip, but exclude points completely outside range
+        valid_mag = (self.magnitudes >= self.magnitude_yrange[0]) & \
+                    (self.magnitudes <= self.magnitude_yrange[1])
         
-        # Phase plot
-        phase_points = [self.phase_axes.coords_to_point(x, y) for x, y in zip(log_w, self.phases)]
+        # Create discontinuous plot when leaving/entering valid range
+        mag_points = []
+        prev_valid = False
+        for x, y, valid in zip(log_w, self.magnitudes, valid_mag):
+            if valid:
+                mag_points.append(self.mag_axes.coords_to_point(x, y))
+            elif prev_valid:
+                # Add break point when leaving valid range
+                mag_points.append(None)  # Creates discontinuity
+            prev_valid = valid
+        
+        self.mag_plot = VMobject()
+        if mag_points:
+            # Filter out None values and create separate segments
+            segments = []
+            current_segment = []
+            for point in mag_points:
+                if point is None:
+                    if current_segment:
+                        segments.append(current_segment)
+                        current_segment = []
+                else:
+                    current_segment.append(point)
+            if current_segment:
+                segments.append(current_segment)
+            
+            # Create separate VMobjects for each continuous segment
+            for seg in segments:
+                if len(seg) > 1:
+                    new_seg = VMobject().set_points_as_corners(seg)
+                    new_seg.set_color(self.plotcolor).set_stroke(width=self.plot_stroke_width)
+                    self.mag_plot.add(new_seg)
+
+        # Phase plot (unchanged)
+        phase_points = [self.phase_axes.coords_to_point(x, y) 
+                    for x, y in zip(log_w, self.phases)]
         self.phase_plot = VMobject().set_points_as_corners(phase_points)
         self.phase_plot.set_color(color=self.plotcolor).set_stroke(width=self.plot_stroke_width)
-
-        # add both plots
-        #self.add(self.mag_plot, self.phase_plot)
 
     def get_critical_points(self):
         """Identify critical points (resonance, crossover, etc.)"""

@@ -5,7 +5,8 @@ class Static_example2(Scene):
     def construct(self):
 
         # Create major Bode plot attributes, define system transfer function using string
-        bode = BodePlot(("(s**3+2*s**2)/((s+1)**4)"), font_size_xlabel=18, font_size_ylabels=18, magnitude_yrange=[-100,0,10])
+        bode = BodePlot(("(s**3+2*s**2)/((s+1)**4)"), font_size_xlabel=18, font_size_ylabels=18,
+                        magnitude_yrange=[-100,0,10], freq_range=[0.01,100])
 
         # Add title to the bode plot using default settings
         bode.title("Bode plot")
