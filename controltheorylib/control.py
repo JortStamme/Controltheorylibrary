@@ -2682,7 +2682,7 @@ class BodePlot(VGroup):
             if hasattr(self, attr) and getattr(self, attr) in getattr(self, attr.split('_')[0] + '_components'):
                 getattr(self, attr.split('_')[0] + '_components').remove(getattr(self, attr))
 
-    def show_margins(self, show_values=True, show_pm=True, show_gm=True, pm_color=YELLOW, gm_color=YELLOW, text_color=WHITE, font_size=24, **kwargs):
+    def show_margins(self, show_values=True, show_pm=True, show_gm=True, pm_color=YELLOW, gm_color=YELLOW, text_color_white=True,font_size=24, pm_label_pos=DOWN+LEFT, gm_label_pos=UP+RIGHT,**kwargs):
         """
         Show gain and phase margins on the Bode plot if possible.
         
@@ -2758,7 +2758,7 @@ class BodePlot(VGroup):
 
                 self.gm_vector = Arrow(self.mag_axes.c2p(log_wg, 0),
                             self.mag_axes.c2p(log_wg, gain_at_wp),color=gm_color,
-                    buff=0)
+                    buff=0, tip_length=0.15)
                 gm_vector_width = max(1.5, min(8.0, 0.75/self.gm_vector.get_length()))
                 self.gm_vector.set_stroke(width=gm_vector_width)
                 margin_group.add(self.gm_vector)
@@ -2767,14 +2767,24 @@ class BodePlot(VGroup):
                 
                 # Add text label if requested
                 if show_values:
-                    self.gm_text = MathTex(
-                        f"GM = {gm:.2f} dB",
-                        font_size=font_size,
-                        color=text_color
-                    ).next_to(
-                        self.mag_axes.c2p(log_wg, gain_at_wp),
-                        UP+RIGHT, buff=0.2
-                    )
+                    if text_color_white==False:
+                        self.gm_text = MathTex(
+                            f"GM = {gm:.2f} dB",
+                            font_size=font_size,
+                            color=gm_color
+                        ).next_to(
+                            self.mag_axes.c2p(log_wg, gain_at_wp),
+                            gm_label_pos, buff=0.2
+                        )
+                    else:
+                        self.gm_text = MathTex(
+                            f"GM = {gm:.2f} dB",
+                            font_size=font_size,
+                            color=WHITE
+                        ).next_to(
+                            self.mag_axes.c2p(log_wg, gain_at_wp),
+                            gm_label_pos, buff=0.2
+                        )
                     margin_group.add(self.gm_text)
                     all_animations.extend([Write(self.gm_text)])
                     part3_anims.extend([Write(self.gm_text)])
@@ -2797,7 +2807,7 @@ class BodePlot(VGroup):
                     ,
                     color=gm_color, **kwargs
                 )
-                margin_group.add(self.vert_gain_line)
+                margin_group.add(self.vert_phase_line)
                 all_animations.extend([Create(self.vert_phase_line)])
                 part2_anims.extend([Create(self.vert_phase_line)])
 
@@ -2812,7 +2822,7 @@ class BodePlot(VGroup):
 
                 self.pm_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
                             self.phase_axes.c2p(log_wp, phase_at_wp),
-                    color=pm_color,buff=0)
+                    color=pm_color,tip_length=0.15,buff=0)
                 pm_vector_width = max(1.5, min(8.0, 0.75/self.pm_vector.get_length()))
                 self.pm_vector.set_stroke(width=pm_vector_width)
                 margin_group.add(self.pm_vector)
@@ -2821,18 +2831,28 @@ class BodePlot(VGroup):
 
                 # Add text label if requested
                 if show_values:
-                    self.pm_text = MathTex(
-                        f"PM = {pm:.2f}^\\circ",
-                        font_size=font_size,
-                        color=text_color
-                    ).next_to(
-                        self.phase_axes.c2p(log_wp, phase_at_wp),
-                        DOWN+LEFT, buff=0.2
-                    )
+                    if text_color_white==False:
+                        self.pm_text = MathTex(
+                            f"PM = {pm:.2f}^\\circ",
+                            font_size=font_size,
+                            color=pm_color
+                        ).next_to(
+                            self.phase_axes.c2p(log_wp, phase_at_wp),
+                            pm_label_pos, buff=0.2
+                        )
+                    else:
+                        self.pm_text = MathTex(
+                            f"PM = {pm:.2f}^\\circ",
+                            font_size=font_size,
+                            color=WHITE
+                        ).next_to(
+                            self.phase_axes.c2p(log_wp, phase_at_wp),
+                            pm_label_pos, buff=0.2
+                        )
                     margin_group.add(self.pm_text)
                     all_animations.extend([Write(self.pm_text)])
                     part3_anims.extend([Write(self.pm_text)])
-        
+        self.add(margin_group)
         return {
             'animations': {
                 'combined': all_animations,
