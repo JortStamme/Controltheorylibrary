@@ -50,3 +50,21 @@ self.wait(..)
 Everything within the play paranthesis will be animated simultaniously. The animation types of the components within this play function don't have to be the same. A list of all the individual plot component names can be found in the manual which can be found on the GitHub page. After each play command we use self.wait() to tell Manim to wait an x amount of seconds before moving on to the next animation.
 
 ## Animation_example3.py
+In this example, we aim to explain how a P-controller affects the open-loop bode plot. Here, we introduce the plant transfer function, controller and open-loop transfer function. We call the plant bode bode1 and the open-loop bode plot bode2, we define the same ranges for both bode plots because otherwise the auto_determine_range function will possibly determine different ranges for both bode plots which will result in the necessaity to transform all plot components.
+
+We then set the show_phase bool to false for both bode plots since we are only interested in the magnitude plot (P-controller does not affect phase). Moreover, we turn the grid on for both bode plots. 
+
+After this, we FadeIn the bode plot of the plant in a similar fashion as done in animation_example1.py. 
+
+Next, we introduce the plant transfer function, controller and open-loop transfer function using a sequence of Mathtex Mobjects.
+
+Next, we would like to animate how the bode magnitude grows using an arrow. This is done by firt finding the frequency index at which the bode plot is 1 rad/s. When this is known, the points of both magnitude plots can be found at this frequency using the coords_to_point function. These points will serve as the start and end points of the arrow. The difference in decibels is computed by simply calculating the difference in magnitude of bode2 at 1rad/s and that of bode1 at 1rad/s. This will be used to automate the label which shows the magnitude change. 
+
+The show_margin information is retrieved from the first bode plot to get the 0dB line. 
+
+Finally, the bode1 is transitioned to bode2 using the ReplacementTransform function. It is of importance to use ReplacementTransform instead of the regular Transform, this because old bode plots will remain visibile if the amount of bode plots transformed is larger than 2, even though they have been "transformed". In the same play command we animate the arrow using the GrowArrow tool and the label using FadeIn. This concludes this animation example.
+
+## Animation_example4.py
+In this example, we aim to animate the bode plot asymptotes of a given bode plot. We define the bode plot after which we create the asymptote attributes using the show_asymptotes function. 
+
+The bode plot components are animated step-by-step after which the asympote lines are animated using the Create animation tool. 

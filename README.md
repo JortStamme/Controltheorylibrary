@@ -6,11 +6,13 @@ The core philosophy behind Controltheorylib is to make control theory concepts m
 
 ## Getting started 
 ### Installation Dependicies
-Make sure you are in the root directory.
-To install the dependicies, type the following line of code in your system terminal or command prompt:
+To install the dependicies, copy-paste the following line of code in your system terminal or command prompt:
 
 `pip install -r requirements.txt`
 
+To install the library, copy-paste the following line of code in your system terminal or command prompt:
+
+`pip install controltheorylib`
 
 ## More details
 For more details, check the documentation [View PDF](https://raw.githubusercontent.com/JortStamme/Controltheorylibrary/main/Controltheorylib_manual.pdf).

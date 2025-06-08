@@ -2467,14 +2467,27 @@ class BodePlot(VGroup):
         w_start = self.frequencies[0]
         num_val_at_start = np.polyval(tf.num, w_start * 1j)
         den_val_at_start = np.polyval(tf.den, w_start * 1j)
-        complex_gain_at_start = num_val_at_start/den_val_at_start
-        start_phase_anchor = np.angle(complex_gain_at_start, deg=True)
+        dc_ph = num_val_at_start/den_val_at_start
+        #start_phase_anchor = np.angle(complex_gain_at_start, deg=True)
 
         # Calculate DC phase
         n_zeros_origin = sum(np.isclose(zeros, 0, atol=1e-8))
         n_poles_origin = sum(np.isclose(poles, 0, atol=1e-8))
-        initial_phase_shift = (n_zeros_origin-n_poles_origin)*90
+        start_phase = (n_zeros_origin - n_poles_origin) * 90
+    
+        # Adjust for DC gain sign if no origin poles/zeros
+        if n_zeros_origin == 0 and n_poles_origin == 0:
+            if np.real(dc_ph) < 0:
+                start_phase += 180
         
+        # Force exactly 0° start if no phase contribution
+        if n_zeros_origin == 0 and n_poles_origin == 0 and np.real(dc_ph) > 0:
+            start_phase = 0
+        
+        # Calculate phase at each frequency point
+        for i, freq in enumerate(self.frequencies):
+            current_phase = start_phase
+
         # ===== Magnitude Asymptote Calculation =====
         mag_slope = 0
         for i, freq in enumerate(self.frequencies):
@@ -2545,7 +2558,7 @@ class BodePlot(VGroup):
 
         # Calculate phase at each frequency point based on cumulative jumps
         for i, freq in enumerate(self.frequencies):
-            current_phase = start_phase_anchor # Start with DC phase from origin roots
+            current_phase = start_phase # Start with DC phase from origin roots
 
             # Add contributions from real poles
             for p in poles:
@@ -2591,7 +2604,6 @@ class BodePlot(VGroup):
         """Plot asymptotes using separate break frequencies for magnitude and phase"""
         self._remove_existing_asymptotes()
         self.show_asymptotes_r = True
-
         if not hasattr(self, 'mag_asymp'):
             self._calculate_asymptotes()
     
@@ -2694,12 +2706,6 @@ class BodePlot(VGroup):
         # Calculate stability margins
         gm, pm, sm, wg, wp, ws = self._calculate_stability_margins()
         
-        # Group to hold all margin indicators
-        all_animations = [] # everything combined
-        part1_anims = [] # 0dB and -180 deg lines
-        part2_anims = [] # vertical lines + dot at intersection
-        part3_anims = [] # arrows + labels
-
         margin_group = VGroup()
         
             # ===== Add 0dB line and -180 deg phase line =====
@@ -2711,8 +2717,7 @@ class BodePlot(VGroup):
                 self.mag_axes.c2p(x_max, 0),
                 color=pm_color, **kwargs)
             margin_group.add(self.zerodB_line)
-            all_animations.extend([Create(self.zerodB_line)])
-            part1_anims.extend([Create(self.zerodB_line)])
+
         if self._show_phase:
             # Create -180° line across the entire x-range
             x_min, x_max = self.phase_axes.x_range[0], self.phase_axes.x_range[1]
@@ -2721,8 +2726,6 @@ class BodePlot(VGroup):
                 self.phase_axes.c2p(x_max, -180),
                 color=gm_color,**kwargs)
             margin_group.add(self.minus180deg_line)
-            all_animations.extend([Create(self.minus180deg_line)])
-            part1_anims.extend([Create(self.minus180deg_line)])
 
             
         # Only proceed if we have valid margins
@@ -2746,15 +2749,11 @@ class BodePlot(VGroup):
                 )
             
                 margin_group.add(self.vert_gain_line)
-                all_animations.extend([Create(self.vert_gain_line)])
-                part2_anims.extend([Create(self.vert_gain_line)])
                 self.gm_dot = Dot(
                     self.phase_axes.c2p(log_wg, -180),
                     color=gm_color, radius=0.05
                 )
                 margin_group.add(self.gm_dot)
-                all_animations.extend([Create(self.gm_dot)])
-                part2_anims.extend([Create(self.gm_dot)])
 
                 self.gm_vector = Arrow(self.mag_axes.c2p(log_wg, 0),
                             self.mag_axes.c2p(log_wg, gain_at_wp),color=gm_color,
@@ -2762,8 +2761,6 @@ class BodePlot(VGroup):
                 gm_vector_width = max(1.5, min(8.0, 0.75/self.gm_vector.get_length()))
                 self.gm_vector.set_stroke(width=gm_vector_width)
                 margin_group.add(self.gm_vector)
-                all_animations.extend([Create(self.gm_vector)])
-                part3_anims.extend([Create(self.gm_vector)])
                 
                 # Add text label if requested
                 if show_values:
@@ -2786,8 +2783,6 @@ class BodePlot(VGroup):
                             gm_label_pos, buff=0.2
                         )
                     margin_group.add(self.gm_text)
-                    all_animations.extend([Write(self.gm_text)])
-                    part3_anims.extend([Write(self.gm_text)])
 
         if pm != np.inf and show_pm==True:
             
@@ -2808,8 +2803,6 @@ class BodePlot(VGroup):
                     color=gm_color, **kwargs
                 )
                 margin_group.add(self.vert_phase_line)
-                all_animations.extend([Create(self.vert_phase_line)])
-                part2_anims.extend([Create(self.vert_phase_line)])
 
                 # Add dot at 0 dB point
                 self.pm_dot = Dot(
@@ -2817,8 +2810,6 @@ class BodePlot(VGroup):
                     color=pm_color, radius=0.05
                 )
                 margin_group.add(self.pm_dot)
-                all_animations.extend([Create(self.pm_dot)])
-                part2_anims.extend([Create(self.pm_dot)])
 
                 self.pm_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
                             self.phase_axes.c2p(log_wp, phase_at_wp),
@@ -2826,8 +2817,6 @@ class BodePlot(VGroup):
                 pm_vector_width = max(1.5, min(8.0, 0.75/self.pm_vector.get_length()))
                 self.pm_vector.set_stroke(width=pm_vector_width)
                 margin_group.add(self.pm_vector)
-                all_animations.extend([Create(self.pm_vector)])
-                part3_anims.extend([Create(self.pm_vector)])
 
                 # Add text label if requested
                 if show_values:
@@ -2850,25 +2839,8 @@ class BodePlot(VGroup):
                             pm_label_pos, buff=0.2
                         )
                     margin_group.add(self.pm_text)
-                    all_animations.extend([Write(self.pm_text)])
-                    part3_anims.extend([Write(self.pm_text)])
+
         self.add(margin_group)
-        return {
-            'animations': {
-                'combined': all_animations,
-                'parts': {
-                    'reference_lines': part1_anims,
-                    'crossover': part2_anims,
-                    'margins': part3_anims
-                }
-            },
-            'markers': {
-                'all': margin_group,  # Everything combined
-                'reference': VGroup(self.zerodB_line, self.minus180deg_line),
-                'crossover': VGroup(self.gm_dot, self.pm_dot, self.vert_gain_line, self.vert_phase_line),
-                'indicators': VGroup(self.gm_vector, self.pm_vector, self.gm_text, self.pm_text)
-            }
-        }
 
     def _calculate_stability_margins(self):
         """
