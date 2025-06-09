@@ -68,3 +68,6 @@ Finally, the bode1 is transitioned to bode2 using the ReplacementTransform funct
 In this example, we aim to animate the bode plot asymptotes of a given bode plot. We define the bode plot after which we create the asymptote attributes using the show_asymptotes function. 
 
 The bode plot components are animated step-by-step after which the asympote lines are animated using the Create animation tool. 
+
+## Animation_example5.py
+Instead of animating the bode plot step-by-step we FadeIn the bode plot as a whole. After this, we would like to animate the stability margins. When creating the attributes using the show_margins function, be aware to set the add_directly argument to false. This because otherwise (because you already added the bode as a whole using FadeIn) the margins will also be faded in directly even though the FadeIn call wass before you added the show_margins. 

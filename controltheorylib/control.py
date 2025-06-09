@@ -2600,7 +2600,7 @@ class BodePlot(VGroup):
 
             self.phase_asymp[i] = current_phase
 
-    def show_asymptotes(self, color=YELLOW, **kwargs):
+    def show_asymptotes(self, color=YELLOW, add_directly=True, **kwargs):
         """Plot asymptotes using separate break frequencies for magnitude and phase"""
         self._remove_existing_asymptotes()
         self.show_asymptotes_r = True
@@ -2680,9 +2680,9 @@ class BodePlot(VGroup):
                  self.phase_asymp_plot.add(vertical_segment)
 
         # Add to plot
-        if self._show_magnitude:
+        if self._show_magnitude and add_directly:
             self.mag_group.add(self.mag_asymp_plot)
-        if self._show_phase:
+        if self._show_phase and add_directly:
             self.phase_components.add(self.phase_asymp_plot)
         return self
 

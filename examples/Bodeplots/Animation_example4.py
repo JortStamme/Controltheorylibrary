@@ -9,7 +9,7 @@ class Animation_example4(Scene):
         bode1.grid_on()
         
         # Create asymptote attributes
-        bode1.show_asymptotes(stroke_width=1.35, stroke_opacity=0.9)
+        bode1.show_asymptotes(stroke_width=1.35, stroke_opacity=0.9, add_directly=False)
     
         # Animate bode plot step-by-step
         self.play(Create(bode1.mag_box),Create(bode1.phase_box))
