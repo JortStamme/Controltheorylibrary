@@ -4,6 +4,8 @@ import sympy as sp
 
 class Animation_example5(Scene):
     def construct(self):
+        
+        # Define system 
         s = sp.symbols('s')
         num1 = 1500
         den1 = (s+2)*(s+10)*(s+15)
@@ -12,10 +14,15 @@ class Animation_example5(Scene):
         bode1 = BodePlot(system1, freq_range=[0.1,1000])
         bode1.grid_on()
 
+        # FadeIn the bode plot
         self.play(FadeIn(bode1))
         self.wait(0.5)
-        bode1.show_margins(pm_color=YELLOW, gm_color=GREEN_C, stroke_width=1)
+
+        # Create stability margin components, because we want to animate the 
+        # margin components individually we set the add_directly argument to False
+        bode1.show_margins(pm_color=YELLOW, gm_color=GREEN_C, stroke_width=1, add_directly=False)
         
+        # Animate the stability margins
         self.play(Create(bode1.zerodB_line))
         self.wait(0.2)
         self.play(Create(bode1.pm_dot))

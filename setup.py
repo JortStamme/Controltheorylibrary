@@ -7,7 +7,7 @@ with open("README.md", "r") as f:
 setup(
     name='controltheorylib',
     packages=find_packages(include=['controltheorylib']),
-    version='0.1.2',
+    version='0.1.3',
     description='Library for animating key control theory concepts',
     author='Jort Stammen',
     install_requires=[],

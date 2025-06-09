@@ -1555,7 +1555,7 @@ class ControlSystem:
 # Bode plot classes
 class BodePlot(VGroup):
     def __init__(self, system, freq_range=None, magnitude_yrange=None,  
-                 phase_yrange=None, color=BLUE,stroke_width=2, mag_label="Magnitude (dB)", 
+                 phase_yrange=None, color=BLUE,stroke_width=2.5, mag_label="Magnitude (dB)", 
                  phase_label = "Phase (deg)",xlabel = "Frequency (rad/s)", 
                  font_size_ylabels = 20, font_size_xlabel=20,**kwargs):
         """
@@ -2694,7 +2694,8 @@ class BodePlot(VGroup):
             if hasattr(self, attr) and getattr(self, attr) in getattr(self, attr.split('_')[0] + '_components'):
                 getattr(self, attr.split('_')[0] + '_components').remove(getattr(self, attr))
 
-    def show_margins(self, show_values=True, show_pm=True, show_gm=True, pm_color=YELLOW, gm_color=YELLOW, text_color_white=True,font_size=24, pm_label_pos=DOWN+LEFT, gm_label_pos=UP+RIGHT,**kwargs):
+    def show_margins(self, show_values=True, show_pm=True, show_gm=True, pm_color=YELLOW, add_directly=True,
+                     gm_color=YELLOW, text_color_white=True,font_size=24, pm_label_pos=DOWN+LEFT, gm_label_pos=UP+RIGHT,**kwargs):
         """
         Show gain and phase margins on the Bode plot if possible.
         
@@ -2716,7 +2717,8 @@ class BodePlot(VGroup):
                 self.mag_axes.c2p(x_min, 0),
                 self.mag_axes.c2p(x_max, 0),
                 color=pm_color, **kwargs)
-            margin_group.add(self.zerodB_line)
+            if add_directly:
+                margin_group.add(self.zerodB_line)
 
         if self._show_phase:
             # Create -180° line across the entire x-range
@@ -2725,7 +2727,8 @@ class BodePlot(VGroup):
                 self.phase_axes.c2p(x_min, -180),
                 self.phase_axes.c2p(x_max, -180),
                 color=gm_color,**kwargs)
-            margin_group.add(self.minus180deg_line)
+            if add_directly:
+                margin_group.add(self.minus180deg_line)
 
             
         # Only proceed if we have valid margins
@@ -2748,20 +2751,21 @@ class BodePlot(VGroup):
                     **kwargs
                 )
             
-                margin_group.add(self.vert_gain_line)
+            
                 self.gm_dot = Dot(
                     self.phase_axes.c2p(log_wg, -180),
-                    color=gm_color, radius=0.05
-                )
-                margin_group.add(self.gm_dot)
+                    color=gm_color, radius=0.05)
+            
 
                 self.gm_vector = Arrow(self.mag_axes.c2p(log_wg, 0),
                             self.mag_axes.c2p(log_wg, gain_at_wp),color=gm_color,
                     buff=0, tip_length=0.15)
                 gm_vector_width = max(1.5, min(8.0, 0.75/self.gm_vector.get_length()))
                 self.gm_vector.set_stroke(width=gm_vector_width)
-                margin_group.add(self.gm_vector)
-                
+                if add_directly:
+                    margin_group.add(self.gm_vector)
+                    margin_group.add(self.vert_gain_line)
+                    margin_group.add(self.gm_dot)
                 # Add text label if requested
                 if show_values:
                     if text_color_white==False:
@@ -2782,7 +2786,8 @@ class BodePlot(VGroup):
                             self.mag_axes.c2p(log_wg, gain_at_wp),
                             gm_label_pos, buff=0.2
                         )
-                    margin_group.add(self.gm_text)
+                    if add_directly:
+                        margin_group.add(self.gm_text)
 
         if pm != np.inf and show_pm==True:
             
@@ -2802,22 +2807,22 @@ class BodePlot(VGroup):
                     ,
                     color=gm_color, **kwargs
                 )
-                margin_group.add(self.vert_phase_line)
 
                 # Add dot at 0 dB point
                 self.pm_dot = Dot(
                     self.mag_axes.c2p(log_wp, 0),
                     color=pm_color, radius=0.05
                 )
-                margin_group.add(self.pm_dot)
 
                 self.pm_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
                             self.phase_axes.c2p(log_wp, phase_at_wp),
                     color=pm_color,tip_length=0.15,buff=0)
                 pm_vector_width = max(1.5, min(8.0, 0.75/self.pm_vector.get_length()))
                 self.pm_vector.set_stroke(width=pm_vector_width)
-                margin_group.add(self.pm_vector)
-
+                if add_directly:
+                    margin_group.add(self.pm_vector)
+                    margin_group.add(self.vert_phase_line)
+                    margin_group.add(self.pm_dot)
                 # Add text label if requested
                 if show_values:
                     if text_color_white==False:
@@ -2838,7 +2843,8 @@ class BodePlot(VGroup):
                             self.phase_axes.c2p(log_wp, phase_at_wp),
                             pm_label_pos, buff=0.2
                         )
-                    margin_group.add(self.pm_text)
+                    if add_directly:
+                        margin_group.add(self.pm_text)
 
         self.add(margin_group)
 
@@ -4054,10 +4060,6 @@ class Nyquist(VGroup):
         self.show_gm = show_gm
         self.show_pm = show_pm
         self.show_mm = show_mm
-        all_animations = [] # everything combined
-        gm_anims = []
-        pm_anims = [] 
-        mm_anims = [] 
 
         self.margin_indicators = VGroup()
         # Add gain margin indicator (point where phase crosses -180°)
@@ -4079,8 +4081,6 @@ class Nyquist(VGroup):
             self.gm_label.next_to(self.gm_line,UP, buff=0.1)
             gm_group.add(self.gm_label,self.gm_line)
             self.margin_indicators.add(gm_group)
-            gm_anims.extend([Create(self.gm_line)])
-            gm_anims.extend([Write(self.gm_label)])
         
         # Add phase margin indicator (point where magnitude crosses 1)
         if pm != np.inf and show_pm==True:
@@ -4111,7 +4111,6 @@ class Nyquist(VGroup):
                 stroke_opacity=0.7,
                 fill_opacity=0
             )
-            pm_anims.extend([Create(self.pm_arc)])
             if pm!=0:
                 tip_location = self.pm_arc.get_point_from_function(end_angle)
                 # Calculate the direction vector from start_dir_idx to end_dir_idx
@@ -4131,14 +4130,11 @@ class Nyquist(VGroup):
                                font_size=font_size, color=pm_color)
                 self.pm_label.next_to(self.pm_arc,LEFT,buff=0.1)
                 pm_group.add(self.arrow_tip, self.pm_label)
-                pm_anims.extend([Create(self.arrow_tip)])
-                pm_anims.extend([Write(self.pm_label)])
             else:
                 self.pm_label = MathTex(f"PM = {pm:.0f}^\\circ", 
                                font_size=font_size, color=pm_color)
                 self.pm_label.next_to(self.plane.number_to_point(-1 + 0j),UP,buff=0.2)
                 pm_group.add(self.pm_label)
-                pm_anims.extend([Write(self.pm_label)])
             pm_group.add(self.pm_arc)
             self.margin_indicators.add(pm_group)
         
@@ -4178,97 +4174,5 @@ class Nyquist(VGroup):
                 dashed_ratio=0.5
             )
             mm_group.add(self.mm_line, self.mm_dot, self.mm_label, self.mm_circle)
-            mm_anims.extend([Create(self.mm_circle)])
-            mm_anims.extend([Create(self.mm_dot)])
-            mm_anims.extend([Create(self.mm_line)])
-            mm_anims.extend([Write(self.mm_label)])
-            
             self.margin_indicators.add(mm_group)
         self.add(self.margin_indicators)
-        return {
-            'animations': {
-                'combined': all_animations,
-                'margins': {
-                    'pm': pm_anims,
-                    'gm': gm_anims,
-                    'mm': mm_anims
-                }
-            },
-            'groups': {
-                'all': self.margin_indicators,  # Everything combined
-                'pm': pm_group,
-                'gm': gm_group,
-                'mm': mm_group
-            }
-        }
-
-    def get_plot_animations(self):
-        """Return animations for plotting the Nyquist diagram in stages"""
-        return {
-            'axes': self._get_axes_animations(),
-            'grid': self._get_grid_animations(),
-            'plot': self._get_nyquist_animation(),
-            'labels': self._get_label_animations(),
-            'unit_circle': self._get_unit_circle_animation(),
-            'minus_one': self._get_minus_one_animations()
-        }
-
-    def _get_axes_animations(self):
-        """Animations for creating axes"""
-        anims = []
-        anims.append(Create(self.box))
-        anims.append(Create(self.plane))
-        anims.append(Create(DashedLine(self.plane.x_axis.get_start(), 
-                                    self.plane.x_axis.get_end(),
-                                    dash_length=0.05)))
-        anims.append(Create(DashedLine(self.plane.y_axis.get_start(),
-                                    self.plane.y_axis.get_end(),
-                                    dash_length=0.05)))
-        return anims
-
-    def _get_grid_animations(self):
-        """Animations for grid lines"""
-        if not self._show_grid:
-            return []
-        return [Create(self.grid_lines)]
-
-    def _get_nyquist_animation(self):
-        """Animation for Nyquist plot"""
-        anims = []
-        anims.append(Create(self.nyquist_plot))
-        if hasattr(self, 'arrow_tips') and len(self.arrow_tips) > 0:
-            for arrow in self.arrow_tips:
-                anims.append(Create(arrow), run_time=0.1
-                )
-        
-        return anims
-
-    def _get_label_animations(self):
-        """Animations for labels and ticks"""
-        anims = []
-        anims.append(Write(self.x_label))
-        anims.append(Write(self.y_label))
-        anims.append(Write(self.x_ticks))
-        anims.append(Write(self.y_ticks))
-        anims.append(Write(self.x_labels))
-        anims.append(Write(self.y_labels))
-        
-        return anims
-
-    def _get_minus_one_animations(self):
-        "animations for the minus one marker and label"
-        anims = []
-        # Add -1 marker if visible
-        if self.show_minus_one_marker:
-            anims.append(Create(self.minus_one_marker))
-
-        if self.show_minus_one_label:
-            anims.append(Create(self.minus_one_label))
-
-        return anims
-
-    def _get_unit_circle_animation(self):
-        """Animation for unit circle"""
-        if not self.show_unit_circle:
-            return []
-        return [Create(self.unit_circle)]

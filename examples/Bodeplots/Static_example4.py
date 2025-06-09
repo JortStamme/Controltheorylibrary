@@ -13,7 +13,9 @@ class Static_example4(Scene):
         # Turn grid on
         bode.grid_on()
 
-        bode.show_margins(stroke_width=1.5, stroke_opacity=0.8,pm_color=GREEN_C, gm_color=ORANGE,pm_label_pos=UP+RIGHT)
+        bode.show_margins(stroke_width=1.5, 
+                          stroke_opacity=0.8,pm_color=GREEN_C, 
+                          gm_color=ORANGE, pm_label_pos=UP+RIGHT)
 
         # Add bode plot to scene
         self.add(bode)
