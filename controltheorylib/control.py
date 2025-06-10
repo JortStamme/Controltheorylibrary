@@ -383,7 +383,7 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None, **kwargs):
 class PoleZeroMap(VGroup):
     def __init__(self, system, x_range=None, y_range=None, dashed_axis=True, 
                  y_axis_label=None, x_axis_label=None,
-                 font_size_labels=28, show_unit_circle=False, **kwargs):
+                 font_size_labels=28, markers_size=0.15, use_math_tex_labels=True, **kwargs):
         """
         Generates a pole-zero map as a Manim VGroup for continuous- or discrete-time systems.
 
@@ -428,6 +428,8 @@ class PoleZeroMap(VGroup):
         self.y_axis_label = y_axis_label
         self.x_axis_label = x_axis_label
         self.font_size_labels = font_size_labels
+        self.markers_size = markers_size
+        self.use_math_tex_labels = use_math_tex_labels
 
         # Initialize components
         self.axis = None
@@ -438,7 +440,6 @@ class PoleZeroMap(VGroup):
         self.unit_circle = None
         self.axis_labels = None
         self.title_text = None
-        self.show_unit_circle = show_unit_circle
         self.dashed_axes = dashed_axis
         self.tick_style = {
             "color": WHITE,
@@ -587,14 +588,14 @@ class PoleZeroMap(VGroup):
             x_range_max = max(max_zero_real, max_pole_real)
             x_range_min = min(min_zero_real, min_pole_real)
             x_total_range = x_range_max - x_range_min
-            self.x_step = max(0.1, min(10.0, x_total_range / 4))
+            self.x_step = max(0.1, min(10.0, (x_total_range+2) / 4))
             self.x_range = [x_range_min-1, x_range_max+1, self.x_step]
         else:
             x_range_max = self.x_range[1]
             x_range_min = self.x_range[0]
             if self.x_range[2] is None:
                 x_total_range = x_range_max - x_range_min
-                self.x_step = max(0.1, min(10.0, x_total_range / 4))
+                self.x_step = max(0.1, min(10.0, (x_total_range+2) / 4))
             else:
                 self.x_step = self.x_range[2]
         # Determine y_range
@@ -602,14 +603,14 @@ class PoleZeroMap(VGroup):
             y_range_max = max(max_zero_imag, max_pole_imag)
             y_range_min = min(min_zero_imag, min_pole_imag)
             y_total_range = y_range_max - y_range_min
-            self.y_step = max(0.1, min(10.0, y_total_range / 4))
+            self.y_step = max(0.1, min(10.0, (y_total_range+2) / 4))
             self.y_range = [y_range_min-1, y_range_max+1, self.y_step]
         else:
             y_range_max = self.y_range[1]
             y_range_min = self.y_range[0]
             if self.y_range[2] is None:
                 y_total_range = y_range_max - y_range_min
-                self.y_step = max(0.1, min(10.0, y_total_range / 4))
+                self.y_step = max(0.1, min(10.0, (y_total_range+2)/ 4))
             else:
                 self.y_step = self.y_range[2]
         
@@ -646,21 +647,25 @@ class PoleZeroMap(VGroup):
 
         self.surrbox = SurroundingRectangle(self.axis, buff=0, color=WHITE, stroke_width=2)
         # Add axis labels
-        re_label = MathTex(self.x_axis_label, font_size=self.font_size_labels).next_to(self.surrbox, DOWN, buff=0.55)
-        im_label = MathTex(self.y_axis_label, font_size=self.font_size_labels).rotate(PI/2).next_to(self.surrbox, LEFT, buff=0.55)
+        if self.use_math_tex_labels ==True:
+            re_label = MathTex(self.x_axis_label, font_size=self.font_size_labels).next_to(self.surrbox, DOWN, buff=0.55)
+            im_label = MathTex(self.y_axis_label, font_size=self.font_size_labels).rotate(PI/2).next_to(self.surrbox, LEFT, buff=0.55)
+        else:
+            re_label = Text(self.x_axis_label, font_size=self.font_size_labels).next_to(self.surrbox, DOWN, buff=0.55)
+            im_label = Text(self.y_axis_label, font_size=self.font_size_labels).rotate(PI/2).next_to(self.surrbox, LEFT, buff=0.55)
         self.axis_labels = VGroup(re_label, im_label)
         self.axis.add(self.axis_labels)
         
         # Plot zeros (blue circles)
         zero_markers = [
-            Circle(radius=0.15, color=BLUE).move_to(self.axis.n2p(complex(x, y))) 
+            Circle(radius=self.markers_size, color=BLUE).move_to(self.axis.n2p(complex(x, y))) 
             for x, y in self.zero_coords
         ]
         self.zeros = VGroup(*zero_markers)
         
         # Plot poles (red crosses)
         pole_markers = [
-            Cross(scale_factor=0.15, color=RED).move_to(self.axis.n2p(complex(x, y))) 
+            Cross(scale_factor=self.markers_size, color=RED).move_to(self.axis.n2p(complex(x, y))) 
             for x, y in self.pole_coords
         ]
         self.poles = VGroup(*pole_markers)
@@ -679,7 +684,7 @@ class PoleZeroMap(VGroup):
         self.add(self.axis, self.zeros, self.poles, self.surrbox, self.x_axis, self.y_axis, 
                  self.x_ticks, self.y_ticks, self.x_tick_labels,self.y_tick_labels)
         
-        if self.show_unit_circle or self.system_type == 'discrete':
+        if self.system_type == 'discrete':
             x_min, x_max = self.axis.x_range[0], self.axis.x_range[1]
             r=1
             if (r < x_min) or (r < -x_max):

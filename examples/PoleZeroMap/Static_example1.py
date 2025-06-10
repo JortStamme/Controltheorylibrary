@@ -3,7 +3,12 @@ from controltheorylib.control import PoleZeroMap
 
 class Static_example1(Scene):
     def construct(self):
-
+        
+        # Define transfer function
         pzmap = PoleZeroMap("(s+1)/((s-1)*(s+3))")
-        pzmap.add_stability_regions()
-        self.add(pzmap)
+
+        # Add title
+        pzmap.title(r"H(s)=\frac{s+1}{(s-1)(s+3)}", use_math_tex=True)
+
+        # Add statically to the scene
+        self.add(pzmap) 
