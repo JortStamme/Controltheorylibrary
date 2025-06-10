@@ -381,7 +381,7 @@ def damper(start=ORIGIN, end=UP*3, width = 0.5, box_height=None, **kwargs):
 
 
 class PoleZeroMap(VGroup):
-    def __init__(self, num, den, x_range=None, y_range=None, dashed_axis=True, 
+    def __init__(self, system, x_range=None, y_range=None, dashed_axis=True, 
                  y_axis_label=None, x_axis_label=None,
                  font_size_labels=28, show_unit_circle=False, **kwargs):
         """
@@ -393,10 +393,11 @@ class PoleZeroMap(VGroup):
 
         PARAMETERS
         ----------
-        num : sympy expression
-            The numerator of the transfer function (in terms of 's' or 'z').
-        den : sympy expression
-            The denominator of the transfer function (in terms of 's' or 'z').
+        system : various
+            System representation, which can be one of:
+            - scipy.signal.lti or transfer function coefficients (list/tuple of arrays)
+            - Symbolic expressions for numerator/denominator (using 's' as variable)
+            - Tuple of (numerator_expr, denominator_expr) as strings or sympy expressions
         x_range : list[float] | None
             Range for the real axis in the form [min, max, step]. If None, automatically determined.
         y_range : list[float] | None
@@ -420,8 +421,7 @@ class PoleZeroMap(VGroup):
             A Manim VGroup containing the complex axis, poles, zeros, optional unit circle, and tick labels.
         """
         super().__init__(**kwargs)
-        self.num = num
-        self.den = den
+        self.system = self._parse_system_input(system)
         self.x_range = x_range
         self.y_range = y_range
         self.y_axis_label = y_axis_label
@@ -461,28 +461,111 @@ class PoleZeroMap(VGroup):
         self._determine_ranges()
         self._create_plot_components()
         
+    def _parse_system_input(self, system):
+        """Parse different input formats for the system specification."""
+        # Directly pass through valid scipy LTI system objects or coefficient lists
+        if isinstance(system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+            return system
+
+        # Handle sympy expression directly 
+        if isinstance(system, sp.Basic):
+            return self._symbolic_to_coefficients(system, 1)  # Denominator is 1 since it's already a complete expression
+
+        # Tuple: could be symbolic or coefficient list
+        if isinstance(system, tuple) and len(system) == 2:
+            num, den = system
+
+            # If any part is symbolic or a string, convert
+            if isinstance(num, (str, sp.Basic)) or isinstance(den, (str, sp.Basic)):
+                return self._symbolic_to_coefficients(num, den)
+            else:
+                return (num, den)  # Already numeric
+
+        # Handle string-based symbolic transfer functions 
+        if isinstance(system, str):
+            if '/' in system:
+                num_str, den_str = system.split('/', 1)
+                return self._symbolic_to_coefficients(num_str.strip(), den_str.strip())
+            else:
+                return self._symbolic_to_coefficients(system.strip(), "1")
+
+        raise ValueError("Invalid system specification.")
+
+    def _symbolic_to_coefficients(self, num_expr, den_expr):
+        """Convert symbolic expressions to polynomial coefficients."""
+        # Determine variable (s or z)
+        if 's' in str(num_expr) or 's' in str(den_expr):
+            var = sp.symbols('s')
+        elif 'z' in str(num_expr) or 'z' in str(den_expr):
+            var = sp.symbols('z')
+        else:
+            # Default to continuous-time if no variable is found
+            var = sp.symbols('s')
+
+        try:
+            # If we got a complete expression (num_expr is the whole TF and den_expr is 1)
+            if den_expr == 1 and isinstance(num_expr, sp.Basic):
+                # Extract numerator and denominator from the expression
+                frac = sp.fraction(num_expr)
+                num_expr = frac[0]
+                den_expr = frac[1] if len(frac) > 1 else 1
+
+            # Convert strings to sympy expressions
+            if isinstance(num_expr, str):
+                num_expr = sp.sympify(num_expr.replace('^', '**'))
+            if isinstance(den_expr, str):
+                den_expr = sp.sympify(den_expr.replace('^', '**'))
+
+            num_poly = sp.Poly(num_expr, var)
+            den_poly = sp.Poly(den_expr, var)
+
+            num_coeffs = [float(c) for c in num_poly.all_coeffs()]
+            den_coeffs = [float(c) for c in den_poly.all_coeffs()]
+
+            return (num_coeffs, den_coeffs)
+        except Exception as e:
+            raise ValueError(f"Could not parse transfer function: {e}") from e
+
     def _determine_system_type(self):
         """Check if the system is continuous or discrete-time"""
-        if 's' in str(self.num) or 's' in str(self.den):  # Continuous-time system (Laplace domain)
-            self.system_type = 'continuous'
-            self.variable = sp.symbols('s')
-        elif 'z' in str(self.num) or 'z' in str(self.den):  # Discrete-time system (Z-domain)
-            self.system_type = 'discrete'
-            self.variable = sp.symbols('z')
+        if isinstance(self.system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+            # For scipy systems, we can't easily determine if it's s or z domain
+            # So we'll assume continuous-time unless show_unit_circle is True
+            self.system_type = 'discrete' if self.show_unit_circle else 'continuous'
+            self.variable = sp.symbols('z') if self.show_unit_circle else sp.symbols('s')
         else:
-            raise ValueError("Unable to determine if the system is continuous or discrete.")
+            # For symbolic or coefficient representations
+            num, den = self.system
+            if 's' in str(num) or 's' in str(den):  # Continuous-time system (Laplace domain)
+                self.system_type = 'continuous'
+                self.variable = sp.symbols('s')
+            elif 'z' in str(num) or 'z' in str(den):  # Discrete-time system (Z-domain)
+                self.system_type = 'discrete'
+                self.variable = sp.symbols('z')
+            else:
+                # Default to continuous-time if no variable is found
+                self.system_type = 'continuous'
+                self.variable = sp.symbols('s')
     
     def _calculate_poles_zeros(self):
         """Factorize numerator and denominator and compute poles/zeros"""
-        num_factored = sp.factor(self.num, self.variable)
-        den_factored = sp.factor(self.den, self.variable)
-        
-        zeros_gr = sp.solve(num_factored, self.variable)
-        poles_gr = sp.solve(den_factored, self.variable)
-        
-        # Convert to numerical values
-        self.zero_coords = [(float(sp.re(z)), float(sp.im(z))) for z in zeros_gr]
-        self.pole_coords = [(float(sp.re(p)), float(sp.im(p))) for p in poles_gr]
+        if isinstance(self.system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
+            # Handle scipy system objects
+            tf = signal.TransferFunction(*signal.tfdata(self.system))
+            self.zero_coords = [(float(np.real(z)), float(np.imag(z))) for z in tf.zeros]
+            self.pole_coords = [(float(np.real(p)), float(np.imag(p))) for p in tf.poles]
+        else:
+            # Handle symbolic/coefficient representations
+            num, den = self.system
+            num_factored = sp.factor(num, self.variable) if isinstance(num, sp.Basic) else sp.Poly(num, self.variable).as_expr()
+            den_factored = sp.factor(den, self.variable) if isinstance(den, sp.Basic) else sp.Poly(den, self.variable).as_expr()
+            
+            zeros_gr = sp.solve(num_factored, self.variable)
+            poles_gr = sp.solve(den_factored, self.variable)
+            
+            # Convert to numerical values
+            self.zero_coords = [(float(sp.re(z)), float(sp.im(z))) for z in zeros_gr]
+            self.pole_coords = [(float(sp.re(p)), float(sp.im(p))) for p in poles_gr]
         
         # Extract real and imaginary parts
         self.zero_real_parts = [z[0] for z in self.zero_coords]
