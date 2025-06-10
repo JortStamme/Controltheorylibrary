@@ -2286,9 +2286,9 @@ class BodePlot(VGroup):
         if phase_span <= 90:
              base_step = 15
         elif phase_span <= 180:
-             base_step = 30
-        else:
              base_step = 45
+        else:
+             base_step = 90
 
         self.phase_min = np.floor(self.phase_min_calc / base_step) * base_step
         self.phase_max = np.ceil(self.phase_max_calc / base_step) * base_step
@@ -2310,8 +2310,10 @@ class BodePlot(VGroup):
              base_step_mag = 5
         elif mag_span <= 60:
              base_step_mag = 10
-        else:
+        elif mag_span <=100 :
              base_step_mag = 20
+        else:
+            base_step_mag = 30
 
         mag_min = np.floor((mag_min_calc - mag_padding) / base_step_mag) * base_step_mag
         mag_max = np.ceil((mag_max_calc + mag_padding) / base_step_mag) * base_step_mag
