@@ -2979,73 +2979,8 @@ class BodePlot(VGroup):
             ws = np.inf
         
         return gm, pm, sm, wg, wp, ws
-        
-    ## ===== animation options for bode =======
-    def get_plot_animations(self):
-        """Return animations for plotting the Bode diagram in stages"""
-        return {
-            'axes': self._get_axes_animations(),
-            'grid': self._get_grid_animations(),
-            'magnitude': self._get_magnitude_animation(),
-            'phase': self._get_phase_animation(),
-            'labels': self._get_label_animations()
-        }
 
-    def _get_axes_animations(self):
-        """Animations for creating axes"""
-        anims = []
-        if self._show_magnitude:
-            anims.append(Create(self.mag_box))
-        if self._show_phase:
-            anims.append(Create(self.phase_box))
-        return anims
 
-    def _get_grid_animations(self):
-        """Animations for grid lines"""
-        anims = []
-        if self._show_magnitude:
-            anims.append(Create(self.mag_hor_grid))
-            anims.append(Create(self.mag_vert_grid))
-        if self._show_phase:
-            anims.append(Create(self.phase_hor_grid))
-            anims.append(Create(self.phase_vert_grid))
-        return anims
-
-    def _get_magnitude_animation(self):
-        """Animation for magnitude plot"""
-        if not self._show_magnitude:
-            return []
-        return [Create(self.mag_plot)]
-
-    def _get_phase_animation(self):
-        """Animation for phase plot"""
-        if not self._show_phase:
-            return []
-        return [Create(self.phase_plot)]
-
-    def _get_label_animations(self):
-        """Animations for labels and ticks"""
-        anims = []
-        if self._show_magnitude:
-            anims.extend([
-                Write(self.mag_yticklabels),
-                Write(self.mag_ylabel),
-                Create(self.mag_yticks),
-                Create(self.mag_xticks)
-            ])
-        if self._show_phase:
-            anims.extend([
-                Write(self.phase_yticklabels),
-                Write(self.phase_ylabel),
-                Create(self.phase_yticks),
-                Create(self.phase_xticks),
-                Write(self.freq_ticklabels),
-                Write(self.freq_xlabel)
-            ])
-        if self._title:
-            anims.append(Write(self._title))
-        return anims
-    
 # ========================Nyquist=================
 #Nyquist plot class
 class Nyquist(VGroup):
