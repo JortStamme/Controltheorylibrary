@@ -3,6 +3,7 @@ from controltheorylib import control
 from scipy.integrate import solve_ivp
 import numpy as np
 
+# in this example, we aim to animate the dynamic behaviour of Static_example1
 class CoupledSpringDamper(Scene):
     def construct(self):
 

@@ -1,2 +1,0 @@
-# This file is used internally by FFMPEG.
-file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Demo/media/videos/Oscillatingmass/1080p60/partial_movie_files/MassSpringSys/3977891868_3270542502_725159446.mp4'

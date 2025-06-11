@@ -1,4 +1,0 @@
-# This file is used internally by FFMPEG.
-file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/ZoomedSceneExample/517782116_1345025364_223132457.mp4'
-file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/ZoomedSceneExample/489331793_1024431336_4097404921.mp4'
-file 'file:C:/Users/20222934/OneDrive - TU Eindhoven/Documents/BscME/Y3/4WC00 - BEP/Controltheorylib/examples/Fundamentals/media/videos/fund/1080p60/partial_movie_files/ZoomedSceneExample/4229846318_2968904986_2182541704.mp4'
