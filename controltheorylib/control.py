@@ -587,14 +587,14 @@ class PoleZeroMap(VGroup):
         if self.x_range is None:
             x_range_max = max(max_zero_real, max_pole_real)
             x_range_min = min(min_zero_real, min_pole_real)
-            x_total_range = x_range_max - x_range_min
+            x_total_range = abs(x_range_max - x_range_min)
             self.x_step = max(0.1, min(10.0, (x_total_range+2) / 4))
             self.x_range = [x_range_min-1, x_range_max+1, self.x_step]
         else:
             x_range_max = self.x_range[1]
             x_range_min = self.x_range[0]
             if self.x_range[2] is None:
-                x_total_range = x_range_max - x_range_min
+                x_total_range = abs(x_range_max - x_range_min)
                 self.x_step = max(0.1, min(10.0, (x_total_range+2) / 4))
             else:
                 self.x_step = self.x_range[2]
@@ -602,14 +602,14 @@ class PoleZeroMap(VGroup):
         if self.y_range is None:
             y_range_max = max(max_zero_imag, max_pole_imag)
             y_range_min = min(min_zero_imag, min_pole_imag)
-            y_total_range = y_range_max - y_range_min
+            y_total_range = abs(y_range_max - y_range_min)
             self.y_step = max(0.1, min(10.0, (y_total_range+2) / 4))
             self.y_range = [y_range_min-1, y_range_max+1, self.y_step]
         else:
             y_range_max = self.y_range[1]
             y_range_min = self.y_range[0]
             if self.y_range[2] is None:
-                y_total_range = y_range_max - y_range_min
+                y_total_range = abs(y_range_max - y_range_min)
                 self.y_step = max(0.1, min(10.0, (y_total_range+2)/ 4))
             else:
                 self.y_step = self.y_range[2]
@@ -642,8 +642,8 @@ class PoleZeroMap(VGroup):
             self.x_axis = DashedLine(x_start,x_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
             self.y_axis = DashedLine(y_start,y_end, dash_length=0.05, color=WHITE, stroke_opacity=0.7)
         else:
-            self.x_axis = Line(x_start,x_end, color=WHITE, stroke_opacity=0.7)
-            self.y_axis = Line(y_start,y_end, color=WHITE, stroke_opacity=0.7)
+            self.x_axis = Line(x_start,x_end, color=WHITE, stroke_width=1, stroke_opacity=0.7)
+            self.y_axis = Line(y_start,y_end, color=WHITE, stroke_width=1,stroke_opacity=0.7)
 
         self.surrbox = SurroundingRectangle(self.axis, buff=0, color=WHITE, stroke_width=2)
         # Add axis labels
@@ -670,11 +670,6 @@ class PoleZeroMap(VGroup):
         ]
         self.poles = VGroup(*pole_markers)
         
-        # Create stable/unstable regions
-        #self._create_stability_regions()
-        
-        # Add title if specified
-
         self.x_ticks = self.create_ticks(self.axis, orientation="horizontal")
         self.y_ticks = self.create_ticks(self.axis, orientation="vertical")
         self.x_tick_labels = self.create_tick_labels(self.axis, orientation="horizontal")
@@ -682,6 +677,8 @@ class PoleZeroMap(VGroup):
 
         # Add all components to the group
         self.add(self.axis, self.zeros, self.poles, self.surrbox, self.x_axis, self.y_axis, 
+                 self.x_ticks, self.y_ticks, self.x_tick_labels,self.y_tick_labels)
+        self.basecomponents = VGroup(self.axis, self.surrbox, self.x_axis, self.y_axis, 
                  self.x_ticks, self.y_ticks, self.x_tick_labels,self.y_tick_labels)
         
         if self.system_type == 'discrete':
@@ -719,6 +716,7 @@ class PoleZeroMap(VGroup):
         else:
             self.unit_circle = VGroup()
         self.add(self.unit_circle)
+        self.basecomponents.add(self.unit_circle)
 
     def create_tick_labels(self, axes, orientation="horizontal"):
         """Create tick labels using c2p method"""
@@ -777,10 +775,6 @@ class PoleZeroMap(VGroup):
                 step
             )
 
-            # make sure that 0 is included
-            #if self.x_range[0] <= 0 <= self.x_range[1]:
-               # values = np.sort(np.unique(np.concatenate([values, [0.0]])))
-
             for x_val in values:
                 # Bottom ticks
                 bottom_point = axes.c2p(x_val, axes.y_range[0])
@@ -806,10 +800,6 @@ class PoleZeroMap(VGroup):
                 step
             )
 
-            # Make sure that 0 is included
-            #if self.y_range[0] <= 0 <= self.y_range[1]:
-                 #values = np.sort(np.unique(np.concatenate([values, [0.0]])))
-
             for y_val in values:
                 # Left ticks
                 left_point = axes.c2p(axes.x_range[0], y_val)
@@ -830,7 +820,7 @@ class PoleZeroMap(VGroup):
         return ticks
     
     def add_stability_regions(self, show_stable=True, show_unstable=True, stable_label="Stable", unstable_label="Unstable"
-                              , stable_color=BLUE, unstable_color=RED, use_mathtex = False, fill_opacity=0.2, label_font_size = 30):
+                              , stable_color=BLUE, unstable_color=RED, use_mathtex = False, fill_opacity=0.2, label_font_size = 30, add_directly=True):
         """Create the stability regions based on system type"""
         if self.system_type == 'continuous':
             # Highlight unstable region (right-half plane)
@@ -859,7 +849,7 @@ class PoleZeroMap(VGroup):
                     self.text_unstable.shift(RIGHT)
                 
                 self.unstable = VGroup(self.unstable_region, self.text_unstable)
-                if show_unstable == True:
+                if show_unstable == True and add_directly==True:
                     self.add(self.unstable)
             
             # Highlight stable region (left-half plane)
@@ -888,7 +878,7 @@ class PoleZeroMap(VGroup):
                     self.text_stable.shift(0.2*LEFT)
                 
                 self.stable = VGroup(self.stable_region, self.text_stable)
-                if show_stable==True:
+                if show_stable==True and add_directly==True:
                     self.add(self.stable)
 
         
@@ -929,7 +919,7 @@ class PoleZeroMap(VGroup):
             self.text_stable.shift(0.5*UP)
             self.stable = VGroup(self.stable_region, self.text_stable)
 
-            if show_stable == True:
+            if show_stable == True and add_directly==True:
                 self.add(self.stable)
             
             # Unstable region (outside unit circle)
@@ -977,7 +967,7 @@ class PoleZeroMap(VGroup):
             self.text_unstable.align_to(full_rect, UP + LEFT)
             self.text_unstable.shift(0.4 * DOWN + 0.4 * RIGHT)
             self.unstable = VGroup(self.unstable_region, self.text_unstable)
-            if show_unstable==True:
+            if show_unstable==True and add_directly==True:
                 self.add(self.unstable)
             self.unstable_region.set_z_index(-1)  # Send to background
             self.stable_region.set_z_index(-1)  # Bring stable region to fron
@@ -1005,7 +995,7 @@ class PoleZeroMap(VGroup):
         # Position the title
         self.title_text.next_to(self.axis, UP, buff=0.2)
         self.add(self.title_text)
-        
+        self.basecomponents.add(self.title_text)
         return self
 
 
