@@ -16,7 +16,7 @@ class CoupledSpringDamper(Scene):
         initial_conditions = [0.4, 0.7, 0, 0]
         
         # Time parameters
-        t_start, t_end = 0, 15
+        t_start, t_end = 0, 25
         t_points = np.linspace(t_start, t_end, 500)
         
         # Define the system dynamics
@@ -152,8 +152,8 @@ class CoupledSpringDamper(Scene):
             
             # Update dampers
             c1_rod.become(control.damper(
-                start=[-2,-3,0], 
-                end=[-2,-1.5 + x1,0]
+                start=[-2,-3+x1,0], 
+                end=[-2,-1.5+x1 ,0]
             ))
             c2_rod.become(control.damper(
                 start=[-2,x1,0], 
@@ -201,7 +201,7 @@ class CoupledSpringDamper(Scene):
             UpdateFromAlphaFunc(
                 VGroup(m1, m2, k1, k2, k3, c1_rod, c2_rod, c3_rod, k1_label, k2_label, k3_label, c1_label, c2_label, c3_label,f1,f2,f1_label,f2_label),
                 update_system,
-                run_time=5,
+                run_time=8,
                 rate_func=linear
             )
         )

@@ -706,13 +706,7 @@ class PoleZeroMap(VGroup):
                         unit_circle_parts.add(part)
                         unit_circle_solid = unit_circle_parts
                         self.unit_circle=unit_circle_solid
-                    #self.unit_circle = DashedVMobject(
-                    #unit_circle_solid,
-                    #num_dashes=30,       
-                    #dashed_ratio=0.5,   
-                    #)
-                #else:
-                    #self.unit_circle = VGroup()
+                    
         else:
             self.unit_circle = VGroup()
         self.add(self.unit_circle)
@@ -731,9 +725,6 @@ class PoleZeroMap(VGroup):
                 step
             )
 
-           # if self.x_range[0] <= 0 <= self.x_range[1]:
-                # values = np.sort(np.unique(np.concatenate([values, [0.0]])))
-
             for x_val in values:
                 point = axes.c2p(x_val, axes.y_range[0])
                 label_text = f"{x_val:.1f}"
@@ -748,9 +739,6 @@ class PoleZeroMap(VGroup):
                 self.y_range[1]+step/5,
                 step
             )
-
-            #if self.y_range[0] <= 0 <= self.y_range[1]:
-                # values = np.sort(np.unique(np.concatenate([values, [0.0]])))
 
             for y_val in values:
                 point = axes.c2p(axes.x_range[0], y_val)
