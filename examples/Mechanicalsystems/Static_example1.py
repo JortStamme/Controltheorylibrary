@@ -1,14 +1,14 @@
 from manim import *
 from controltheorylib import control
-
+config.background_color = "#3d3d3d"
 class CoupledSpringDamper(Scene):
     def construct(self):
         # Fixed world
         floor = control.fixed_world(3.5*LEFT, 3.5*RIGHT, mirror=True, line_or="left").shift(3*DOWN)
         
         # Masses
-        m1 = control.mass(width=4,height=1.5, text="m_1",color=BLUE).next_to(floor,UP, buff=1.5).align_to(floor,LEFT)
-        m2 = control.mass(width=7,height=1.5, text="m_2",color=BLUE).next_to(m1,UP, buff=1.5).align_to(m1,LEFT)
+        m1 = control.rect_mass(width=4,height=1.5, label="m_1",color=BLUE).next_to(floor,UP, buff=1.5).align_to(floor,LEFT)
+        m2 = control.rect_mass(width=7,height=1.5, label="m_2",color=BLUE).next_to(m1,UP, buff=1.5).align_to(m1,LEFT)
         
         #springs and their labels
         k1 = control.spring(start=[-3,-3,0], end=[-3,-1.5,0], coil_width=0.4, num_coils=4)

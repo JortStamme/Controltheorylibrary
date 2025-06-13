@@ -1003,16 +1003,16 @@ class ControlBlock(VGroup):
             "use_mathtex": False,
             "fill_opacity": 0.2,
             "label_scale": None,
-            "math_font_size": None,
-            "text_font_size": None,
+            "font_size": None,
             "tex_template": None,
             "color": WHITE,
             "label_color": None,
             "block_width": 2.0,
             "block_height": 1.0,
-            "summing_size": 0.8,
+            "summing_size": 0.6,
             "width_font_ratio": 0.3,
-            "height_font_ratio": 0.5
+            "height_font_ratio": 0.5,
+            "label": ""
 
         }
         
@@ -1022,12 +1022,13 @@ class ControlBlock(VGroup):
             type_params.update({
                 "input1_dir": LEFT,
                 "input2_dir": DOWN,
-                "output_dir": RIGHT,
+                "output1_dir": RIGHT,
+                "output2_dir": UP,
                 "input1_sign": "+",
                 "input2_sign": "+",
                 "hide_labels": True,
-                "width_font_ratio": 0.3, 
-                "height_font_ratio": 0.3
+                "width_font_ratio": 0.2, 
+                "height_font_ratio": 0.2
             })
             
         self.params = default_params | type_params | (params or {})  # Merge with user params
@@ -1043,12 +1044,8 @@ class ControlBlock(VGroup):
                                 height * self.params["height_font_ratio"]) * 75
             
         # Set font sizes if not explicitly provided
-        if self.params["math_font_size"] is None:
-            self.params["math_font_size"] = auto_font_size
-        if self.params["text_font_size"] is None:
-            self.params["text_font_size"] = auto_font_size
-        else:
-            self.params["text_font_size"] = self.params["text_font_size"]
+        if self.params["font_size"] is None:
+            self.params["font_size"] = auto_font_size
 
         # Calculate label scale if not specified
         if self.params["label_scale"] is None:
@@ -1057,17 +1054,17 @@ class ControlBlock(VGroup):
         if self.params["label_color"] is None:
             self.params["label_color"] = self.params["color"]
 
-        if self.params["use_mathtex"] or (isinstance(name, str) and "$" in name):
+        if self.params["use_mathtex"]:
             self.label = MathTex(
-                name,
-                font_size=self.params["math_font_size"],
+                self.params["label"],
+                font_size=self.params["font_size"],
                 tex_template=self.params["tex_template"],
                 color=self.params["label_color"]
             )
         else:
             self.label = Text(
-                str(name),
-                font_size=self.params["text_font_size"],
+                self.params["label"],
+                font_size=self.params["font_size"],
                 color=self.params["label_color"]
             )
         self.label.scale(self.params["label_scale"])
@@ -1108,10 +1105,20 @@ class ControlBlock(VGroup):
 
     def _create_summing_junction(self):
        """Create summing junction with customizable ports"""
-    # Create ports using the correct parameter names
-       self.add_port("in1", self.params["input1_dir"])
-       self.add_port("in2", self.params["input2_dir"])
-       self.add_port("out", self.params["output_dir"])
+       # Add input ports using parameters, with robust fallback
+       self.add_port("in1", self.params.get("input1_dir", LEFT))
+       self.add_port("in2", self.params.get("input2_dir", DOWN))
+        
+        # Add more input ports if their directions are specified in params
+       if "input3_dir" in self.params:
+            self.add_port("in3", self.params["input3_dir"])
+       if "input4_dir" in self.params:
+            self.add_port("in4", self.params["input4_dir"])
+
+        # Add output ports using parameters, with robust fallback
+       self.add_port("out1", self.params.get("output1_dir", RIGHT))
+       self.add_port("out2", self.params.get("output2_dir", UP))
+   
     
     # Add signs if not hidden
        if not self.params["hide_labels"]:
@@ -1144,11 +1151,23 @@ class ControlBlock(VGroup):
             buff=0
         )
         
-        # Classify port
-        if any(np.array_equal(direction, d) for d in [LEFT, UP, DOWN]):
+        if any(np.array_equal(direction, d) for d in [LEFT, DOWN]): # Typical input directions
             self.input_ports[name] = port
-        else:
-            self.output_ports[name] = port
+        elif any(np.array_equal(direction, d) for d in [RIGHT, UP]): # Typical output directions
+             self.output_ports[name] = port
+        else: # Fallback for other directions or if you want to explicitly define
+            # For this context, it's safer to consider RIGHT and UP as outputs for summing_junction
+            # and LEFT/DOWN as inputs, if it's not a summing junction, it's simpler.
+            if self.type == "summing_junction":
+                if direction in [LEFT, DOWN, UP]: # Summing junction can have inputs from multiple directions
+                    self.input_ports[name] = port
+                elif direction in [RIGHT, UP]: # Summing junction can have outputs in multiple directions
+                    self.output_ports[name] = port
+                else: # Default to output if ambiguous
+                    self.output_ports[name] = port
+            else: # For non-summing junction blocks, default to output if not explicitly input
+                self.output_ports[name] = port
+
         self.add(port)
 
 class Connection(VGroup):
@@ -1228,14 +1247,23 @@ class Disturbance(VGroup):
 
 class ControlSystem:
     def __init__(self):
-        self.blocks = OrderedDict()  # Preserves insertion order
+        self.blocks = OrderedDict()  
+        self._block_counter = 0 
+
         self.connections = []
         self.disturbances = []
         
+        
     def add_block(self, name, block_type, position, params=None):
         """Adds a new block to the system"""
+        if not name.strip():  # If name is empty
+            name = f"{block_type}_{self._block_counter}"
+            self._block_counter += 1
+
         new_block = ControlBlock(name, block_type, position, params)
         self.blocks[name] = new_block
+
+
         return new_block
         
     def connect(self, source_block, output_port, dest_block, input_port, style="default", label_tex=None, label_font_size=30,
@@ -1304,24 +1332,22 @@ class ControlSystem:
             self.connect(source_block, old_conn.output_port, new_block, "in")
             self.connect(new_block, "out", dest_block, old_conn.input_port)
     
-    def add_input(self, target_block, input_port, label_tex=None, length=2, color=WHITE, **kwargs):
+    def add_input(self, target_block, input_port, label_tex=None, label_tex_font_size=30, length=2, color=WHITE, stroke_opacity=1, stroke_width=2, **kwargs):
         """Adds an input arrow to a block."""
         end = target_block.input_ports[input_port].get_center()
         start = end + LEFT * length  # Default: comes from the left
     
         arrow = Arrow(
-            start, end,
-            stroke_width=3,
+            start, end, stroke_width=stroke_width,
             tip_length=0.25,
             buff=0.05,
-            color=color,
-            **kwargs
-        )
+            color=color, stroke_opacity=stroke_opacity,
+            **kwargs)
     
         input_group = VGroup(arrow)
     
         if label_tex:
-            label = MathTex(label_tex, font_size=30, color=color)
+            label = MathTex(label_tex, font_size=label_tex_font_size, color=color)
             label.next_to(arrow, UP, buff=0.2)
             input_group.add(label)
         
@@ -1399,36 +1425,80 @@ class ControlSystem:
         self.feedbacks = getattr(self, 'feedbacks', []) + [feedback]
         return feedback
     
+    def add_feedforward_path(self, source_block, output_port, dest_block, input_port, 
+                         vertical_distance=2, horizontal_distance=None, label_tex=None, color=WHITE, **kwargs):
+        """Adds a feedforward path with right-angle turns using Arrow.
+        
+        Args:
+            vertical_distance: Vertical drop distance (default: 2)
+            horizontal_distance: Manual override for horizontal distance. 
+                               If None, calculates automatically (default: None)
+        """
+        # Calculate path points
+        start = source_block.output_ports[output_port].get_center()
+        end = dest_block.input_ports[input_port].get_center()
+
+        mid1 = start + DOWN*vertical_distance
+        
+        # Calculate automatic horizontal distance if not specified
+        if horizontal_distance is None:
+            horizontal_distance = abs(mid1[0] - end[0])
+            
+        mid2 = mid1 + LEFT * horizontal_distance
+        
+        # Create path segments
+        segment1 = Line(start, mid1, color=color, **kwargs)
+        segment2 = Line(mid1, mid2, color=color, **kwargs)
+        segment3 = Arrow(start=mid2, end=end, tip_length=0.2, buff=0, color=color, **kwargs)
+        
+        # Combine with arrow tip on last segment
+        feedforward_arrow = VGroup(
+            segment1,
+            segment2,
+            segment3
+        )
+        feedforward_arrow.set_stroke(color=color, width=3)
+
+        # Create complete feedforward group
+        feedforward = VGroup(feedforward_arrow)
+        
+        # Add label if specified
+        if label_tex:
+            label = MathTex(label_tex, font_size=30)
+            label.next_to(mid2, DOWN, buff=0.2)
+            feedforward.add(label)
+            
+        # Store feedforward path
+        self.feedforwards = getattr(self, 'feedforwards', []) + [feedforward]
+        return feedforward
+    
+    
     def get_all_components(self):
         """Modified to include all system components"""
-        all_components = VGroup()
+        self.all_components = VGroup()
         
         # Add non-summing-junction blocks first
         for block in self.blocks.values():
-            if block.type != "summing_junction":
-                all_components.add(block)
+            self.all_components.add(block)
         
         # Add connections and disturbances
         for connection in self.connections:
-            all_components.add(connection)
+            self.all_components.add(connection)
         for disturbance in self.disturbances:
-            all_components.add(disturbance)
+            self.all_components.add(disturbance)
         
-        # Add summing junctions last (z-index hack)
-        for block in self.blocks.values():
-            if block.type == "summing_junction":
-                block.set_z_index(100)
-                all_components.add(block)
         
         # Add inputs, outputs and feedbacks if they exist
         for input_arrow in getattr(self, 'inputs', []):
-            all_components.add(input_arrow)
+            self.all_components.add(input_arrow)
         for output_arrow in getattr(self, 'outputs', []):
-            all_components.add(output_arrow)
+            self.all_components.add(output_arrow)
         for feedback in getattr(self, 'feedbacks', []):
-            all_components.add(feedback)
+            self.all_components.add(feedback)
+        for feedforward in getattr(self, 'feedforwards', []):
+            self.all_components.add(feedforward)
         
-        return all_components
+        return self.all_components
     
     def _find_connection(self, source_block, dest_block):
         """Helper method to find connection between two blocks"""
@@ -2758,7 +2828,7 @@ class BodePlot(VGroup):
             if hasattr(self, attr) and getattr(self, attr) in getattr(self, attr.split('_')[0] + '_components'):
                 getattr(self, attr.split('_')[0] + '_components').remove(getattr(self, attr))
 
-    def show_margins(self, show_values=True, show_pm=True, show_gm=True, pm_color=YELLOW, add_directly=True,
+    def show_margins(self, show_values=True, show_pm=True, show_gm=True, gm_in_dB=True, pm_color=YELLOW, add_directly=True,
                      gm_color=YELLOW, text_color_white=True,font_size=24, pm_label_pos=DOWN+LEFT, gm_label_pos=UP+RIGHT,**kwargs):
         """
         Show gain and phase margins on the Bode plot if possible.
@@ -2770,143 +2840,145 @@ class BodePlot(VGroup):
         """
         # Calculate stability margins
         gm, pm, sm, wg, wp, ws = self._calculate_stability_margins()
-        
+    
         margin_group = VGroup()
         
-            # ===== Add 0dB line and -180 deg phase line =====
+        # ===== Add 0dB line and -180 deg phase line =====
         if self._show_magnitude:
-            # Create 0dB line across the entire x-range
             x_min, x_max = self.mag_axes.x_range[0], self.mag_axes.x_range[1]
-            self.zerodB_line = DashedLine(
-                self.mag_axes.c2p(x_min, 0),
-                self.mag_axes.c2p(x_max, 0),
-                color=pm_color, **kwargs)
-            if add_directly:
-                margin_group.add(self.zerodB_line)
+            y_min, y_max = self.mag_axes.y_range[0], self.mag_axes.y_range[1]
+            if y_min <= 0 <= y_max:
+                self.zerodB_line = DashedLine(
+                    self.mag_axes.c2p(x_min, 0),
+                    self.mag_axes.c2p(x_max, 0),
+                    color=pm_color, dash_length=0.1, **kwargs)  
+                if add_directly:
+                    margin_group.add(self.zerodB_line)
 
         if self._show_phase:
-            # Create -180° line across the entire x-range
             x_min, x_max = self.phase_axes.x_range[0], self.phase_axes.x_range[1]
-            self.minus180deg_line = DashedLine(
-                self.phase_axes.c2p(x_min, -180),
-                self.phase_axes.c2p(x_max, -180),
-                color=gm_color,**kwargs)
-            if add_directly:
-                margin_group.add(self.minus180deg_line)
+            y_min, y_max = self.phase_axes.y_range[0], self.phase_axes.y_range[1]
 
-            
+            if y_min <=-180 <= y_max:
+                self.minus180deg_line = DashedLine(
+                    self.phase_axes.c2p(x_min, -180),
+                    self.phase_axes.c2p(x_max, -180),
+                    color=gm_color, dash_length=0.1, **kwargs)  
+                if add_directly:
+                    margin_group.add(self.minus180deg_line)
+
         # Only proceed if we have valid margins
-        if gm != np.inf and show_gm==True:
+        if gm != np.inf and show_gm and not np.isnan(wg):
             log_wg = np.log10(wg)
-            log_wp = np.log10(wp)
+            log_wp = np.log10(wp) if not np.isnan(wp) and wp != np.inf else log_wg
             
             # ===== Gain Margin =====
             if self._show_phase:
-                # Find phase at gain crossover frequency (wg)
                 phase_at_wg = np.interp(wg, self.frequencies, self.phases)
                 gain_at_wp = np.interp(wg, self.frequencies, self.magnitudes)
-                mag_at_wp = np.interp(wp, self.frequencies, self.magnitudes)
-                phase_at_wp = np.interp(wp,self.frequencies, self.phases)
-                # Add line at gain crossover frequency (wg)
-                self.vert_gain_line = DashedLine(self.mag_axes.c2p(log_wp, mag_at_wp),
-                                                 self.mag_axes.c2p(log_wp, self.magnitude_yrange[0])
-                    ,
-                    color=pm_color,
-                    **kwargs
-                )
-            
-            
+                mag_at_wp = np.interp(wp, self.frequencies, self.magnitudes) if not np.isnan(wp) and wp != np.inf else 0
+                
+                # Only add vertical line if it will have positive length
+                if log_wp >= self.mag_axes.x_range[0] and log_wp <= self.mag_axes.x_range[1]:
+                    self.vert_gain_line = DashedLine(
+                        self.mag_axes.c2p(log_wp, mag_at_wp),
+                        self.mag_axes.c2p(log_wp, self.magnitude_yrange[0]),
+                        color=pm_color, dash_length=0.1, **kwargs
+                    )
+                    if add_directly:
+                        margin_group.add(self.vert_gain_line)
+                
                 self.gm_dot = Dot(
                     self.phase_axes.c2p(log_wg, -180),
                     color=gm_color, radius=0.05)
-            
-
-                self.gm_vector = Arrow(self.mag_axes.c2p(log_wg, 0),
-                            self.mag_axes.c2p(log_wg, gain_at_wp),color=gm_color,
-                    buff=0, tip_length=0.15)
-                gm_vector_width = max(1.5, min(8.0, 0.75/self.gm_vector.get_length()))
-                self.gm_vector.set_stroke(width=gm_vector_width)
+                
+                # Only add GM vector if it will have positive length
+                if abs(gain_at_wp) > 1e-6:  # Small threshold to avoid zero-length vectors
+                    self.gm_vector = Arrow(
+                        self.mag_axes.c2p(log_wg, 0),
+                        self.mag_axes.c2p(log_wg, gain_at_wp),
+                        color=gm_color, buff=0, tip_length=0.15)
+                    gm_vector_width = max(1.5, min(8.0, 0.75/max(0.1, self.gm_vector.get_length())))  # Prevent division by zero
+                    self.gm_vector.set_stroke(width=gm_vector_width)
+                    if add_directly:
+                        margin_group.add(self.gm_vector)
+                
                 if add_directly:
-                    margin_group.add(self.gm_vector)
-                    margin_group.add(self.vert_gain_line)
                     margin_group.add(self.gm_dot)
+                
                 # Add text label if requested
                 if show_values:
-                    if text_color_white==False:
+                    text_color = WHITE if text_color_white else gm_color
+                    if gm_in_dB:
                         self.gm_text = MathTex(
                             f"GM = {gm:.2f} dB",
                             font_size=font_size,
-                            color=gm_color
+                            color=text_color
                         ).next_to(
                             self.mag_axes.c2p(log_wg, gain_at_wp),
-                            gm_label_pos, buff=0.2
-                        )
+                            gm_label_pos, buff=0.2)
                     else:
+                        gm_linear = 10**(abs(gm)/20)
                         self.gm_text = MathTex(
-                            f"GM = {gm:.2f} dB",
+                            f"GM = |{gm_linear:.2f}|",
                             font_size=font_size,
-                            color=WHITE
+                            color=text_color
                         ).next_to(
                             self.mag_axes.c2p(log_wg, gain_at_wp),
-                            gm_label_pos, buff=0.2
-                        )
+                            gm_label_pos, buff=0.2)
                     if add_directly:
                         margin_group.add(self.gm_text)
 
-        if pm != np.inf and show_pm==True:
-            
-            log_wg = np.log10(wg)
+        if pm != np.inf and show_pm and not np.isnan(wp):
             log_wp = np.log10(wp)
+            log_wg = np.log10(wg) if not np.isnan(wg) and wg != np.inf else log_wp
+            
             # ===== Phase Margin =====
             if self._show_magnitude:
-                # Find magnitude at phase crossover frequency (wp)
                 mag_at_wp = np.interp(wp, self.frequencies, self.magnitudes)
-                phase_at_wp = np.interp(wp,self.frequencies, self.phases)
-                phase_at_wg = np.interp(wg, self.frequencies, self.phases)
-                gain_at_wp = np.interp(wg, self.frequencies, self.magnitudes)
-                # Add line at phase crossover frequency (wp)
-                self.vert_phase_line = DashedLine(
-                    self.phase_axes.c2p(log_wg, phase_at_wg),
-                    self.phase_axes.c2p(log_wg, self.phase_yrange[1])
-                    ,
-                    color=gm_color, **kwargs
-                )
+                phase_at_wp = np.interp(wp, self.frequencies, self.phases)
+                phase_at_wg = np.interp(wg, self.frequencies, self.phases) if not np.isnan(wg) and wg != np.inf else -180
+                
+                # Only add vertical line if it will have positive length
+                if log_wg >= self.phase_axes.x_range[0] and log_wg <= self.phase_axes.x_range[1]:
+                    self.vert_phase_line = DashedLine(
+                        self.phase_axes.c2p(log_wg, phase_at_wg),
+                        self.phase_axes.c2p(log_wg, self.phase_yrange[1]),
+                        color=gm_color, dash_length=0.1, **kwargs
+                    )
+                    if add_directly:
+                        margin_group.add(self.vert_phase_line)
 
-                # Add dot at 0 dB point
                 self.pm_dot = Dot(
                     self.mag_axes.c2p(log_wp, 0),
                     color=pm_color, radius=0.05
                 )
 
-                self.pm_vector = Arrow(self.phase_axes.c2p(log_wp, -180),
-                            self.phase_axes.c2p(log_wp, phase_at_wp),
-                    color=pm_color,tip_length=0.15,buff=0)
-                pm_vector_width = max(1.5, min(8.0, 0.75/self.pm_vector.get_length()))
-                self.pm_vector.set_stroke(width=pm_vector_width)
+                # Only add PM vector if it will have positive length
+                if abs(phase_at_wp + 180) > 1e-6:  # Small threshold to avoid zero-length vectors
+                    self.pm_vector = Arrow(
+                        self.phase_axes.c2p(log_wp, -180),
+                        self.phase_axes.c2p(log_wp, phase_at_wp),
+                        color=pm_color, tip_length=0.15, buff=0)
+                    pm_vector_width = max(1.5, min(8.0, 0.75/max(0.1, self.pm_vector.get_length())))  # Prevent division by zero
+                    self.pm_vector.set_stroke(width=pm_vector_width)
+                    if add_directly:
+                        margin_group.add(self.pm_vector)
+                
                 if add_directly:
-                    margin_group.add(self.pm_vector)
-                    margin_group.add(self.vert_phase_line)
                     margin_group.add(self.pm_dot)
+                
                 # Add text label if requested
                 if show_values:
-                    if text_color_white==False:
-                        self.pm_text = MathTex(
-                            f"PM = {pm:.2f}^\\circ",
-                            font_size=font_size,
-                            color=pm_color
-                        ).next_to(
-                            self.phase_axes.c2p(log_wp, phase_at_wp),
-                            pm_label_pos, buff=0.2
-                        )
-                    else:
-                        self.pm_text = MathTex(
-                            f"PM = {pm:.2f}^\\circ",
-                            font_size=font_size,
-                            color=WHITE
-                        ).next_to(
-                            self.phase_axes.c2p(log_wp, phase_at_wp),
-                            pm_label_pos, buff=0.2
-                        )
+                    text_color = WHITE if text_color_white else pm_color
+                    self.pm_text = MathTex(
+                        f"PM = {pm:.2f}^\\circ",
+                        font_size=font_size,
+                        color=text_color
+                    ).next_to(
+                        self.phase_axes.c2p(log_wp, phase_at_wp),
+                        pm_label_pos, buff=0.2
+                    )
                     if add_directly:
                         margin_group.add(self.pm_text)
 
@@ -2926,26 +2998,50 @@ class BodePlot(VGroup):
         # Find phase crossover (where phase crosses -180°)
         phase_crossings = np.where(np.abs(self.phases + 180) < 0.5)[0]
         
-        if len(phase_crossings) > 0:
-            # Use the last crossing before phase goes below -180°
-            idx = phase_crossings[-1]
+        gms = []
+        wgs = []
+        for idx in phase_crossings:
             wg = np.interp(-180, self.phases[idx:idx+2], self.frequencies[idx:idx+2])
             mag_at_wg = np.interp(wg, self.frequencies, self.magnitudes)
-            gm = -mag_at_wg  # Gain margin is how much gain can increase before instability
+            gm_db = -mag_at_wg  # Gain margin in dB
+            gm_linear = 10**(gm_db/20)  # Convert to linear scale for comparison
+            
+            gms.append(gm_db)
+            wgs.append(wg)
+        
+        # Select the gain margin closest to 1 in linear scale
+        if gms:
+            gms_linear = [10**(gm/20) for gm in gms]
+            closest_idx = np.argmin([abs(gm_linear - 1) for gm_linear in gms_linear])
+            gm = gms[closest_idx]
+            wg = wgs[closest_idx]
         else:
             wg = np.inf
             gm = np.inf
         
-        # Find gain crossover (where magnitude crosses 0 dB)
-        gain_crossings = np.where(np.abs(self.magnitudes) < 0.5)[0]
+        # Find all gain crossovers (where magnitude crosses 0 dB)
+        gain_crossings = []
+        for i in range(len(self.magnitudes)-1):
+            if self.magnitudes[i] * self.magnitudes[i+1] <= 0:
+                gain_crossings.append(i)
         
-        if len(gain_crossings)>0:
-            idx = gain_crossings[0]  # First 0 dB crossing
+        pms = []
+        wps = []
+        for idx in gain_crossings:
             wp = np.interp(0, 
                         [self.magnitudes[idx], self.magnitudes[idx+1]],
                         [self.frequencies[idx], self.frequencies[idx+1]])
             phase_at_wp = np.interp(wp, self.frequencies, self.phases)
             pm = 180 + phase_at_wp
+            
+            pms.append(pm)
+            wps.append(wp)
+        
+        # Select the phase margin closest to 0 degrees
+        if pms:
+            closest_idx = np.argmin([abs(pm) for pm in pms])
+            pm = pms[closest_idx]
+            wp = wps[closest_idx]
         else:
             wp = np.inf
             pm = np.inf
@@ -2967,7 +3063,7 @@ class BodePlot(VGroup):
 class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
                  color=BLUE, stroke_width=2, axis_dashed=True, y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
-                 font_size_labels=20, show_unit_circle=False, unit_circle_dashed=True, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
+                 font_size_labels=20, show_unit_circle=False, unit_circle_dashed=False, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
                   show_positive_freq=True, show_negative_freq=True, **kwargs):
         """
         Generates a Nyquist plot visualization as a Manim VGroup
@@ -4053,7 +4149,7 @@ class Nyquist(VGroup):
         
         return gm, pm, mm, wg, wp, wm
     
-    def show_margins(self, pm_color=YELLOW,mm_color=ORANGE, gm_color=GREEN_E, font_size=18, show_pm=True, show_gm=True, show_mm=True):
+    def show_margins(self, pm_color=YELLOW,mm_color=ORANGE, gm_color=GREEN_E, font_size=18, show_pm=True, show_gm=True, show_mm=True,pm_label=None,gm_label=None,mm_label=None):
         """Add visual indicators for phase and gain margins."""
         gm, pm, mm, wg, wp, wm = self._calculate_stability_margins()
         self.show_gm = show_gm
@@ -4074,8 +4170,11 @@ class Nyquist(VGroup):
             if gm == np.isclose(gm,0,atol=1e-1):
                 self.gm_label = MathTex(f"\\frac{{1}}{{\\text{{GM}}}} = \\text{{inf}}", 
                              font_size=font_size, color=gm_color)
-            else:
+            elif gm_label is None:
                 self.gm_label = MathTex(f"\\frac{{1}}{{\\text{{GM}}}} = {1/gm:.2f}", 
+                             font_size=font_size, color=gm_color)
+            else:
+                self.gm_label = MathTex(gm_label, 
                              font_size=font_size, color=gm_color)
             self.gm_label.next_to(self.gm_line,UP, buff=0.1)
             gm_group.add(self.gm_label,self.gm_line)
@@ -4090,7 +4189,11 @@ class Nyquist(VGroup):
             point = self.plane.number_to_point(self.real_part[idx] + 1j*self.imag_part[idx])
             
             self.pm_dot = Dot(point, color=pm_color, radius=0.06)
-            self.pm_label = MathTex(f"PM = {pm:.2f}^\\circ", 
+            if pm_label is None:
+                self.pm_label = MathTex(f"PM = {pm:.2f}^\\circ", 
+                             font_size=font_size, color=pm_color)
+            else:
+                self.pm_label = MathTex(pm_label, 
                              font_size=font_size, color=pm_color)
             self.pm_label.next_to(self.pm_dot, RIGHT, buff=0.1)
             
@@ -4125,13 +4228,21 @@ class Nyquist(VGroup):
                 self.arrow_tip.set_color(pm_color)
                 # Move it to the tip location
                 self.arrow_tip.move_to(tip_location)
-                self.pm_label = MathTex(f"PM = {pm:.0f}^\\circ", 
-                               font_size=font_size, color=pm_color)
+                if pm_label is None:
+                    self.pm_label = MathTex(f"PM = {pm:.0f}^\\circ", 
+                                font_size=font_size, color=pm_color)
+                else:
+                    self.pm_label = MathTex(pm_label, 
+                                font_size=font_size, color=pm_color)
                 self.pm_label.next_to(self.pm_arc,LEFT,buff=0.1)
                 pm_group.add(self.arrow_tip, self.pm_label)
             else:
-                self.pm_label = MathTex(f"PM = {pm:.0f}^\\circ", 
-                               font_size=font_size, color=pm_color)
+                if pm_label is None:
+                    self.pm_label = MathTex(f"PM = {pm:.0f}^\\circ", 
+                                font_size=font_size, color=pm_color)
+                else: 
+                    self.pm_label = MathTex(pm_label, 
+                                font_size=font_size, color=pm_color)
                 self.pm_label.next_to(self.plane.number_to_point(-1 + 0j),UP,buff=0.2)
                 pm_group.add(self.pm_label)
             pm_group.add(self.pm_arc)

@@ -8,36 +8,42 @@ class ControlSystemScene(Scene):
         cs = ControlSystem()
         
         # Create blocks
-        sum_block = cs.add_block("", "summing_junction", 4*LEFT, params={
-        "input1_dir": LEFT,   
-        "input2_dir": DOWN,     
-        "input2_sign": "-",   
-        "input1_sign": "+"
-         })
-        ref = cs.add_input(sum_block, "in1", label_tex=r"r(s)")
-        controller = cs.add_block(r"K_p(1+Ds)", "transfer_function", 1.5*LEFT, 
-                                  {"use_mathtex":True, "color":BLUE})
-        sum_block2 = cs.add_block("", "summing_junction", RIGHT, params={
-        "input1_dir": LEFT,   
-        "input2_dir": UP,     
-        "input2_sign": "+",   
-        "input1_sign": "+"
-         })
-        plant = cs.add_block("Plant", "transfer_function", RIGHT*3.5, {"color":GREEN,"text_font_size":40})
+        sum_block1 = cs.add_block("", "summing_junction", 4*LEFT, params={"input1_dir": LEFT, "input2_dir": DOWN, "input2_sign": "-", "input1_sign": "+","fill_opacity": 0})
+        ref = cs.add_input(sum_block1, "in1", label_tex=r"r(s)")
+        controller = cs.add_block(r"K_p(1+Ds)", "transfer_function", 1.5*LEFT, {"use_mathtex":True, "color":BLUE, "font_size":50,"label":r"K_p(1+Ds)"})
+        sum_block2 = cs.add_block("", "summing_junction", RIGHT, params={"input1_dir": LEFT, "input2_dir": UP, "output1_dir": RIGHT, "output2_dir":DOWN,"input2_sign": "+", "input1_sign": "+", "fill_opacity":0})
+        plant = cs.add_block("Plant", "transfer_function", RIGHT*3.5, {"color":GREEN,"text_font_size":40, "label":"Plant"})
         output = cs.add_output(plant, "out", label_tex=r"y(s)", color=GREEN)
-        feedback = cs.add_feedback_path(plant, "out", sum_block, "in2")
+        sum_block3 = cs.add_block("", "summing_junction", RIGHT+UP, params={"input1_dir": LEFT, "input2_dir": UP,"output1_dir":DOWN,"output2_dir":RIGHT,"input2_sign": "+", "input1_sign": "+", "fill_opacity":0})
+        feedback = cs.add_feedback_path(plant, "out", sum_block1, "in2")
+        feedforward = cs.add_feedforward_path(sum_block1, "out2", sum_block3,"in1")
         
         #Connect
-        cs.connect(sum_block, "out", controller, "in", label_tex=r"e(s)", color=BLUE)
-        cs.connect(controller, "out", sum_block2, "in1", color=BLUE)
-        cs.connect(sum_block2, "out", plant, "in")
-        
+        conn1 = cs.connect(sum_block1, "out1", controller, "in", label_tex=r"e(s)", color=BLUE)
+        conn2 = cs.connect(controller, "out", sum_block2, "in1", color=BLUE)
+        conn3 = cs.connect(sum_block2, "out1", plant, "in")
+        conn4 = cs.connect(sum_block3, "out1", sum_block2,"in2")
         # Add disturbance
-        disturbance = cs.add_disturbance(sum_block2, "in2", label_tex=r"d(s)"
+        disturbance = cs.add_disturbance(sum_block3, "in2", label_tex=r"d(s)"
                                          , position="top", color=RED)
-        
-        
-        # Render all components
-        self.play(FadeIn(cs.get_all_components()), FadeIn(sum_block))
-        self.wait(3)
 
+        self.play(Create(ref), run_time=0.5)
+        self.wait(0.1)
+        self.play(FadeIn(sum_block1), run_time=0.5)
+        self.wait(0.1)
+        self.play(Create(conn1), Create(feedforward),run_time=0.5)
+        self.wait(0.1)
+        self.play(FadeIn(controller))
+        self.wait(0.1)
+        self.play(Create(conn2), run_time=0.5)
+        self.wait(0.1)
+        self.play(FadeIn(sum_block2), run_time=0.5)
+        self.wait(0.1)
+        self.play(Create(disturbance), Create(conn3), run_time=0.5)
+        self.wait(0.1)
+        self.play(FadeIn(plant))
+        self.wait(0.1)
+        self.play(Create(output), Create(feedback))
+        title=Text("Feedback loop", font_size=30).move_to(ORIGIN+3*UP)
+        self.play(Write(title))
+        self.wait(2)

@@ -2,7 +2,7 @@ from manim import *
 from controltheorylib.control import Nyquist
 import sympy as sp
 
-class Nyquistmargins(Scene):
+class Animation_Example4(Scene):
     def construct(self):
         
         # Define the system transfer function
@@ -16,7 +16,7 @@ class Nyquistmargins(Scene):
         nyq.show_margins()
         
         # Animate the Nyquist plot step-by-step
-        self.play(Create(nyq.box))
+        self.play(FadeIn(nyq.box))
         self.wait(0.5)
         self.play(Create(nyq.x_ticks), Create(nyq.y_ticks))
         self.wait(0.5)
