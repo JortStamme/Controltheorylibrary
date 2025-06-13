@@ -2,7 +2,7 @@ from manim import *
 from controltheorylib.control import Nyquist
 import sympy as sp
 
-class Animation_Example4(Scene):
+class Animation_Example3(Scene):
     def construct(self):
         
         # Define the system transfer function
