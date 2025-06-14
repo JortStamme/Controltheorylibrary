@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib.control import PoleZeroMap
+from controltheorylib import PoleZeroMap
 import sympy as sp
 
 class Static_example4(Scene):

@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib.control import PoleZeroMap
+from controltheorylib import PoleZeroMap
 
 class Static_example5(Scene):
     def construct(self):

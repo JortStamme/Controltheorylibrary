@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib.control import Nyquist
+from controltheorylib import Nyquist
 
 class Animation_Example1(Scene):
     def construct(self):

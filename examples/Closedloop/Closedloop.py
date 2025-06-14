@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib.control import ControlSystem
+from controltheorylib import ControlSystem
 
 
 class ControlSystemScene(Scene):

@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib.control import Nyquist
+from controltheorylib import Nyquist
 import sympy as sp
 
 class NyquistTransform(Scene):
