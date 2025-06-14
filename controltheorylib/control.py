@@ -1144,32 +1144,44 @@ class ControlBlock(VGroup):
     def add_port(self, name, direction):
         """Adds a port with size scaled to block type"""
         port_size = 0.0005
-            
+        
         port = Dot(radius=port_size, color=BLUE).next_to(
             self.background, 
             direction, 
             buff=0
         )
         
-        if any(np.array_equal(direction, d) for d in [LEFT, DOWN]): # Typical input directions
-            self.input_ports[name] = port
-        elif any(np.array_equal(direction, d) for d in [RIGHT, UP]): # Typical output directions
-             self.output_ports[name] = port
-        else: # Fallback for other directions or if you want to explicitly define
-            # For this context, it's safer to consider RIGHT and UP as outputs for summing_junction
-            # and LEFT/DOWN as inputs, if it's not a summing junction, it's simpler.
-            if self.type == "summing_junction":
-                if direction in [LEFT, DOWN, UP]: # Summing junction can have inputs from multiple directions
+        # Convert direction to tuple for comparison
+        dir_tuple = tuple(direction)
+        
+        # Standard directions as tuples
+        LEFT_TUPLE = tuple(LEFT)
+        RIGHT_TUPLE = tuple(RIGHT)
+        UP_TUPLE = tuple(UP)
+        DOWN_TUPLE = tuple(DOWN)
+        
+        # For summing junctions, treat all ports explicitly
+        if self.type == "summing_junction":
+            # Input ports are those specified in params with "in" prefix
+            if name.startswith("in"):
+                self.input_ports[name] = port
+            # Output ports are those specified in params with "out" prefix
+            elif name.startswith("out"):
+                self.output_ports[name] = port
+            else:
+                # Fallback logic using tuple comparison
+                if dir_tuple in [LEFT_TUPLE, DOWN_TUPLE]:
                     self.input_ports[name] = port
-                elif direction in [RIGHT, UP]: # Summing junction can have outputs in multiple directions
+                else:
                     self.output_ports[name] = port
-                else: # Default to output if ambiguous
-                    self.output_ports[name] = port
-            else: # For non-summing junction blocks, default to output if not explicitly input
+        else:
+            # For non-summing blocks, use standard convention
+            if dir_tuple in [LEFT_TUPLE, DOWN_TUPLE]:
+                self.input_ports[name] = port
+            else:
                 self.output_ports[name] = port
 
         self.add(port)
-
 class Connection(VGroup):
     def __init__(self, source_block, output_port, dest_block, input_port, label_tex=None,label_font_size=35,
                  color=WHITE, **kwargs):
@@ -1425,53 +1437,91 @@ class ControlSystem:
         self.feedbacks = getattr(self, 'feedbacks', []) + [feedback]
         return feedback
     
-    def add_feedforward_path(self, source_block, output_port, dest_block, input_port, 
-                         vertical_distance=2, horizontal_distance=None, label_tex=None, color=WHITE, **kwargs):
-        """Adds a feedforward path with right-angle turns using Arrow.
+    def add_feedforward_path(self, source_block, output_port, dest_block, input_port,
+                            vertical_distance=None, horizontal_distance=None, label_tex=None,
+                            color=WHITE, **kwargs):
+        """Adds a feedforward path that adapts to the input port direction of the destination."""
         
-        Args:
-            vertical_distance: Vertical drop distance (default: 2)
-            horizontal_distance: Manual override for horizontal distance. 
-                               If None, calculates automatically (default: None)
-        """
-        # Calculate path points
+            # Get connection points
         start = source_block.output_ports[output_port].get_center()
         end = dest_block.input_ports[input_port].get_center()
-
-        mid1 = start + DOWN*vertical_distance
         
-        # Calculate automatic horizontal distance if not specified
-        if horizontal_distance is None:
-            horizontal_distance = abs(mid1[0] - end[0])
+        # Get input direction by comparing port position to block center
+        input_dir = None
+        port_center = dest_block.input_ports[input_port].get_center()
+        block_center = dest_block.background.get_center()
+        
+        # Calculate direction vector from block center to port
+        direction_vector = port_center - block_center
+        
+        # Normalize and compare to standard directions
+        if np.linalg.norm(direction_vector) > 0:
+            direction_vector = direction_vector / np.linalg.norm(direction_vector)
             
-        mid2 = mid1 + LEFT * horizontal_distance
+            # Compare with threshold for each direction
+            if np.dot(direction_vector, LEFT) > 0.9:
+                input_dir = "LEFT"
+            elif np.dot(direction_vector, RIGHT) > 0.9:
+                input_dir = "RIGHT"
+            elif np.dot(direction_vector, UP) > 0.9:
+                input_dir = "UP"
+            elif np.dot(direction_vector, DOWN) > 0.9:
+                input_dir = "DOWN"
+            
+        # Default to relative positioning if not a summing junction or direction not found
+        if input_dir is None:
+            input_dir = "LEFT" if end[0] < start[0] else "RIGHT"  # Simple left/right fallback
         
-        # Create path segments
-        segment1 = Line(start, mid1, color=color, **kwargs)
-        segment2 = Line(mid1, mid2, color=color, **kwargs)
-        segment3 = Arrow(start=mid2, end=end, tip_length=0.2, buff=0, color=color, **kwargs)
+        # Calculate path based on input direction
+        if input_dir == "LEFT":
+            # Standard feedforward: UP → RIGHT
+            vertical_distance = UP*abs(end[1]-start[1])
+            mid1 = start+vertical_distance
+            if horizontal_distance is None:
+                horizontal_distance = abs(mid1[0] - end[0])
+            segments = [
+                Line(start, mid1, color=color, **kwargs),
+                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)
+            ]
+            label_pos = mid1 + DOWN * 0.2
+        elif input_dir == "UP":
+            # For top input: DOWN → RIGHT → UP
+            mid1 = start + UP *end[1]
+            if horizontal_distance is None:
+                horizontal_distance = abs(mid1[0] - end[0])
+            mid2 = mid1 + RIGHT * horizontal_distance
+            segments = [
+                Line(start, mid1, color=color, **kwargs),
+                Line(mid1, mid2, color=color, **kwargs),
+                Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)
+            ]
+            label_pos = mid2 + UP * 0.2
+        else:  # RIGHT or UP
+            vertical_distance=1
+            # Default to standard path for other directions
+            mid1 = start + UP * vertical_distance
+            if horizontal_distance is None:
+                horizontal_distance = abs(mid1[0] - end[0])
+            segments = [
+                Line(start, mid1, color=color, **kwargs),
+                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)
+            ]
+            label_pos = mid1 + DOWN * 0.2
         
-        # Combine with arrow tip on last segment
-        feedforward_arrow = VGroup(
-            segment1,
-            segment2,
-            segment3
-        )
+        # Create complete path
+        feedforward_arrow = VGroup(*segments)
         feedforward_arrow.set_stroke(color=color, width=3)
-
-        # Create complete feedforward group
-        feedforward = VGroup(feedforward_arrow)
         
         # Add label if specified
+        feedforward = VGroup(feedforward_arrow)
         if label_tex:
             label = MathTex(label_tex, font_size=30)
-            label.next_to(mid2, DOWN, buff=0.2)
+            label.move_to(label_pos)
             feedforward.add(label)
             
         # Store feedforward path
         self.feedforwards = getattr(self, 'feedforwards', []) + [feedforward]
         return feedforward
-    
     
     def get_all_components(self):
         """Modified to include all system components"""

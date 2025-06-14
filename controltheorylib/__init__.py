@@ -1,9 +1,9 @@
-from .control import ControlSystem, ControlBlock, Connection, Disturbance
-from .control import BodePlot
-from .control import Nyquist
-from .control import PoleZeroMap
-from .control import spring
-from .control import fixed_world
-from .control import rect_mass
-from .control import circ_mass
-from .control import damper
+from .controlsystem import ControlSystem, ControlBlock, Connection, Disturbance
+from .bode import BodePlot
+from .nyquist import Nyquist
+from .pzmap import PoleZeroMap
+from .mech_vis import spring
+from .mech_vis import fixed_world
+from .mech_vis import rect_mass
+from .mech_vis import circ_mass
+from .mech_vis import damper
