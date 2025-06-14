@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import control
+from controltheorylib import mech_vis
 from scipy.integrate import solve_ivp
 import numpy as np
 
@@ -59,16 +59,16 @@ class CoupledSpringDamper(Scene):
         x2_sol = solution.y[1]
 
         # Fixed world
-        floor = control.fixed_world(3.5*LEFT, 3.5*RIGHT, mirror=True, line_or="left").shift(3*DOWN)
+        floor = mech_vis.fixed_world(3.5*LEFT, 3.5*RIGHT, mirror=True, line_or="left").shift(3*DOWN)
         
         # Masses
-        m1 = control.rect_mass(width=4,height=1.5, label="m_1",color=BLUE).next_to(floor,UP, buff=1.5).align_to(floor,LEFT)
-        m2 = control.rect_mass(width=7,height=1.5, label="m_2",color=BLUE).next_to(m1,UP, buff=1.5).align_to(m1,LEFT)
+        m1 = mech_vis.rect_mass(width=4,height=1.5, label="m_1",color=BLUE).next_to(floor,UP, buff=1.5).align_to(floor,LEFT)
+        m2 = mech_vis.rect_mass(width=7,height=1.5, label="m_2",color=BLUE).next_to(m1,UP, buff=1.5).align_to(m1,LEFT)
         
         #springs and their labels
-        k1 = control.spring(start=[-3,-3,0], end=[-3,-1.5,0], coil_width=0.4, num_coils=4)
-        k2 = control.spring(start=[-3,0,0], end=[-3,1.5,0], coil_width=0.4, num_coils=4)
-        k3 = control.spring(start=[3,-3,0], end=[3,1.5,0], coil_width=0.4, num_coils=8)
+        k1 = mech_vis.spring(start=[-3,-3,0], end=[-3,-1.5,0], coil_width=0.4, num_coils=4)
+        k2 = mech_vis.spring(start=[-3,0,0], end=[-3,1.5,0], coil_width=0.4, num_coils=4)
+        k3 = mech_vis.spring(start=[3,-3,0], end=[3,1.5,0], coil_width=0.4, num_coils=8)
 
         k1_label = MathTex("k_1", font_size=35).next_to(k1,LEFT, buff=0.3)
         k2_label = MathTex("k_2", font_size=35).next_to(k2,LEFT, buff=0.3)
@@ -77,9 +77,9 @@ class CoupledSpringDamper(Scene):
         springs = VGroup(k1,k2,k3,k1_label,k2_label,k3_label)
 
         #dampers and their labels
-        c1_box, c1_rod = control.damper(start=[-2,-3,0], end=[-2,-1.5,0])
-        c2_box, c2_rod = control.damper(start=[-2,0,0], end=[-2,1.5,0])
-        c3_box, c3_rod = control.damper(start=[0,-3,0], end=[0,-1.5,0])
+        c1_box, c1_rod = mech_vis.damper(start=[-2,-3,0], end=[-2,-1.5,0])
+        c2_box, c2_rod = mech_vis.damper(start=[-2,0,0], end=[-2,1.5,0])
+        c3_box, c3_rod = mech_vis.damper(start=[0,-3,0], end=[0,-1.5,0])
 
         c1_label = MathTex("c_1", font_size=35).next_to(c1_rod,RIGHT, buff=0.2)
         c2_label = MathTex("c_2", font_size=35).next_to(c2_rod,RIGHT, buff=0.2)
@@ -128,19 +128,19 @@ class CoupledSpringDamper(Scene):
             m2.move_to(m2_initial_pos + x2 * UP)
             
             # Update springs
-            k1.become(control.spring(
+            k1.become(mech_vis.spring(
                 start=[-3,-3,0], 
                 end=[-3,-1.5 + x1,0], 
                 coil_width=0.4, 
                 num_coils=4
             ))
-            k2.become(control.spring(
+            k2.become(mech_vis.spring(
                 start=[-3,x1,0], 
                 end=[-3,1.5 + x2,0], 
                 coil_width=0.4, 
                 num_coils=4
             ))
-            k3.become(control.spring(
+            k3.become(mech_vis.spring(
                 start=[3,-3,0], 
                 end=[3,1.5 + x2,0], 
                 coil_width=0.4, 
@@ -151,15 +151,15 @@ class CoupledSpringDamper(Scene):
             k3_label.next_to(k3,LEFT, buff=0.3)
             
             # Update dampers
-            c1_rod.become(control.damper(
+            c1_rod.become(mech_vis.damper(
                 start=[-2,-3+x1,0], 
                 end=[-2,-1.5+x1 ,0]
             ))
-            c2_rod.become(control.damper(
+            c2_rod.become(mech_vis.damper(
                 start=[-2,x1,0], 
                 end=[-2,1.5 + x2,0]
             ))
-            c3_rod.become(control.damper(
+            c3_rod.become(mech_vis.damper(
                 start=[0,-3,0], 
                 end=[0,-1.5 + x1,0]
             ))

@@ -1,19 +1,20 @@
 from manim import *
-from controltheorylib import control
+from controltheorylib import mech_vis
 config.background_color = "#3d3d3d"
+
 class CoupledSpringDamper(Scene):
     def construct(self):
         # Fixed world
-        floor = control.fixed_world(3.5*LEFT, 3.5*RIGHT, mirror=True, line_or="left").shift(3*DOWN)
+        floor = mech_vis.fixed_world(3.5*LEFT, 3.5*RIGHT, mirror=True, line_or="left").shift(3*DOWN)
         
         # Masses
-        m1 = control.rect_mass(width=4,height=1.5, label="m_1",color=BLUE).next_to(floor,UP, buff=1.5).align_to(floor,LEFT)
-        m2 = control.rect_mass(width=7,height=1.5, label="m_2",color=BLUE).next_to(m1,UP, buff=1.5).align_to(m1,LEFT)
+        m1 = mech_vis.rect_mass(width=4,height=1.5, label="m_1",color=BLUE).next_to(floor,UP, buff=1.5).align_to(floor,LEFT)
+        m2 = mech_vis.rect_mass(width=7,height=1.5, label="m_2",color=BLUE).next_to(m1,UP, buff=1.5).align_to(m1,LEFT)
         
         #springs and their labels
-        k1 = control.spring(start=[-3,-3,0], end=[-3,-1.5,0], coil_width=0.4, num_coils=4)
-        k2 = control.spring(start=[-3,0,0], end=[-3,1.5,0], coil_width=0.4, num_coils=4)
-        k3 = control.spring(start=[3,-3,0], end=[3,1.5,0], coil_width=0.4, num_coils=8)
+        k1 = mech_vis.spring(start=[-3,-3,0], end=[-3,-1.5,0], coil_width=0.4, num_coils=4)
+        k2 = mech_vis.spring(start=[-3,0,0], end=[-3,1.5,0], coil_width=0.4, num_coils=4)
+        k3 = mech_vis.spring(start=[3,-3,0], end=[3,1.5,0], coil_width=0.4, num_coils=8)
 
         k1_label = MathTex("k_1", font_size=35).next_to(k1,LEFT, buff=0.3)
         k2_label = MathTex("k_2", font_size=35).next_to(k2,LEFT, buff=0.3)
@@ -22,9 +23,9 @@ class CoupledSpringDamper(Scene):
         springs = VGroup(k1,k2,k3,k1_label,k2_label,k3_label)
 
         #dampers and their labels
-        c1 = control.damper(start=[-2,-3,0], end=[-2,-1.5,0])
-        c2 = control.damper(start=[-2,0,0], end=[-2,1.5,0])
-        c3 = control.damper(start=[0,-3,0], end=[0,-1.5,0])
+        c1 = mech_vis.damper(start=[-2,-3,0], end=[-2,-1.5,0])
+        c2 = mech_vis.damper(start=[-2,0,0], end=[-2,1.5,0])
+        c3 = mech_vis.damper(start=[0,-3,0], end=[0,-1.5,0])
 
         c1_label = MathTex("c_1", font_size=35).next_to(c1,RIGHT, buff=0.2)
         c2_label = MathTex("c_2", font_size=35).next_to(c2,RIGHT, buff=0.2)

@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import control
+from controltheorylib import mech_vis
 import numpy as np
 
 class MassSpringSys(Scene):
@@ -17,7 +17,7 @@ class MassSpringSys(Scene):
         t_end = 6/(zeta*omega) if zeta > 0 else 8
 
         #Create fixed world 
-        fixed = control.fixed_world([-5,3.5,0],[-1,3.5,0])
+        fixed = mech_vis.fixed_world([-5,3.5,0],[-1,3.5,0])
 
         #Spring and damper start and equillibrium positions
         spring_start = [-4, 3.5, 0]
@@ -26,8 +26,8 @@ class MassSpringSys(Scene):
         damper_eq = [-2.5, 0.5, 0]
 
         #Create spring and damper
-        spring = control.spring(spring_start,spring_eq)
-        damper_box, damper_rod = control.damper(damper_start,damper_eq)
+        spring = mech_vis.spring(spring_start,spring_eq)
+        damper_box, damper_rod = mech_vis.damper(damper_start,damper_eq)
 
         #Create spring and damper labels
         k = MathTex("k").next_to(spring,LEFT, buff=0.5)
@@ -37,7 +37,7 @@ class MassSpringSys(Scene):
         mass_size = 2
         mass_x = (spring_eq[0] + damper_eq[0])/2
         mass_y_eq = spring_eq[1] - mass_size/2
-        mass = control.mass([mass_x,mass_y_eq,0], size=mass_size)
+        mass = mech_vis.mass([mass_x,mass_y_eq,0], size=mass_size)
 
         #Create axis for displacement plot
         axis =  Axes(x_range=[0,t_end,1], y_range=[-A,A,0.5], x_length=6, y_length=6, axis_config={"color": WHITE})
@@ -60,8 +60,8 @@ class MassSpringSys(Scene):
             mass.move_to([mass_x, y, 0])
 
             # Update spring and damper rod
-            spring.become(control.spring(spring_start, spring_end))
-            damper_rod.become(control.damper(damper_start, damper_end)[1])
+            spring.become(mech_vis.spring(spring_start, spring_end))
+            damper_rod.become(mech_vis.damper(damper_start, damper_end)[1])
 
             # Update labels
             k.next_to(spring, LEFT, buff=0.5)

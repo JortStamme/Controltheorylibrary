@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib.control import BodePlot
+from controltheorylib import BodePlot
 import sympy as sp
 
 class Animation_example5(Scene):

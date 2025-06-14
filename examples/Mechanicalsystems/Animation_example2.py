@@ -1,6 +1,6 @@
 from manim import *
 import cmath
-from controltheorylib import control
+from controltheorylib import mech_vis
 
 class MassSpring(Scene):
     def construct(self):
@@ -18,15 +18,15 @@ class MassSpring(Scene):
         mass_size = 1.5
 
         # create fixed world
-        fixed_world = control.fixed_world(start=[-(L_ceiling/2),ceiling_height,0], end=[(L_ceiling/2), ceiling_height,0])
+        fixed_world = mech_vis.fixed_world(start=[-(L_ceiling/2),ceiling_height,0], end=[(L_ceiling/2), ceiling_height,0])
         #create mass
-        mass = control.mass(pos=[0,y_eq,0], size=mass_size)
+        mass = mech_vis.rect_mass(pos=[0,y_eq,0])
 
         # create spring 
-        spring = control.spring(start=[-0.5,ceiling_height,0], end=[-0.5,y_eq+mass_size/2,0], coil_width=0.3, type='helical')
+        spring = mech_vis.spring(start=[-0.5,ceiling_height,0], end=[-0.5,y_eq+mass_size/2,0], coil_width=0.3, type='helical')
 
         # create damper
-        damper_box, damper_rod = control.damper(start=[0.5, ceiling_height, 0], end=[0.5, y_eq + mass_size / 2, 0], box_height=1.2)
+        damper_box, damper_rod = mech_vis.damper(start=[0.5, ceiling_height, 0], end=[0.5, y_eq + mass_size / 2, 0], box_height=1.2)
         
         system = VGroup(mass, spring, damper_box, damper_rod,fixed_world)
         system.move_to(DOWN*0.6)
@@ -146,13 +146,13 @@ class MassSpring(Scene):
         fixed_world.move_to(ORIGIN+(ceiling_height+0.15)*UP+3.5*LEFT)
 
         #create mass 
-        mass2 = control.mass(pos=[-3.5,y_eq,0], size=mass_size)
+        mass2 = mech_vis.rect_mass(pos=[-3.5,y_eq,0])
 
         #create spring
-        spring2 = control.spring(start=[-4, ceiling_height,0], end=[-4,y_eq+mass_size/2,0], coil_width=0.3,type='helical')
+        spring2 = mech_vis.spring(start=[-4, ceiling_height,0], end=[-4,y_eq+mass_size/2,0], coil_width=0.3,type='helical')
         
         #create damper
-        damper_box2, damper_rod2 = control.damper(start=[-3, ceiling_height, 0], end=[-3, y_eq + mass_size / 2, 0], box_height=1.2)
+        damper_box2, damper_rod2 = mech_vis.damper(start=[-3, ceiling_height, 0], end=[-3, y_eq + mass_size / 2, 0], box_height=1.2)
 
         self.play(system_forces.animate.move_to(mass2.get_center()+0.35*UP+0.35*LEFT))
         self.wait(1)
@@ -281,8 +281,8 @@ class MassSpring(Scene):
 
             mob.move_to([-3.5, y, 0])
 
-            new_spring = control.spring(start=[-4,ceiling_height,0], end=[-4,y+mass_size/2,0], coil_width=0.3, type='helical')
-            new_damper_rod = control.damper(start=[-3,ceiling_height,0], end=[-3,y+mass_size/2,0])[1]
+            new_spring = mech_vis.spring(start=[-4,ceiling_height,0], end=[-4,y+mass_size/2,0], coil_width=0.3, type='helical')
+            new_damper_rod = mech_vis.damper(start=[-3,ceiling_height,0], end=[-3,y+mass_size/2,0])[1]
             spring2.become(new_spring)
             damper_rod2.become(new_damper_rod)
             t_tracker.increment_value(dt)

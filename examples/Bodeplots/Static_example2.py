@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib.control import BodePlot
+from controltheorylib import BodePlot
 
 class Static_example2(Scene):
     def construct(self):

@@ -1,31 +1,31 @@
 from manim import *
-from controltheorylib import control
+from controltheorylib import mech_vis
 
 class fixedworldExample(Scene):
     def construct(self):
         text1 = Text("Fixed world usage example").shift(2*UP)
         self.play(Write(text1), run_time=0.7)
         self.wait(0.5)
-        fw1 = control.fixed_world(start=3*LEFT, end=3*RIGHT)
+        fw1 = mech_vis.fixed_world(start=3*LEFT, end=3*RIGHT)
         self.play(Create(fw1))
         self.wait(1)
         text2 = Text("Set spacing to 1").move_to(text1)
         self.play(ReplacementTransform(text1,text2))
-        fw2 = control.fixed_world(start=3*LEFT, end=3*RIGHT, spacing=1)
+        fw2 = mech_vis.fixed_world(start=3*LEFT, end=3*RIGHT, spacing=1)
         self.play(ReplacementTransform(fw1,fw2))
         self.wait(1)
         text3 = Text("mirror = True").move_to(text2)
         self.play(ReplacementTransform(text2,text3))
-        fw3 = control.fixed_world(start=3*LEFT, end=3*RIGHT, spacing=1, mirror=True)
+        fw3 = mech_vis.fixed_world(start=3*LEFT, end=3*RIGHT, spacing=1, mirror=True)
         self.play(ReplacementTransform(fw2,fw3))
         self.wait(1)
         text4 = Text("Adjust end position, delete manual spacing").move_to(text3)
         self.play(ReplacementTransform(text3,text4))
-        fw4 = control.fixed_world(start=3*LEFT, end=3*RIGHT+2*DOWN, mirror=True)
+        fw4 = mech_vis.fixed_world(start=3*LEFT, end=3*RIGHT+2*DOWN, mirror=True)
         self.play(ReplacementTransform(fw3,fw4))
         self.wait(1)
         text5 = Text("line_or = left").move_to(text4)
         self.play(ReplacementTransform(text4,text5))
-        fw5 = control.fixed_world(start=3*LEFT, end=3*RIGHT+2*DOWN, mirror=True, line_or="left")
+        fw5 = mech_vis.fixed_world(start=3*LEFT, end=3*RIGHT+2*DOWN, mirror=True, line_or="left")
         self.play(ReplacementTransform(fw4,fw5))
         self.wait(1)
