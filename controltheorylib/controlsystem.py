@@ -54,6 +54,15 @@ class ControlBlock(VGroup):
                 "width_font_ratio": 0.2, 
                 "height_font_ratio": 0.2
             })
+
+        if block_type == "transfer_function":
+            type_params.update({
+                "input_dirs": [LEFT],  # Default input direction
+                "output_dirs": [RIGHT],  # Default output direction
+                "input_names": ["in"],  # Default input port names
+                "output_names": ["out"],  # Default output port names
+                "extra_ports": False  # Whether to add secondary ports
+            })
             
         self.params = default_params | type_params | (params or {})  # Merge with user params
 
@@ -124,8 +133,20 @@ class ControlBlock(VGroup):
         self.add_port("out", RIGHT)
 
     def _create_transfer_function(self):
-        self.add_port("in", LEFT)
-        self.add_port("out", RIGHT)
+        """Create transfer function block with customizable ports"""
+        # Handle inputs
+        input_dirs = self.params.get("input_dirs", [LEFT])
+        input_names = self.params.get("input_names", [f"in_{i}" for i in range(len(input_dirs))])
+        
+        for direction, name in zip(input_dirs, input_names):
+            self.add_port(name, direction)
+        
+        # Handle outputs
+        output_dirs = self.params.get("output_dirs", [RIGHT])
+        output_names = self.params.get("output_names", [f"out_{i}" for i in range(len(output_dirs))])
+        
+        for direction, name in zip(output_dirs, output_names):
+            self.add_port(name, direction)
 
     def _create_summing_junction(self):
        """Create summing junction with customizable ports"""
@@ -168,39 +189,42 @@ class ControlBlock(VGroup):
     def add_port(self, name, direction):
         """Adds a port with size scaled to block type"""
         port_size = 0.0005
-        
+
         port = Dot(radius=port_size, color=BLUE).next_to(
-            self.background, 
-            direction, 
+            self.background,
+            direction,
             buff=0
         )
-        
+
         # Convert direction to tuple for comparison
         dir_tuple = tuple(direction)
-        
+
         # Standard directions as tuples
         LEFT_TUPLE = tuple(LEFT)
         RIGHT_TUPLE = tuple(RIGHT)
         UP_TUPLE = tuple(UP)
         DOWN_TUPLE = tuple(DOWN)
-        
+
         # For summing junctions, treat all ports explicitly
         if self.type == "summing_junction":
-            # Input ports are those specified in params with "in" prefix
             if name.startswith("in"):
                 self.input_ports[name] = port
-            # Output ports are those specified in params with "out" prefix
             elif name.startswith("out"):
                 self.output_ports[name] = port
             else:
-                # Fallback logic using tuple comparison
+                # Fallback logic using tuple comparison for summing junction if not explicitly named in/out
                 if dir_tuple in [LEFT_TUPLE, DOWN_TUPLE]:
                     self.input_ports[name] = port
                 else:
                     self.output_ports[name] = port
         else:
-            # For non-summing blocks, use standard convention
-            if dir_tuple in [LEFT_TUPLE, DOWN_TUPLE]:
+            # For non-summing blocks, prioritize explicit naming (e.g., "in_" or "out_")
+            # If not explicitly named, then use direction-based convention
+            if name.startswith("in_"):
+                self.input_ports[name] = port
+            elif name.startswith("out_"):
+                self.output_ports[name] = port
+            elif dir_tuple in [LEFT_TUPLE, DOWN_TUPLE]:
                 self.input_ports[name] = port
             else:
                 self.output_ports[name] = port
@@ -230,11 +254,11 @@ class Connection(VGroup):
         )
         
         # For curved connections
-        if abs(start[1] - end[1]) > 0.5:
-            cp1 = start + RIGHT * 1.5
-            cp2 = end + LEFT * 1.5
-            self.arrow.put_start_and_end_on(start, end)
-            self.arrow.add_cubic_bezier_curve(cp1, cp2)
+        #if abs(start[1] - end[1]) > 0.5:
+            #cp1 = start + RIGHT * 1.5
+            #cp2 = end + LEFT * 1.5
+            #self.arrow.put_start_and_end_on(start, end)
+            #self.arrow.add_cubic_bezier_curve(cp1, cp2)
         
         # Add label if provided
         if label_tex:
@@ -390,7 +414,7 @@ class ControlSystem:
         self.inputs = getattr(self, 'inputs', []) + [input_group]
         return input_group
     
-    def add_output(self, source_block, output_port, length=2, label_tex=None, color=WHITE, **kwargs):
+    def add_output(self, source_block, output_port, length=2, use_math_tex=True, label=None, font_size = 25, color=WHITE, rel_pos=UP,**kwargs):
         """Adds an output arrow from a block"""
         start = source_block.output_ports[output_port].get_center()
         end = start + RIGHT * length
@@ -406,59 +430,77 @@ class ControlSystem:
     
         output = VGroup(arrow)
     
-        if label_tex:
-            label = MathTex(label_tex, font_size=30, color=color)
-            label.next_to(arrow, UP, buff=0.2)
+        if label:
+            if use_math_tex == True:
+                label = MathTex(label, font_size=font_size, color=color)
+            else:
+                label = Text(label, font_size=font_size, color=color)
+            label.next_to(arrow, rel_pos, buff=0.2)
             output.add(label)
         
         self.outputs = getattr(self, 'outputs', []) + [output]
         return output
-    
-    def add_feedback_path(self, source_block, output_port, dest_block, input_port, 
-                         vertical_distance=2, horizontal_distance=None, label_tex=None, color=WHITE, **kwargs):
-        """Adds a feedback path with right-angle turns using Arrow.
-        
-        Args:
-            vertical_distance: Vertical drop distance (default: 2)
-            horizontal_distance: Manual override for horizontal distance. 
-                               If None, calculates automatically (default: None)
-        """
-        # Calculate path points
-        start = source_block.output_ports[output_port].get_center() + RIGHT
+    def add_feedback_path(self, source_block, output_port, dest_block, input_port,
+                          vertical_distance=1.0,  # Default vertical drop
+                          horizontal_distance=None, # Auto-calculated if None
+                          label_tex=None, color=WHITE, label_pos=UP, **kwargs):
+        """Adds a feedback path with right-angle turns.
+
+        The path will typically go away from the source, turn vertically,
+        then horizontally, then towards the destination.
+        """    
+        start = source_block.output_ports[output_port].get_center()
         end = dest_block.input_ports[input_port].get_center()
 
-        mid1 = start + DOWN * vertical_distance
-        
-        # Calculate automatic horizontal distance if not specified
-        if horizontal_distance is None:
-            horizontal_distance = abs(mid1[0] - end[0])
-            
-        mid2 = mid1 + LEFT * horizontal_distance
-        
-        # Create path segments
-        segment1 = Line(start, mid1, color=color, **kwargs)
-        segment2 = Line(mid1, mid2, color=color, **kwargs)
-        segment3 = Arrow(start=mid2, end=end, tip_length=0.2, buff=0, color=color, **kwargs)
-        
-        # Combine with arrow tip on last segment
-        feedback_arrow = VGroup(
-            segment1,
-            segment2,
-            segment3
-        )
+        # Determine the initial direction away from the source block
+        # This is often 'RIGHT' for output ports on the right, 'LEFT' for left output ports
+        # We'll use the direction of the output port itself
+        source_output_port_direction = source_block.output_ports[output_port].get_center() - source_block.background.get_center()
+        # Normalize and find the closest cardinal direction
+        source_output_port_direction = source_output_port_direction / np.linalg.norm(source_output_port_direction)
+
+        # Determine the target input direction for the destination block
+        dest_input_port_direction = dest_block.input_ports[input_port].get_center() - dest_block.background.get_center()
+        dest_input_port_direction = dest_input_port_direction / np.linalg.norm(dest_input_port_direction)
+
+        path_label_point = None
+
+        if np.dot(source_output_port_direction, RIGHT) > 0.9: # Source port is on the right
+            source_dir ="RIGHT"
+        elif np.dot(source_output_port_direction, LEFT) > 0.9: # Source port is on the left (like "out_l")
+            source_dir = "LEFT"
+        elif np.dot(source_output_port_direction, UP) > 0.9:
+            source_dir = "UP"
+        elif np.dot(source_output_port_direction, DOWN) > 0.9:
+            source_dir = "DOWN"
+
+
+        if source_dir == "LEFT":
+            if horizontal_distance is None:
+                horizontal_distance = abs(start[0] - end[0])
+                mid1 = start + horizontal_distance*LEFT
+                segments = [
+                Line(start, mid1, color=color, **kwargs),
+                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)]
+
+
+        # Create complete path
+        feedback_arrow = VGroup(*segments)
         feedback_arrow.set_stroke(color=color, width=3)
 
-        # Create complete feedback group
-        feedback = VGroup(feedback_arrow)
-        
         # Add label if specified
+        feedback = VGroup(feedback_arrow)
         if label_tex:
             label = MathTex(label_tex, font_size=30)
-            label.next_to(mid2, DOWN, buff=0.2)
+            if path_label_point is not None:
+                label.next_to(path_label_point, label_pos, buff=0.2)
+            else: # Fallback if for some reason path_label_point isn't set
+                 label.next_to(feedback_arrow.get_center(), label_pos, buff=0.2)
             feedback.add(label)
-            
+
         # Store feedback path
         self.feedbacks = getattr(self, 'feedbacks', []) + [feedback]
+
         return feedback
     
     def add_feedforward_path(self, source_block, output_port, dest_block, input_port,
@@ -477,7 +519,14 @@ class ControlSystem:
         
         # Calculate direction vector from block center to port
         direction_vector = port_center - block_center
-        
+        if start[1] > end[1]:
+            if horizontal_distance is None:
+                horizontal_distance = abs(start[0] - end[0])
+                mid1 = start + horizontal_distance*RIGHT
+                segments = [
+                Line(start, mid1, color=color, **kwargs),
+                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)
+            ]
         # Normalize and compare to standard directions
         if np.linalg.norm(direction_vector) > 0:
             direction_vector = direction_vector / np.linalg.norm(direction_vector)
@@ -508,7 +557,7 @@ class ControlSystem:
                 Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)
             ]
             label_pos = mid1 + DOWN * 0.2
-        elif input_dir == "UP":
+        elif input_dir == "UP" and start[1] < end[1]:
             # For top input: DOWN → RIGHT → UP
             mid1 = start + UP *end[1]
             if horizontal_distance is None:
@@ -520,7 +569,7 @@ class ControlSystem:
                 Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)
             ]
             label_pos = mid2 + UP * 0.2
-        else:  # RIGHT or UP
+        elif start[1] < end[1]:  # RIGHT or UP
             vertical_distance=1
             # Default to standard path for other directions
             mid1 = start + UP * vertical_distance
@@ -698,11 +747,11 @@ class ControlSystem:
                     spawn_interval=0.5,
                     signal_speed=0.8,
                     duration=10.0,
-                    color=BLUE, feedback_color=YELLOW,
+                    color=YELLOW, feedback_color=YELLOW,
                     radius=0.12,
                     include_input=True,
                     include_output=True,
-                    include_feedback=True, feedback_delay=0):
+                    include_feedback=True, feedback_delay=None):
         
         self.feedback_color = feedback_color
         self.spawn_interval = spawn_interval
@@ -750,8 +799,16 @@ class ControlSystem:
                     for segment in feedback_path[0]:
                         if isinstance(segment, Line):
                             feedback_paths.append(segment.copy())
+        
+        if feedback_delay is None and feedback_paths:
+            main_length = sum(p.get_length() for p in main_paths if hasattr(p, 'get_length'))
+            feedback_delay = (main_length-1)/signal_speed
+        elif feedback_delay is None:
+            feedback_delay = 0 
+        else:
+            feedback_delay = feedback_delay
 
-        def animate_path_stream(path_list, stream_color=None, stream_radius=None):
+        def animate_path_stream(path_list, stream_color=None, stream_radius=None, start_delay=0):
             valid_paths = [p for p in path_list if hasattr(p, 'get_length') and p.get_length() > 0.1]
             if not valid_paths:
                 return lambda dt: None, 0  # Return a dummy updater if nothing valid
@@ -770,14 +827,14 @@ class ControlSystem:
             travel_time = total_length * signal_speed
             total_run_time = duration + travel_time
             signals = []
-
-            start_time = [0.0]  # Mutable wrapper for time tracking
+            
+            start_time = [0,0]  # Mutable wrapper for time tracking
 
             def updater(dt):
                 start_time[0] += dt
                 t = start_time[0]
 
-                while updater.next_spawn_time <= t <= total_run_time:
+                while updater.next_spawn_time <= t <= duration:
                     dot = Dot(color=stream_color, radius=stream_radius)
                     dot.set_opacity(0)
                     scene.add(dot)
@@ -801,16 +858,16 @@ class ControlSystem:
                     signals.append(dot)
 
                     updater.next_spawn_time += spawn_interval
+            updater.next_spawn_time = start_delay
 
-            updater.next_spawn_time = 0.0
             return updater, travel_time + self.duration
-
+        
         # Animate main stream
         main_updater, main_runtime = animate_path_stream(main_paths, stream_color=color, stream_radius=radius)
 
         # Animate feedback stream
         if feedback_paths:
-            feedback_updater, feedback_runtime = animate_path_stream(feedback_paths, stream_color=feedback_color, stream_radius=radius)
+            feedback_updater, feedback_runtime = animate_path_stream(feedback_paths, stream_color=feedback_color, stream_radius=radius, start_delay=feedback_delay)
         else:
             feedback_updater, feedback_runtime = None, 0
 
@@ -827,7 +884,7 @@ class ControlSystem:
 
         
         # Wait for both to finish
-        scene.wait(max(main_runtime, feedback_runtime, disturbance_runtime))
+        scene.wait(duration)
 
         # Cleanup
         scene.remove_updater(main_updater)

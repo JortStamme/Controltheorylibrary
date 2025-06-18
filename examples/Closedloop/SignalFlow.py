@@ -12,7 +12,7 @@ class ControlSystemScene(Scene):
         ref = cs.add_input(sum_block1, "in1", label_tex=r"r(t)")
         controller = cs.add_block(r"K_p(1+Ds)", "transfer_function", LEFT, {"use_mathtex":False, "color":WHITE, "font_size":50,"label":"Controller"})
     
-        plant = cs.add_block("Plant", "transfer_function", RIGHT*2, {"color":WHITE,"text_font_size":40, "label":"Plant"})
+        plant = cs.add_block("Plant", "transfer_function", RIGHT*2, {"color":WHITE,"text_font_size":50, "label":"Plant"})
         output = cs.add_output(plant, "out", label_tex=r"y(t)", color=WHITE)
         feedback = cs.add_feedback_path(plant, "out", sum_block1, "in2")
         
@@ -24,6 +24,6 @@ class ControlSystemScene(Scene):
 
         diagram = cs.get_all_components()
         self.add(diagram)
-        
-        cs.animate_signals(self, sum_block1, controller, plant, color=YELLOW, feedback_color=YELLOW, duration=6)
+
+        cs.animate_signals(self, sum_block1, controller, plant, color=YELLOW, signal_speed=3, spawn_interval=0.8, feedback_color=YELLOW, duration=22)
 
