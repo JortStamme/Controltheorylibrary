@@ -698,15 +698,35 @@ class ControlSystem:
                     spawn_interval=0.5,
                     signal_speed=0.8,
                     duration=10.0,
-                    color=YELLOW,
+                    color=BLUE, feedback_color=YELLOW,
                     radius=0.12,
                     include_input=True,
                     include_output=True,
-                    include_feedback=True):
+                    include_feedback=True, feedback_delay=0):
+        
+        self.feedback_color = feedback_color
+        self.spawn_interval = spawn_interval
+        self.signal_speed = signal_speed
+        self.duration = duration
+        self.color = color
+        self.radius = radius
+        
 
         # Prepare path groups
         main_paths = []      # signal: input → blocks → output
         feedback_paths = []  # signal: output → feedback loop
+        disturbance_paths = [] 
+
+        if hasattr(self, 'disturbances'):
+            for disturbance in self.disturbances:
+                if hasattr(disturbance, "path"):
+                    if isinstance(disturbance.path, (Line, Arrow)):
+                        disturbance_paths.append(disturbance.path.copy())
+                    elif isinstance(disturbance.path, VGroup):
+                        for part in disturbance.path:
+                            if isinstance(part, (Line, Arrow)):
+                                disturbance_paths.append(part.copy())
+
 
         # Collect regular input/output paths
         if include_input and hasattr(self, 'inputs'):
@@ -731,7 +751,7 @@ class ControlSystem:
                         if isinstance(segment, Line):
                             feedback_paths.append(segment.copy())
 
-        def animate_path_stream(path_list, color=color):
+        def animate_path_stream(path_list, stream_color=None, stream_radius=None):
             valid_paths = [p for p in path_list if hasattr(p, 'get_length') and p.get_length() > 0.1]
             if not valid_paths:
                 return lambda dt: None, 0  # Return a dummy updater if nothing valid
@@ -758,7 +778,7 @@ class ControlSystem:
                 t = start_time[0]
 
                 while updater.next_spawn_time <= t <= total_run_time:
-                    dot = Dot(color=color, radius=radius)
+                    dot = Dot(color=stream_color, radius=stream_radius)
                     dot.set_opacity(0)
                     scene.add(dot)
 
@@ -783,26 +803,35 @@ class ControlSystem:
                     updater.next_spawn_time += spawn_interval
 
             updater.next_spawn_time = 0.0
-            return updater, travel_time + duration
+            return updater, travel_time + self.duration
 
         # Animate main stream
-        main_updater, main_runtime = animate_path_stream(main_paths)
+        main_updater, main_runtime = animate_path_stream(main_paths, stream_color=color, stream_radius=radius)
 
         # Animate feedback stream
         if feedback_paths:
-            feedback_updater, feedback_runtime = animate_path_stream(feedback_paths, color=BLUE)
+            feedback_updater, feedback_runtime = animate_path_stream(feedback_paths, stream_color=feedback_color, stream_radius=radius)
         else:
             feedback_updater, feedback_runtime = None, 0
 
+
+        disturbance_updater, disturbance_runtime = (
+        animate_path_stream(disturbance_paths, color=RED)
+        if disturbance_paths else (None, 0))
         # Register updaters
         scene.add_updater(main_updater)
         if feedback_updater:
             scene.add_updater(feedback_updater)
+        if disturbance_updater:
+            scene.add_updater(disturbance_updater)
 
+        
         # Wait for both to finish
-        scene.wait(max(main_runtime, feedback_runtime))
+        scene.wait(max(main_runtime, feedback_runtime, disturbance_runtime))
 
         # Cleanup
         scene.remove_updater(main_updater)
         if feedback_updater:
             scene.remove_updater(feedback_updater)
+        if disturbance_updater:
+            scene.remove_updater(disturbance_updater)
