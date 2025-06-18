@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import BodePlot
+from controltheorylib import *
 import sympy as sp #to use symbolic expressions
 
 class Static_example1(Scene):

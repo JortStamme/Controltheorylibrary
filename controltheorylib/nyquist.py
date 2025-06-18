@@ -134,9 +134,9 @@ class Nyquist(VGroup):
         """Helper to calculate step size based on span."""
         if span <= 2:
             return 0.5
-        elif 2 < span < 4:
+        elif 2 < span <= 4:
             return 1
-        elif 4 <= span <= 10:
+        elif 4 < span <= 10:
             return 2
         elif 10 < span < 30:
             return 5
@@ -1101,7 +1101,8 @@ class Nyquist(VGroup):
         
         return gm, pm, mm, wg, wp, wm
     
-    def show_margins(self, pm_color=YELLOW,mm_color=ORANGE, gm_color=GREEN_E, font_size=18, show_pm=True, show_gm=True, show_mm=True,pm_label=None,gm_label=None,mm_label=None):
+    def show_margins(self, pm_color=YELLOW,mm_color=ORANGE, gm_color=GREEN_E, font_size=18,
+                      show_pm=True, show_gm=True, show_mm=True,pm_label=None,gm_label=None,mm_label=None):
         """Add visual indicators for phase and gain margins."""
         gm, pm, mm, wg, wp, wm = self._calculate_stability_margins()
         self.show_gm = show_gm
@@ -1207,7 +1208,10 @@ class Nyquist(VGroup):
             self.mm_dot = Dot(self.plane.number_to_point(nyquist_point), color=mm_color, radius=0.04)
 
             # Label
-            self.mm_label = MathTex(f"\\frac{{1}}{{\\text{{MM}}}} = {1/mm:.2f}", font_size=font_size, color=ORANGE)
+            if mm_label is None:
+                self.mm_label = MathTex(f"\\frac{{1}}{{\\text{{MM}}}} = {1/mm:.2f}", font_size=font_size, color=mm_color)
+            else:
+                self.mm_label = MathTex(mm_label, font_size=font_size, color=mm_color)
             self.mm_label.next_to(self.mm_dot, 2*DOWN+0.05*RIGHT, buff=0.05)
 
             # Line from -1 to Nyquist curve

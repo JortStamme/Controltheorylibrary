@@ -275,14 +275,14 @@ class PoleZeroMap(VGroup):
             self.x_axis = Line(x_start,x_end, color=WHITE, stroke_width=1, stroke_opacity=0.7)
             self.y_axis = Line(y_start,y_end, color=WHITE, stroke_width=1,stroke_opacity=0.7)
 
-        self.surrbox = SurroundingRectangle(self.axis, buff=0, color=WHITE, stroke_width=2)
+        self.box = SurroundingRectangle(self.axis, buff=0, color=WHITE, stroke_width=2)
         # Add axis labels
         if self.use_math_tex_labels ==True:
-            re_label = MathTex(self.x_axis_label, font_size=self.font_size_labels).next_to(self.surrbox, DOWN, buff=0.55)
-            im_label = MathTex(self.y_axis_label, font_size=self.font_size_labels).rotate(PI/2).next_to(self.surrbox, LEFT, buff=0.55)
+            re_label = MathTex(self.x_axis_label, font_size=self.font_size_labels).next_to(self.box, DOWN, buff=0.55)
+            im_label = MathTex(self.y_axis_label, font_size=self.font_size_labels).rotate(PI/2).next_to(self.box, LEFT, buff=0.55)
         else:
-            re_label = Text(self.x_axis_label, font_size=self.font_size_labels).next_to(self.surrbox, DOWN, buff=0.55)
-            im_label = Text(self.y_axis_label, font_size=self.font_size_labels).rotate(PI/2).next_to(self.surrbox, LEFT, buff=0.55)
+            re_label = Text(self.x_axis_label, font_size=self.font_size_labels).next_to(self.box, DOWN, buff=0.55)
+            im_label = Text(self.y_axis_label, font_size=self.font_size_labels).rotate(PI/2).next_to(self.box, LEFT, buff=0.55)
         self.axis_labels = VGroup(re_label, im_label)
         self.axis.add(self.axis_labels)
         
@@ -306,9 +306,9 @@ class PoleZeroMap(VGroup):
         self.y_tick_labels = self.create_tick_labels(self.axis, orientation="vertical")  
 
         # Add all components to the group
-        self.add(self.axis, self.zeros, self.poles, self.surrbox, self.x_axis, self.y_axis, 
+        self.add(self.axis, self.zeros, self.poles, self.box, self.x_axis, self.y_axis, 
                  self.x_ticks, self.y_ticks, self.x_tick_labels,self.y_tick_labels)
-        self.basecomponents = VGroup(self.axis, self.surrbox, self.x_axis, self.y_axis, 
+        self.basecomponents = VGroup(self.axis, self.box, self.x_axis, self.y_axis, 
                  self.x_ticks, self.y_ticks, self.x_tick_labels,self.y_tick_labels)
         
         if self.system_type == 'discrete':
@@ -551,7 +551,7 @@ class PoleZeroMap(VGroup):
                 color=unstable_color,
                 fill_opacity=fill_opacity,
                 stroke_opacity=0
-            ).align_to(self.surrbox, RIGHT)
+            ).align_to(self.box, RIGHT)
 
             subtraction_circle = Circle( 
                 radius=1,  # Unit circle to be stretched later

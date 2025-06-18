@@ -8,7 +8,7 @@ class MassSpringSys(Scene):
         #Parameters
         m = 1      # mass
         k = 100     # spring constant
-        c = 1.5      # damping coefficient
+        c = 5      # damping coefficient
         omega = np.sqrt(k/m)
         zeta = c/(2*np.sqrt(k*m))
         omega_d = omega*np.sqrt(1-zeta**2)
@@ -37,7 +37,7 @@ class MassSpringSys(Scene):
         mass_size = 2
         mass_x = (spring_eq[0] + damper_eq[0])/2
         mass_y_eq = spring_eq[1] - mass_size/2
-        mass = mech_vis.mass([mass_x,mass_y_eq,0], size=mass_size)
+        mass = mech_vis.rect_mass([mass_x,mass_y_eq,0], width=2,height=2)
 
         #Create axis for displacement plot
         axis =  Axes(x_range=[0,t_end,1], y_range=[-A,A,0.5], x_length=6, y_length=6, axis_config={"color": WHITE})

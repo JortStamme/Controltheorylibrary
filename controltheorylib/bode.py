@@ -1154,8 +1154,8 @@ class BodePlot(VGroup):
             if hasattr(self, attr) and getattr(self, attr) in getattr(self, attr.split('_')[0] + '_components'):
                 getattr(self, attr.split('_')[0] + '_components').remove(getattr(self, attr))
 
-    def show_margins(self, show_values=True, show_pm=True, show_gm=True, gm_in_dB=True, pm_color=YELLOW, add_directly=True,
-                     gm_color=YELLOW, text_color_white=True,font_size=24, pm_label_pos=DOWN+LEFT, gm_label_pos=UP+RIGHT,**kwargs):
+    def show_margins(self, show_values=True, show_pm=True, show_gm=True, gm_in_dB=True, pm_color=GREEN_C, add_directly=True,
+                     gm_color=YELLOW, text_color_white=True,font_size=24, gm_label=None, pm_label=None, pm_label_pos=DOWN+LEFT, gm_label_pos=UP+RIGHT,**kwargs):
         """
         Show gain and phase margins on the Bode plot if possible.
         

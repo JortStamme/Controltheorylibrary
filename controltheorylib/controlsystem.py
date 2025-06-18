@@ -48,6 +48,7 @@ class ControlBlock(VGroup):
                 "output1_dir": RIGHT,
                 "output2_dir": UP,
                 "input1_sign": "+",
+                
                 "input2_sign": "+",
                 "hide_labels": True,
                 "width_font_ratio": 0.2, 
@@ -582,177 +583,226 @@ class ControlSystem:
         return None
     
     def animate_signal(self, scene, start_block, end_block, run_time=0.5, repeat=0, 
-                  color=YELLOW, radius=0.08, trail_length=0, pulse=False):
+                    color=YELLOW, radius=0.08, trail_length=0, pulse=False):
         """
-        Optimized signal animation with all features
+        Signal animation with distance-based trailing spacing.
+        Stops when the last dot reaches the end and makes dots invisible as they reach the end.
         """
         connection = self._find_connection(start_block, end_block)
         if not connection:
             raise ValueError(f"No connection between {start_block.name} and {end_block.name}")
 
+        # Always extract a compatible VMobject path
+        original_path = connection.path
+        start = original_path.get_start()
+        end = original_path.get_end()
+
+        # Make sure it's a Line VMobject that supports proportion sampling
+        path = Line(start, end)
         signal = Dot(color=color, radius=radius)
-        signal.move_to(connection.path.get_start())
-    
+        signal.move_to(path.point_from_proportion(0))
+
         trail = None
         if trail_length > 0:
-            trail = VGroup(*[signal.copy().set_opacity(0) for _ in range(trail_length)])
+            trail = VGroup(*[signal.copy().set_opacity(1) for _ in range(trail_length)])
             scene.add(trail)
-    
+
         if pulse:
             signal.add_updater(lambda d, dt: d.set_width(radius*2*(1 + 0.1*np.sin(scene.time*2))))
 
-        max_cycles = 5 if repeat == -1 else repeat  # Safety limit
-    
+        max_cycles = 5 if repeat == -1 else repeat
         scene.add(signal)
+
+        # Flag to track if animation should stop
+        should_stop = False
+
+        def update_trail(mob):
+            nonlocal should_stop
+            # Get the current position of the signal
+            signal_pos = signal.get_center()
+            # Find the proportion along the path
+            alpha = np.linalg.norm(signal_pos - start) / path.get_length()
+            
+            # Distance between dots as proportion of path length
+            spacing = path.get_length()/trail_length
+            
+            # Track if any dot has reached the end
+            any_dot_at_end = False
+            
+            for i, dot in enumerate(trail):
+                offset = alpha - (i + 1) * spacing
+                if offset >= 0:
+                    dot.move_to(path.point_from_proportion(offset))
+                    dot.set_opacity((i+1))
+                    
+                    # Check if dot has reached the end
+                    if np.isclose(offset, 1.0, atol=0.01):
+                        any_dot_at_end = True
+                        # Make this dot invisible if it's not the last one
+                        if i < trail_length - 1:
+                            dot.set_opacity(0)
+                else:
+                    dot.set_opacity(0)
+            
+            # If the last dot reaches the end, set the flag
+            if any_dot_at_end and offset >= 1.0:
+                should_stop = True
+
         for _ in range(max_cycles if repeat else 1):
             if trail_length > 0:
-                def update_trail(t):
-                    for i in range(len(t)-1, 0, -1):
-                        t[i].move_to(t[i-1])
-                    t[0].move_to(signal)
-                    for i, dot in enumerate(t):
-                        dot.set_opacity((i+1)/len(t))
-            trail.add_updater(update_trail)
-        
+                trail.add_updater(update_trail)
+
+            # Create the animation
+            anim = MoveAlongPath(signal, path, run_time=run_time+2, rate_func=linear)
+            
+            # Custom updater to check if we should stop
+            def check_should_stop(_):
+                if should_stop:
+                    scene.stop_animation()
+
             scene.play(
-                MoveAlongPath(signal, connection.path),
-                run_time=run_time,
+                anim,
+                UpdateFromFunc(signal, check_should_stop),
+                run_time=run_time+2,
                 rate_func=linear
             )
-        
+
             if trail_length > 0:
                 trail.remove_updater(update_trail)
-            signal.move_to(connection.path.get_start())
-    
-    # Safe cleanup
+            signal.move_to(path.point_from_proportion(0))
+            
+            # Reset the flag for the next cycle
+            should_stop = False
+
+        # Cleanup
         scene.remove(signal)
         if trail_length > 0 and trail:
             scene.remove(trail)
         if pulse:
             signal.clear_updaters()
+    def _get_feedback_path(self):
+        """Returns a combined feedback path as a VMobject"""
+        if hasattr(self, 'feedbacks') and len(self.feedbacks) > 0:
+            feedback_path = self.feedbacks[0][0]  # assume first feedback
+            if len(feedback_path) >= 2 and isinstance(feedback_path[0], Line):
+                points = []
+                for seg in feedback_path:
+                    if isinstance(seg, Line):
+                        points.append(seg.get_end())
+                curve = VMobject()
+                curve.set_points_as_corners([feedback_path[0].get_start()] + points)
+                return curve
+        raise ValueError("No feedback path available")
 
     def animate_signals(self, scene, *blocks,
-                                spawn_interval=0.5,
-                                signal_speed=0.8,
-                                signal_count=5,
-                                color=YELLOW,
-                                radius=0.12,
-                                include_input=True,
-                                include_output=True,
-                                include_feedback=True):
-        """
-        Creates smooth cascading signals with precise feedback path connection
-        starting 1 unit right from output start.
-        """
-        # Pre-calculate all paths
-        paths = []
-        
-        # 1. Add input path
+                    spawn_interval=0.5,
+                    signal_speed=0.8,
+                    duration=10.0,
+                    color=YELLOW,
+                    radius=0.12,
+                    include_input=True,
+                    include_output=True,
+                    include_feedback=True):
+
+        # Prepare path groups
+        main_paths = []      # signal: input → blocks → output
+        feedback_paths = []  # signal: output → feedback loop
+
+        # Collect regular input/output paths
         if include_input and hasattr(self, 'inputs'):
             for input_path in self.inputs:
                 if isinstance(input_path[0], Arrow):
-                    paths.append(input_path[0].copy())
-        
-        # 2. Add main block connections
+                    main_paths.append(input_path[0].copy())
+
         for i in range(len(blocks) - 1):
             conn = self._find_connection(blocks[i], blocks[i + 1])
             if conn:
-                paths.append(conn.path.copy())
-        
-        # 3. Handle output and feedback connection
+                main_paths.append(conn.path.copy())
+
         if include_output and hasattr(self, 'outputs'):
             for output_path in self.outputs:
                 if isinstance(output_path[0], Arrow):
-                    output_copy = output_path[0].copy()
-                    
-                    if include_feedback:
-                        # Split output at feedback connection point (1 unit right from start)
-                        split_point = output_copy.get_start() + RIGHT * 1
-                        
-                        # Create first segment (before feedback branches off)
-                        first_segment = Line(
-                            output_copy.get_start(),
-                            split_point
-                        )
-                        paths.append(first_segment)
-                        
-                        # Create remaining output segment (after feedback branches off)
-                        remaining_segment = Line(
-                            split_point,
-                            output_copy.get_end()
-                        )
-                        paths.append(remaining_segment)
-                    else:
-                        paths.append(output_copy)
-        
-        # 4. Add feedback path with precise connection
+                    main_paths.append(output_path[0].copy())
+
         if include_feedback and hasattr(self, 'feedbacks'):
             for feedback_path in self.feedbacks:
-                if len(feedback_path[0]) >= 3:
-                    # Reconstruct feedback path ensuring it starts at split_point
-                    feedback_points = []
-                    
-                    # First point should be the split point (1 unit right from output start)
-                    if hasattr(self, 'outputs') and len(self.outputs) > 0:
-                        output_start = self.outputs[0][0].get_start()
-                        feedback_points.append(output_start + RIGHT * 1)
-                    
-                    # Add remaining points from feedback segments
+                if isinstance(feedback_path[0], (VGroup, list)):
                     for segment in feedback_path[0]:
                         if isinstance(segment, Line):
-                            feedback_points.append(segment.get_end())
-                    
-                    if len(feedback_points) > 1:
-                        feedback_curve = VMobject()
-                        feedback_curve.set_points_as_corners(feedback_points)
-                        paths.append(feedback_curve)
+                            feedback_paths.append(segment.copy())
 
-        # Filter out invalid paths
-        valid_paths = []
-        for path in paths:
-            try:
-                if hasattr(path, 'get_length') and path.get_length() > 0.1:  # Minimum length threshold
-                    valid_paths.append(path)
-            except:
-                continue
+        def animate_path_stream(path_list, color=color):
+            valid_paths = [p for p in path_list if hasattr(p, 'get_length') and p.get_length() > 0.1]
+            if not valid_paths:
+                return lambda dt: None, 0  # Return a dummy updater if nothing valid
 
-        if not valid_paths:
-            raise ValueError("No valid paths found to animate")
+            total_length = sum(p.get_length() for p in valid_paths)
 
-        def create_signal():
-            signal = Dot(color=color, radius=radius)
-            signal.move_to(valid_paths[0].get_start())
-            scene.add(signal)
-
-            timer = ValueTracker(0)
-
-            def update_signal(mob):
-                progress = timer.get_value()
-                total_length = sum(p.get_length() for p in valid_paths)
-                distance_covered = progress * total_length
+            def get_point_at_distance(distance):
                 current_length = 0
-
                 for path in valid_paths:
-                    path_length = path.get_length()
-                    if distance_covered <= current_length + path_length:
-                        segment_progress = (distance_covered - current_length) / path_length
-                        mob.move_to(path.point_from_proportion(segment_progress))
-                        return
-                    current_length += path_length
+                    length = path.get_length()
+                    if distance <= current_length + length:
+                        return path.point_from_proportion((distance - current_length) / length)
+                    current_length += length
+                return valid_paths[-1].get_end()
 
-                mob.clear_updaters()
-                scene.remove(mob)
+            travel_time = total_length * signal_speed
+            total_run_time = duration + travel_time
+            signals = []
 
-            signal.add_updater(update_signal)
-            return signal, timer
+            start_time = [0.0]  # Mutable wrapper for time tracking
 
-        # Animate signals
-        for i in range(signal_count):
-            signal, timer = create_signal()
-            scene.play(
-                timer.animate.set_value(1).set_run_time(len(valid_paths) * signal_speed),
-                run_time=len(valid_paths) * signal_speed
-            )
-            scene.wait(spawn_interval)
+            def updater(dt):
+                start_time[0] += dt
+                t = start_time[0]
 
-        scene.wait(len(valid_paths) * signal_speed)
+                while updater.next_spawn_time <= t <= total_run_time:
+                    dot = Dot(color=color, radius=radius)
+                    dot.set_opacity(0)
+                    scene.add(dot)
+
+                    my_start_time = updater.next_spawn_time
+
+                    def make_updater(my_start_time):
+                        def dot_updater(mob, _dt=0):
+                            elapsed = start_time[0] - my_start_time
+                            progress = elapsed / travel_time
+                            if progress < 0:
+                                mob.set_opacity(0)
+                            elif 0 <= progress <= 1:
+                                mob.move_to(get_point_at_distance(progress * total_length))
+                                mob.set_opacity(1)
+                            else:
+                                mob.set_opacity(0)
+                        return dot_updater
+
+                    dot.add_updater(make_updater(my_start_time))
+                    signals.append(dot)
+
+                    updater.next_spawn_time += spawn_interval
+
+            updater.next_spawn_time = 0.0
+            return updater, travel_time + duration
+
+        # Animate main stream
+        main_updater, main_runtime = animate_path_stream(main_paths)
+
+        # Animate feedback stream
+        if feedback_paths:
+            feedback_updater, feedback_runtime = animate_path_stream(feedback_paths, color=BLUE)
+        else:
+            feedback_updater, feedback_runtime = None, 0
+
+        # Register updaters
+        scene.add_updater(main_updater)
+        if feedback_updater:
+            scene.add_updater(feedback_updater)
+
+        # Wait for both to finish
+        scene.wait(max(main_runtime, feedback_runtime))
+
+        # Cleanup
+        scene.remove_updater(main_updater)
+        if feedback_updater:
+            scene.remove_updater(feedback_updater)
