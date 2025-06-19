@@ -14,6 +14,7 @@ class Static_Example2(MovingCameraScene):
         fbcontroller = cs.add_block("fbcontroller", "transfer_function", 2.5*LEFT,{"color":YELLOW,"label": "FB controller", "block_height":0.8,"block_width":1.6, "font_size":40})
         sum2 = cs.add_block("sum2", "summing_junction", 0.7*LEFT, params={"input1_dir": LEFT, "input2_dir": UP, "input2_sign": "-", "input1_sign": "+"})
         ffcontroller = cs.add_block("ffcontroller", "transfer_function", 2.5*LEFT+1.5*UP,{"color":YELLOW,"label": "FF controller", "block_height":0.8,"block_width":1.6, "font_size":40})
+        
         feedforward = cs.add_feedforward_path(setpoint, "out_up", ffcontroller, "in")
         feedforward2 = cs.add_feedforward_path(ffcontroller, "out", sum2, "in2")
 

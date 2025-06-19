@@ -668,11 +668,18 @@ class BodePlot(VGroup):
         self.phase_min = np.floor(self.phase_min_calc / base_step) * base_step
         self.phase_max = np.ceil(self.phase_max_calc / base_step) * base_step
 
-        # Add some padding and ensure rounding to base step
-        padding_deg = 0 # Add at least one step of padding
-        self.phase_min = np.floor((self.phase_min_calc - padding_deg) / base_step) * base_step
-        self.phase_max = np.ceil((self.phase_max_calc + padding_deg) / base_step) * base_step
+        padding_deg = base_step # Add at least one step of padding for min span
+        if self.phase_min == self.phase_max:
+            # If after rounding, min and max are still the same, ensure a minimal span
+            self.phase_min -= base_step
+            self.phase_max += base_step
+        else:
+            self.phase_min = np.floor((self.phase_min_calc - padding_deg) / base_step) * base_step
+            self.phase_max = np.ceil((self.phase_max_calc + padding_deg) / base_step) * base_step
 
+        # Ensure the min and max are still different after padding, especially for very flat responses
+        if self.phase_min == self.phase_max:
+             self.phase_max += base_step # Ensure a minimal difference
 
         # Step 4: Determine magnitude range
         mag_padding = 0 # dB padding
