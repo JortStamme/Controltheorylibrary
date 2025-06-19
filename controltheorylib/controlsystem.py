@@ -747,11 +747,11 @@ class ControlSystem:
                     spawn_interval=0.5,
                     signal_speed=0.8,
                     duration=10.0,
-                    color=YELLOW, feedback_color=YELLOW,
+                    color=YELLOW, feedback_color=YELLOW, feedforward_color=YELLOW,
                     radius=0.12,
                     include_input=True,
                     include_output=True,
-                    include_feedback=True, feedback_delay=None):
+                    include_feedback=True, include_feedforward=True, feedforward_delay=None,feedback_delay=None):
         
         self.feedback_color = feedback_color
         self.spawn_interval = spawn_interval
@@ -762,8 +762,9 @@ class ControlSystem:
         
 
         # Prepare path groups
-        main_paths = []      # signal: input → blocks → output
-        feedback_paths = []  # signal: output → feedback loop
+        main_paths = []      
+        feedback_paths = []  
+        feedforward_paths = []
         disturbance_paths = [] 
 
         if hasattr(self, 'disturbances'):
@@ -799,6 +800,12 @@ class ControlSystem:
                     for segment in feedback_path[0]:
                         if isinstance(segment, Line):
                             feedback_paths.append(segment.copy())
+        # Feedforward paths
+        if include_feedforward and hasattr(self, 'feedforwards'):
+            for ff in self.feedforwards:
+                for segment in ff[0]:  # the feedforward_arrow part
+                    if isinstance(segment, Line):
+                        feedforward_paths.append(segment.copy())
         
         if feedback_delay is None and feedback_paths:
             main_length = sum(p.get_length() for p in main_paths if hasattr(p, 'get_length'))
@@ -807,6 +814,17 @@ class ControlSystem:
             feedback_delay = 0 
         else:
             feedback_delay = feedback_delay
+        
+        # Feedforward delay
+        if feedforward_delay is None and feedforward_paths:
+            ff_start = feedforward_paths[0].get_start()
+            main_start = main_paths[0].get_start() if main_paths else ff_start
+            dist = np.linalg.norm(ff_start - main_start-2)
+            feedforward_delay = (dist) / signal_speed
+        elif feedforward_delay is None:
+            feedforward_delay = 0
+        else:
+            feedforward_delay = feedforward_delay
 
         def animate_path_stream(path_list, stream_color=None, stream_radius=None, start_delay=0):
             valid_paths = [p for p in path_list if hasattr(p, 'get_length') and p.get_length() > 0.1]
@@ -864,7 +882,7 @@ class ControlSystem:
         
         # Animate main stream
         main_updater, main_runtime = animate_path_stream(main_paths, stream_color=color, stream_radius=radius)
-
+        feedforward_updater, _ = animate_path_stream(feedforward_paths, stream_color=feedforward_color, stream_radius=radius, start_delay=feedforward_delay) if feedforward_paths else (None, 0)
         # Animate feedback stream
         if feedback_paths:
             feedback_updater, feedback_runtime = animate_path_stream(feedback_paths, stream_color=feedback_color, stream_radius=radius, start_delay=feedback_delay)
@@ -875,13 +893,15 @@ class ControlSystem:
         disturbance_updater, disturbance_runtime = (
         animate_path_stream(disturbance_paths, color=RED)
         if disturbance_paths else (None, 0))
+
         # Register updaters
         scene.add_updater(main_updater)
         if feedback_updater:
             scene.add_updater(feedback_updater)
         if disturbance_updater:
             scene.add_updater(disturbance_updater)
-
+        if feedforward_updater:
+            scene.add_updater(feedforward_updater)
         
         # Wait for both to finish
         scene.wait(duration)
@@ -892,3 +912,5 @@ class ControlSystem:
             scene.remove_updater(feedback_updater)
         if disturbance_updater:
             scene.remove_updater(disturbance_updater)
+        if feedforward_updater:
+            scene.remove_updater(feedforward_updater)

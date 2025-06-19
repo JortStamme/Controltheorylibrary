@@ -2,7 +2,7 @@ from manim import *
 from controltheorylib import *
 config.background_color = "#3d3d3d"
 
-class ControlSystemScene(Scene):
+class Static_Example1(Scene):
     def construct(self):
         
         #====== code related to creating feedback loop diagram =======
