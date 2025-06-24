@@ -1,6 +1,7 @@
 from manim import *
 from controltheorylib import mech_vis
 import numpy as np
+config.background_color = "#3d3d3d"
 
 class MassSpringSys(Scene):
     def construct(self):
@@ -8,12 +9,13 @@ class MassSpringSys(Scene):
         #Parameters
         m = 1      # mass
         k = 100     # spring constant
-        c = 5      # damping coefficient
+        c = 2      # damping coefficient
         omega = np.sqrt(k/m)
         zeta = c/(2*np.sqrt(k*m))
         omega_d = omega*np.sqrt(1-zeta**2)
-        A = 2      # amplitude
+        A = 1.4      # amplitude
         phi = 0     # phase
+        
         t_end = 6/(zeta*omega) if zeta > 0 else 8
 
         #Create fixed world 
@@ -26,8 +28,9 @@ class MassSpringSys(Scene):
         damper_eq = [-2.5, 0.5, 0]
 
         #Create spring and damper
-        spring = mech_vis.spring(spring_start,spring_eq)
-        damper_box, damper_rod = mech_vis.damper(damper_start,damper_eq)
+        spring = mech_vis.spring(spring_start,spring_eq, type="helical")
+        damper_box, damper_rod = mech_vis.damper(damper_start,damper_eq, box_height=
+        1.3)
 
         #Create spring and damper labels
         k = MathTex("k").next_to(spring,LEFT, buff=0.5)
@@ -60,7 +63,7 @@ class MassSpringSys(Scene):
             mass.move_to([mass_x, y, 0])
 
             # Update spring and damper rod
-            spring.become(mech_vis.spring(spring_start, spring_end))
+            spring.become(mech_vis.spring(spring_start, spring_end, type="helical"))
             damper_rod.become(mech_vis.damper(damper_start, damper_end)[1])
 
             # Update labels

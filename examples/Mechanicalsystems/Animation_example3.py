@@ -2,6 +2,7 @@ from manim import *
 from controltheorylib import mech_vis
 from scipy.integrate import solve_ivp
 import numpy as np
+config.background_color = "#3d3d3d"
 
 # in this example, we aim to animate the dynamic behaviour of Static_example1
 class CoupledSpringDamper(Scene):
@@ -152,7 +153,7 @@ class CoupledSpringDamper(Scene):
             
             # Update dampers
             c1_rod.become(mech_vis.damper(
-                start=[-2,-3+x1,0], 
+                start=[-2,-3,0], 
                 end=[-2,-1.5+x1 ,0]
             ))
             c2_rod.become(mech_vis.damper(

@@ -1,6 +1,6 @@
 from manim import *
 from controltheorylib import BodePlot
-
+config.background_color = "#3d3d3d"
 class Animation_example4(Scene):
     def construct(self):
 

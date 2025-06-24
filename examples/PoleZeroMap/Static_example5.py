@@ -1,8 +1,14 @@
 from manim import *
 from controltheorylib import PoleZeroMap
-
+import sympy as sp
 class Static_example5(Scene):
     def construct(self):
+
+        s = sp.symbols('s') # define symbolic variable
+
+        system = 1/(s**2+0.2*s+1) # symbolic expression
+        system = ("1/(s**2+0.2*s+1)") # string
+        system = ([1],[1,0.2,1]) # Coefficients
 
         # Define transfer function: use z to denote discrete-time system
         pzmap = PoleZeroMap("(z**2+2*z+1)/(z**2+0.25)")

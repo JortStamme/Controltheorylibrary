@@ -1,6 +1,7 @@
 from manim import *
 from controltheorylib import BodePlot
 import sympy as sp
+config.background_color = "#3d3d3d"
 
 class Animation_example3(Scene):
     def construct(self):
@@ -30,18 +31,16 @@ class Animation_example3(Scene):
         bode2.grid_on()
         
         # FadeIn the first bode plot
-        self.play(FadeIn(bode1), run_time=1.8)
-        self.wait(1)
-
-        # Introduce plant and controller
         text1 = MathTex(r"Plant: \ H(s)=\frac{1}{(s+2)(s+10)(s+15)}", font_size=25).next_to(bode1.mag_box, UP, buff=0.3)
-        self.play(Write(text1), run_time=1.5)
-        self.wait(4)
-        text2 = MathTex(r"Use \ P-gain \ controller: \ C=P, \ where \ P=1500", font_size=25).next_to(bode1.mag_box, UP, buff=0.3)
-        self.play(ReplacementTransform(text1, text2), run_time=1.5)
-        self.wait(4)
-        text3 = MathTex(r"L(s) = CH(s) = \frac{1500}{(s+2)(s+10)(s+15)}", font_size=25).next_to(bode1.mag_box, UP, buff=0.3)
-        self.play(ReplacementTransform(text2, text3), run_time=1.5)
+        
+        self.play(FadeIn(bode1), Write(text1), run_time=1.8)
+
+        self.wait(2)
+        text2 = MathTex(r"C=P, \ where \ P=1500", font_size=25).next_to(text1, LEFT, buff=0.3).shift(2*RIGHT)
+        self.play(text1.animate.shift(2*RIGHT), Write(text2), run_time=1.5)
+        self.wait(2)
+        text3 = MathTex(r"L(s) = CH(s) = \frac{1500}{(s+2)(s+10)(s+15)}", font_size=25).move_to(text1)
+        self.play(ReplacementTransform(text1, text3), run_time=1.5)
         self.wait(1)
 
         # Animate arrow growing at 1 rad/s
@@ -62,7 +61,7 @@ class Animation_example3(Scene):
         # Calculate difference in decibels at specified freq
         delta_db = bode2.magnitudes[freq_idx] - bode1.magnitudes[freq_idx]
         # Add label and place it next to arrow
-        arrow_label = MathTex(fr"\Delta|H| = 20log(|P|)={delta_db:.1f}\,dB", font_size=24)
+        arrow_label = MathTex(fr"\Delta|H| = 20 \text{{log}} (|P|)={delta_db:.1f}\,dB", font_size=24)
         arrow_label.next_to(arrow, RIGHT, buff=0.1)
 
         # Get margin information, now only used to get the 0dB line

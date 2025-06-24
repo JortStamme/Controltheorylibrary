@@ -1,6 +1,6 @@
 from manim import *
 from controltheorylib import ControlSystem
-
+config.background_color = "#3d3d3d"
 
 class Static_Example2(MovingCameraScene):
     def construct(self):
@@ -46,6 +46,9 @@ class Static_Example2(MovingCameraScene):
         righttext = Text("Hardware", font_size=25).next_to(surrounding2,DOWN, buff=0.3)
         Header = Text("Mechatronic Design", font_size=30).move_to(4*UP+5*LEFT)
         diagram = cs.get_all_components()
-        self.add(diagram, surrounding1, surrounding2, lefttext, righttext, Header)
+        min = MathTex("-", font_size=25).next_to(sum1,RIGHT+DOWN,buff=0.03)
+        plus = MathTex("+", font_size=25).next_to(sum1,LEFT+UP,buff=0.03)
+        plus2 = MathTex("+", font_size=25).next_to(sum2,LEFT+UP,buff=0.03)
+        self.add(diagram, surrounding1, surrounding2, lefttext, righttext, Header, min, plus,plus2)
 
         cs.animate_signals(self,setpoint,sum1,fbcontroller,sum2,amp,act,mech,sens, duration=25)

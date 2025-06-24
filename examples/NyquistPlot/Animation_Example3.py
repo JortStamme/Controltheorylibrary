@@ -1,6 +1,7 @@
 from manim import *
 from controltheorylib import Nyquist
 import sympy as sp
+config.background_color = "#3d3d3d"
 
 class Animation_Example3(Scene):
     def construct(self):
@@ -16,13 +17,9 @@ class Animation_Example3(Scene):
         nyq.show_margins()
         
         # Animate the Nyquist plot step-by-step
-        self.play(FadeIn(nyq.box))
+        self.play(FadeIn(nyq.box),Create(nyq.x_ticks), Create(nyq.y_ticks))
         self.wait(0.5)
-        self.play(Create(nyq.x_ticks), Create(nyq.y_ticks))
-        self.wait(0.5)
-        self.play(Write(nyq.y_ticklabels),Write(nyq.x_ticklabels))
-        self.wait(1)
-        self.play(Create(nyq.x_axis), Create(nyq.y_axis))
+        self.play(Write(nyq.y_ticklabels),Write(nyq.x_ticklabels),Create(nyq.x_axis), Create(nyq.y_axis))
         self.wait(0.2)
         self.play(Write(nyq.x_axislabel), Write(nyq.y_axislabel))
         self.wait(0.5)

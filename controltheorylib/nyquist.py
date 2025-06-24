@@ -16,7 +16,7 @@ class Nyquist(VGroup):
     def __init__(self, system, freq_range=None, x_range=None, y_range=None, 
                  color=BLUE, stroke_width=2, axis_dashed=True, y_axis_label="\\mathrm{Im}", x_axis_label="\\mathrm{Re}",
                  font_size_labels=20, show_unit_circle=False, unit_circle_dashed=False, circle_color= RED,show_minus_one_label=False,show_minus_one_marker=True,
-                  show_positive_freq=True, show_negative_freq=True, **kwargs):
+                  show_positive_freq=True, show_negative_freq=True, y_length=6, x_length=9, **kwargs):
         """
         Generates a Nyquist plot visualization as a Manim VGroup
 
@@ -64,6 +64,10 @@ class Nyquist(VGroup):
             Whether to plot positive frequency response (default: True).
         show_negative_freq : bool
             Whether to plot negative frequency response (default: True).
+        y_length : float
+            The vertical length of the plot in Manim units
+        x_length : float
+            The horizonatal length of the plot in Manim units
         **kwargs : Any
             Additional keyword arguments passed to the VGroup constructor.
 
@@ -97,6 +101,8 @@ class Nyquist(VGroup):
         self.show_negative_freq = show_negative_freq
         self.unit_circle_dashed = unit_circle_dashed
         self.axis_dashed = axis_dashed
+        self.y_length = y_length
+        self.x_length = x_length
 
         self.axes_components = VGroup()
         self.nyquist_plot = VMobject()
@@ -533,7 +539,7 @@ class Nyquist(VGroup):
         self.plane = ComplexPlane(
             x_range=[x_min, x_max, x_step],
             y_range=[y_min, y_max, y_step],
-            y_length=6, x_length=9,
+            y_length=self.y_length, x_length=self.x_length,
             background_line_style={
                 "stroke_color": GREY,
                 "stroke_width": 1,
@@ -1169,7 +1175,7 @@ class Nyquist(VGroup):
             if pm!=0:
                 tip_location = self.pm_arc.get_point_from_function(end_angle)
                 # Calculate the direction vector from start_dir_idx to end_dir_idx
-                direction_vector = self.pm_arc.get_point_from_function(end_angle)-self.pm_arc.get_point_from_function(start_angle)
+                direction_vector = self.pm_arc.get_point_from_function(end_angle)-self.pm_arc.get_point_from_function(end_angle-3)
 
                 # Calculate the angle of the direction vector
                 angle = angle_of_vector(direction_vector)

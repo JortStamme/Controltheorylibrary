@@ -15,7 +15,7 @@ class BodePlot(VGroup):
     def __init__(self, system, freq_range=None, magnitude_yrange=None,  
                  phase_yrange=None, color=BLUE,stroke_width=2.5, mag_label="Magnitude (dB)", 
                  phase_label = "Phase (deg)",xlabel = "Frequency (rad/s)", 
-                 font_size_ylabels = 20, font_size_xlabel=20,**kwargs):
+                 font_size_ylabels = 20, font_size_xlabel=20,y_length_mag=None,y_length_phase=None,x_length=None,**kwargs):
         """
         Generates a Bode plot visualization as a Manim VGroup for continuous- or discrete-time systems.
 
@@ -50,6 +50,12 @@ class BodePlot(VGroup):
             Font size for y-axis labels (default: 20).
         font_size_xlabel : int
             Font size for x-axis label (default: 20).
+        y_length_mag : float
+            The vertical length of the magnitude plot
+        y_length_phase : float
+            The vertical length of the phase plot
+        x_length : float
+            The horizontal length of the plots
         **kwargs : Any
             Additional keyword arguments passed to the VGroup constructor.
 
@@ -95,7 +101,9 @@ class BodePlot(VGroup):
         self._show_phase = True
         self._original_mag_pos = 1.8*UP
         self._original_phase_pos = 0.4*DOWN
-
+        self.y_length_mag = y_length_mag
+        self.y_length_phase = y_length_phase
+        self.x_length = x_length
         #self.mag_hor_grid = VGroup()
         #self.phase_hor_grid = VGroup()
         #self.mag_vert_grid = VGroup()
@@ -282,64 +290,48 @@ class BodePlot(VGroup):
         mag_step =  5 if mag_span <= 30 else (10 if mag_span <= 60 else 20)  # None for axes since we're not comparing
         phase_step = 15 if phase_span <= 90 else (30 if phase_span <= 180 else 45)
 
-        if self._show_magnitude and self._show_phase:
-        
+        if self.x_length is None:
+            self.x_length = 12
+        if self.y_length_mag is None:
             if self._title:
-        # Create axes based on what we need to show
-                self.mag_axes = Axes(
-                    x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-                    y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
-                    x_length=12, y_length=2.8,
-                    axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
-                        "include_tip": False, "include_ticks": False},
-                    y_axis_config={"font_size": 25},
-                )
-        
-                self.phase_axes = Axes(
-                    x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-                    y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
-                    x_length=12, y_length=2.8,
-                    axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
-                        "include_tip": False, "include_ticks": False},
-                    y_axis_config={"font_size": 25},
-                )
+                self.y_length_mag = 2.8
+            elif self._show_magnitude and not self._show_phase:
+                self.y_length_mag = 6
             else:
-                self.mag_axes = Axes(
-                    x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-                    y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
-                    x_length=12, y_length=3,
-                    axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
-                        "include_tip": False, "include_ticks": False},
-                    y_axis_config={"font_size": 25},
-                )
+                self.y_length_mag = 3
+        else:
+            self.y_length_mag = self.y_length_mag
+
+        if self.y_length_phase is None:
+            if self._title:
+                self.y_length_phase = 2.8
+            elif self._show_phase and not self._show_magnitude:
+                self.y_length_phase = 6
+            else:
+                self.y_length_phase = 3
+        else:
+            self.y_length_phase = self.y_length_phase
+
+        if self._show_magnitude:
         
-                self.phase_axes = Axes(
-                    x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
-                    y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
-                    x_length=12, y_length=3,
-                    axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
-                        "include_tip": False, "include_ticks": False},
-                    y_axis_config={"font_size": 25},
-                )
-        elif self._show_magnitude:
             self.mag_axes = Axes(
                 x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
                 y_range=[self.magnitude_yrange[0], self.magnitude_yrange[1], mag_step],
-                x_length=12, y_length=6,
+                x_length=self.x_length, y_length=self.y_length_mag,
                 axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7,
                         "include_tip": False, "include_ticks": False},
                 y_axis_config={"font_size": 25},
             )
-        
-        elif self._show_phase:
+        if self._show_phase:
             self.phase_axes = Axes(
                 x_range=[np.log10(self.freq_range[0]), np.log10(self.freq_range[1]), 1],
                 y_range=[self.phase_yrange[0], self.phase_yrange[1], phase_step],
-                x_length=12, y_length=6,
+                x_length=self.x_length, y_length=self.y_length_phase,
                 axis_config={"color": GREY, "stroke_width": 0, "stroke_opacity": 0.7, 
-                        "include_tip": False, "include_ticks": False},
+                    "include_tip": False, "include_ticks": False},
                 y_axis_config={"font_size": 25},
             )
+            
         # Add boxes and labels only for the visible plots
         self.calculate_bode_data()
         self.plot_bode_response()
@@ -673,9 +665,6 @@ class BodePlot(VGroup):
             # If after rounding, min and max are still the same, ensure a minimal span
             self.phase_min -= base_step
             self.phase_max += base_step
-        else:
-            self.phase_min = np.floor((self.phase_min_calc - padding_deg) / base_step) * base_step
-            self.phase_max = np.ceil((self.phase_max_calc + padding_deg) / base_step) * base_step
 
         # Ensure the min and max are still different after padding, especially for very flat responses
         if self.phase_min == self.phase_max:
@@ -1242,23 +1231,34 @@ class BodePlot(VGroup):
                 # Add text label if requested
                 if show_values:
                     text_color = WHITE if text_color_white else gm_color
-                    if gm_in_dB:
-                        self.gm_text = MathTex(
-                            f"GM = {gm:.2f} dB",
-                            font_size=font_size,
-                            color=text_color
-                        ).next_to(
-                            self.mag_axes.c2p(log_wg, gain_at_wp),
-                            gm_label_pos, buff=0.2)
+                    if gm_label is None:
+
+                        if gm_in_dB:
+                            self.gm_text = MathTex(
+                                f"GM = {gm:.2f} \ dB",
+                                font_size=font_size,
+                                color=text_color
+                            ).next_to(
+                                self.mag_axes.c2p(log_wg, gain_at_wp),
+                                gm_label_pos, buff=0.2)
+                        else:
+                            gm_linear = 10**(abs(gm)/20)
+
+                            self.gm_text = MathTex(
+                                    f"GM = |{gm_linear:.2f}|",
+                                    font_size=font_size,
+                                    color=text_color
+                                ).next_to(
+                                    self.mag_axes.c2p(log_wg, gain_at_wp),
+                                    gm_label_pos, buff=0.2)
                     else:
-                        gm_linear = 10**(abs(gm)/20)
-                        self.gm_text = MathTex(
-                            f"GM = |{gm_linear:.2f}|",
-                            font_size=font_size,
-                            color=text_color
-                        ).next_to(
-                            self.mag_axes.c2p(log_wg, gain_at_wp),
-                            gm_label_pos, buff=0.2)
+                        self.gm_text = MathTex(gm_label,
+                                font_size=font_size,
+                                color=text_color
+                            ).next_to(
+                                self.mag_axes.c2p(log_wg, gain_at_wp),
+                                gm_label_pos, buff=0.2)
+
                     if add_directly:
                         margin_group.add(self.gm_text)
 

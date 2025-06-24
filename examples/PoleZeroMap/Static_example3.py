@@ -6,6 +6,7 @@ class Static_example3(Scene):
     def construct(self):
         
         s = sp.symbols('s')
+        
 
         # Define transfer function, adjust ranges + increase size of markers to 0.18
         pzmap = PoleZeroMap(((s-2)/((s+3)*(s-10)*(s+13)*(s**2+5*s+8))), 

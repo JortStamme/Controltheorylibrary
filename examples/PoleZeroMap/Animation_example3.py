@@ -1,6 +1,6 @@
 from manim import *
 from controltheorylib import PoleZeroMap
-
+config.background_color = "#3d3d3d"
 class Animation_example3(Scene):
     def construct(self):
 
@@ -12,7 +12,7 @@ class Animation_example3(Scene):
         # Add stability regions, set add_directly to false
         # Such that it does not get added when we FadeIn all the plot components,
         # This way we can animate it seperatly.
-        pzmap.add_stability_regions(add_directly=False)
+        pzmap.add_stability_regions()
 
         # Instead of using pzmap, we use pzmap.basecomponents such that we can 
         # animate the poles and zeros later
@@ -25,5 +25,5 @@ class Animation_example3(Scene):
         self.play(FadeIn(pzmap.unstable_region), Write(pzmap.text_unstable))
         self.wait(1)
         # Add poles and zeros
-        self.play(GrowFromCenter(pzmap.zeros), GrowFromCenter(pzmap.poles))
+        self.play(GrowFromCenter(pzmap.zeros), GrowFromCenter(pzmap.poles), run_time=2)
         self.wait(2)
