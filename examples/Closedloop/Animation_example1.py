@@ -19,12 +19,12 @@ class Animation_Example1(Scene):
 
         
         #Connect
-        conn1 = cs.connect(sum_block1, "out1", controller, "in", label=r"e(s)")
+        conn1 = cs.connect(sum_block1, "out1", controller, "in", label_tex=r"e(s)")
         conn2 = cs.connect(controller, "out", sum_block2, "in1")
         conn3 = cs.connect(sum_block2, "out1", plant, "in")
 
         # Add disturbance
-        disturbance = cs.add_disturbance(sum_block2, "in2", label=r"d(s)"
+        disturbance = cs.add_disturbance(sum_block2, "in2", label_tex=r"d(s)"
                                          , position="top")
 
         # add diagram to scene

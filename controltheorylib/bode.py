@@ -293,21 +293,21 @@ class BodePlot(VGroup):
         if self.x_length is None:
             self.x_length = 12
         if self.y_length_mag is None:
-            if self._title:
+            if self._title and self._show_magnitude and self._show_phase:
                 self.y_length_mag = 2.8
             elif self._show_magnitude and not self._show_phase:
                 self.y_length_mag = 6
-            else:
+            elif not self._title and self._show_magnitude and self._show_phase:
                 self.y_length_mag = 3
         else:
             self.y_length_mag = self.y_length_mag
 
         if self.y_length_phase is None:
-            if self._title:
+            if self._title and self._show_magnitude and self._show_phase:
                 self.y_length_phase = 2.8
             elif self._show_phase and not self._show_magnitude:
                 self.y_length_phase = 6
-            else:
+            elif not self._title and self._show_magnitude and self._show_phase:
                 self.y_length_phase = 3
         else:
             self.y_length_phase = self.y_length_phase

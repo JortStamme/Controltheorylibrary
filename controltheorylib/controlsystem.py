@@ -441,7 +441,7 @@ class ControlSystem:
         self.outputs = getattr(self, 'outputs', []) + [output]
         return output
     def add_feedback_path(self, source_block, output_port, dest_block, input_port,
-                          vertical_distance=1.0,  # Default vertical drop
+                          vertical_distance=1.5,  # Default vertical drop
                           horizontal_distance=None, # Auto-calculated if None
                           label_tex=None, color=WHITE, label_pos=UP, **kwargs):
         """Adds a feedback path with right-angle turns.
@@ -482,6 +482,16 @@ class ControlSystem:
                 segments = [
                 Line(start, mid1, color=color, **kwargs),
                 Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)]
+        if source_dir == "RIGHT":
+            if horizontal_distance is None:
+                start_out=start+RIGHT
+                horizontal_distance=abs(start_out[0]-end[0])
+                mid1 = start_out + vertical_distance*DOWN
+                mid2 = mid1 + horizontal_distance*LEFT
+                segments = [
+                Line(start_out, mid1, color=color, **kwargs),
+                Line(mid1, mid2, color=color, **kwargs),
+                Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)]
 
 
         # Create complete path

@@ -727,11 +727,11 @@ class Nyquist(VGroup):
 
 
          # Positive frequencies
-        all_pos_points = [
-        self.plane.number_to_point(re + 1j * im)
-            for re, im in zip(self.real_part, self.imag_part)
-                if x_min <= re <= x_max and y_min <= im <= y_max
-        ]                
+        all_pos_points = []
+        for re, im in zip(self.real_part, self.imag_part):
+            if x_min <= re <= x_max and y_min <= im <= y_max:
+                all_pos_points.append(self.plane.number_to_point(re + 1j * im))
+                        
 
         all_neg_points = []
         for re, im in zip(self.neg_real_part, self.neg_imag_part):

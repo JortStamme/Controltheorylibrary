@@ -10,7 +10,7 @@ class Static_Example1(Scene):
         cs = ControlSystem()
         
         # Create blocks
-        sum_block1 = cs.add_block("", "summing_junction", 4*LEFT, params={"input1_dir": LEFT, "input2_dir": DOWN, "input2_sign": "-", "input1_sign": "+","fill_opacity": 1})
+        sum_block1 = cs.add_block("", "summing_junction", 4*LEFT, params={"input1_dir": LEFT, "input2_dir": DOWN, "input2_sign": "-", "input1_sign": "+","fill_opacity": 0})
         ref = cs.add_input(sum_block1, "in1", label_tex=r"r(s)")
         controller = cs.add_block(r"K_p(1+Ds)", "transfer_function", 1.5*LEFT, {"use_mathtex":True,"font_size":50,"label":r"K_p(1+Ds)"})
         sum_block2 = cs.add_block("", "summing_junction", RIGHT, params={"input1_dir": LEFT, "input2_dir": UP, "output1_dir": RIGHT, "output2_dir":DOWN,"input2_sign": "+", "input1_sign": "+", "fill_opacity":0})
@@ -39,14 +39,11 @@ class Static_Example1(Scene):
         surrounding = DashedVMobject(SurroundingRectangle(diagram, buff=0.5, color=WHITE, stroke_width=2), num_dashes=40).shift(0.1*LEFT)
         controlsystext = Text("ControlSystem", font="Courier", font_size=30).next_to(surrounding,UP, buff=0.3)
 
-        controlblocktext = Text("ControlBlock", font="Courier", font_size=25).next_to(conn1,UP, buff=0.8)
+        controlblocktext = Text(".add_block()", font="Courier", font_size=25).next_to(conn1,UP, buff=0.8)
         blockline1 = DashedLine(sum_block1, controlblocktext.get_bottom(), dash_length=0.1, stroke_width=1.5, buff=0.15)
         blockline2 = DashedLine(controller, controlblocktext.get_bottom(), dash_length=0.1, stroke_width=1.5, buff=0.15)
 
-        disturbancetext = Text("Disturbance", font="Courier", font_size=25).next_to(disturbance,RIGHT, buff=0.5).shift(0.4*UP)
-        distline = DashedLine(disturbance.get_center()+0.2*DOWN, disturbancetext.get_bottom()+0.1*DOWN, dash_length=0.1, stroke_width=1.5, buff=0.15)
-
-        conntext = Text("Connection", font="Courier", font_size=25).next_to(sum_block2, DOWN, buff=0.6)
+        conntext = Text(".connect()", font="Courier", font_size=25).next_to(sum_block2, DOWN, buff=0.6)
         connline1 = DashedLine(conntext.get_top(), conn2.get_center()+0.2*LEFT, dash_length=0.1, stroke_width=1.5, buff=0.15)
         connline2 = DashedLine(conntext.get_top(), conn3.get_center(), dash_length=0.1, stroke_width=1.5, buff=0.15)
-        self.add(surrounding,controlsystext, controlblocktext, blockline1, blockline2, disturbancetext, distline, conntext, connline1,connline2)
+        self.add(surrounding,controlsystext, controlblocktext, blockline1, blockline2, conntext, connline1,connline2)

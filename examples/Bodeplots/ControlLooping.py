@@ -20,7 +20,11 @@ class ControlLooping(MovingCameraScene):
         self.wait(1)
         self.play(FadeIn(nyq1.axes_components))
         self.wait(1)
-        self.play(Create(nyq1.nyquist_plot),run_time=10)
+        self.play(
+            Create(bode1.phase_plot, run_time=4),  # Bode phase plot takes 2 seconds
+            Create(bode1.mag_plot, run_time=4),    # Bode magnitude plot takes 2 seconds
+            Create(nyq1.nyquist_plot, run_time=4,lag_ratio=0)  # Nyquist plot takes 4 seconds
+        )
         self.wait(2)
         #self.play(self.camera.frame.animate.scale(1.5))
 
