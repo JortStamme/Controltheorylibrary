@@ -1108,7 +1108,7 @@ class Nyquist(VGroup):
         return gm, pm, mm, wg, wp, wm
     
     def show_margins(self, pm_color=YELLOW,mm_color=ORANGE, gm_color=GREEN_E, font_size=18,
-                      show_pm=True, show_gm=True, show_mm=True,pm_label=None,gm_label=None,mm_label=None):
+                      show_pm=True, show_gm=True, show_mm=True,pm_label=None,gm_label=None,mm_label=None, add_directly=True):
         """Add visual indicators for phase and gain margins."""
         gm, pm, mm, wg, wp, wm = self._calculate_stability_margins()
         self.show_gm = show_gm

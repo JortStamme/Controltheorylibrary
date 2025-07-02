@@ -1,6 +1,6 @@
 from manim import *
 import cmath
-from controltheorylib import mech_vis
+from controltheorylib import *
 
 class MassSpring(Scene):
     def construct(self):
@@ -305,4 +305,4 @@ class MassSpring(Scene):
 
         self.add(fixed_world, spring2, mass2, damper_box2, damper_rod2)
         self.wait(t_settling)
-        # manim -ql -p  MassSpringDamperSystem.py MassSpring
+        

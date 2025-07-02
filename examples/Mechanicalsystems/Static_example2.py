@@ -12,9 +12,7 @@ class MassSpringSys(Scene):
         c = 5      # damping coefficient
         omega = np.sqrt(k/m)
         zeta = c/(2*np.sqrt(k*m))
-        omega_d = omega*np.sqrt(1-zeta**2)
-        A = 1.4      # amplitude
-        phi = 0     # phase
+        A = 1.4 
         t_end = 6/(zeta*omega) if zeta > 0 else 8
 
         #Create fixed world 

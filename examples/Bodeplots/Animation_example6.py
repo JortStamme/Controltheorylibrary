@@ -5,7 +5,7 @@ class Animation_example6(Scene):
     def construct(self):
 
         # Define bode plot
-        bode1 = BodePlot(("(s+2)/(s**2+4*s+1)"), phase_yrange=[-105,15,15])
+        bode1 = BodePlot(("(s+2)/(s**2+4*s+1)"))
         bode1.grid_on()
         
         # Create asymptote attributes

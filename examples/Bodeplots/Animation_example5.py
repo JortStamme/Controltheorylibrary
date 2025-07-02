@@ -21,7 +21,8 @@ class Animation_example5(Scene):
 
         # Create stability margin components, because we want to animate the 
         # margin components individually we set the add_directly argument to False
-        bode1.show_margins(pm_color=YELLOW, gm_color=GREEN_C, stroke_width=1, pm_label_pos=0.5*DOWN+LEFT,gm_label_pos=0.5*UP+RIGHT,add_directly=False)
+        bode1.show_margins(pm_color=YELLOW, gm_color=GREEN_C, stroke_width=1, 
+                           pm_label_pos=0.5*DOWN+LEFT,gm_label_pos=0.5*UP+RIGHT,add_directly=False)
         
         # Animate the stability margins
         self.play(Create(bode1.zerodB_line))
