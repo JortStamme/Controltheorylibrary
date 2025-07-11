@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import BodePlot
+from controltheorylib import *
 import sympy as sp
 import numpy as np
 

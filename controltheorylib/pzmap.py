@@ -90,7 +90,7 @@ class PoleZeroMap(VGroup):
                 self.x_axis_label = "\\mathrm{Re}(s)"
 
         self._calculate_poles_zeros()
-        self._determine_ranges()
+        self._auto_determine_ranges()
         self._create_plot_components()
         
     def _parse_system_input(self, system):
@@ -200,7 +200,7 @@ class PoleZeroMap(VGroup):
         self.pole_real_parts = [p[0] for p in self.pole_coords]
         self.pole_imag_parts = [p[1] for p in self.pole_coords]
     
-    def _determine_ranges(self):
+    def _auto_determine_ranges(self):
         """Determine the x and y ranges if not specified"""
         # Calculate max and min for real and imaginary parts
         max_zero_real = max(self.zero_real_parts) if self.zero_real_parts else 0
