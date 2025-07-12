@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import mech_vis
+from controltheorylib import *
 
 class massExample(Scene):
     def construct(self):

@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import BodePlot
+from controltheorylib import *
 
 class Animation_example1(Scene):
     def construct(self):

@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import Nyquist
+from controltheorylib import *
 
 class Static_Example3(Scene):
     def construct(self):

@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import mech_vis
+from controltheorylib import *
 
 class fixedworldExample(Scene):
     def construct(self):

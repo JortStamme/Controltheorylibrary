@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import Nyquist
+from controltheorylib import *
 import sympy as sp
 config.background_color = "#3d3d3d"
 

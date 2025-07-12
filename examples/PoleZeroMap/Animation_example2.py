@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import PoleZeroMap
+from controltheorylib import *
 
 class Animation_example2(Scene):
     def construct(self):

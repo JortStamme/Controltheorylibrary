@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import Nyquist
+from controltheorylib import *
 config.background_color = "#3d3d3d"
 
 class Static_Example5(Scene):

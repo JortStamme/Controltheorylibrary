@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import PoleZeroMap
+from controltheorylib import *
 config.background_color = "#3d3d3d"
 class Animation_example4(Scene):
     def construct(self):

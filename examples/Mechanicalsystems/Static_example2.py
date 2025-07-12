@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import mech_vis
+from controltheorylib import *
 import numpy as np
 config.background_color = "#3d3d3d"
 

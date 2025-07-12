@@ -1,5 +1,5 @@
 from manim import *
-from controltheorylib import PoleZeroMap
+from controltheorylib import *
 import sympy as sp
 config.background_color = "#3d3d3d"
 class Static_example4(Scene):
