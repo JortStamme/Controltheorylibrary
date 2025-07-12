@@ -496,12 +496,13 @@ class ControlSystem:
 
 
         if source_dir == "LEFT":
+            start_out = start + rel_start_offset if rel_start_offset is not None else start
             if horizontal_distance is None:
-                horizontal_distance = abs(start[0] - end[0])
+                horizontal_distance = abs(start_out[0] - end[0])
 
             mid1 = start + horizontal_distance*LEFT
             segments = [
-            Line(start, mid1, color=color, **kwargs),
+            Line(start_out, mid1, color=color, **kwargs),
             Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)]
         if source_dir == "RIGHT":
             start_out = start + rel_start_offset if rel_start_offset is not None else start
@@ -516,8 +517,10 @@ class ControlSystem:
             Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)]
         if source_dir == "DOWN":
             if horizontal_distance is None:
-                start_out=start + rel_start_offset
+                start_out = start + rel_start_offset if rel_start_offset is not None else start
                 horizontal_distance=abs(start_out[0]-end[0])
+
+                ### ====== to be finished ======
 
 
 
@@ -543,7 +546,7 @@ class ControlSystem:
         return feedback
     
     def add_feedforward_path(self, source_block, output_port, dest_block, input_port,
-                            vertical_distance=None, horizontal_distance=None, label_tex=None,
+                            vertical_distance=None, horizontal_distance=None, label_tex=None, rel_start_offset = None,
                             color=WHITE, **kwargs):
         """Adds a feedforward path that adapts to the input port direction of the destination."""
         
@@ -587,23 +590,25 @@ class ControlSystem:
         # Calculate path based on input direction
         if input_dir == "LEFT":
             # Standard feedforward: UP → RIGHT
-            vertical_distance = UP*abs(end[1]-start[1])
+            start_out = start + rel_start_offset if rel_start_offset is not None else start
+            vertical_distance = UP*abs(end[1]-start_out[1])
             mid1 = start+vertical_distance
             if horizontal_distance is None:
                 horizontal_distance = abs(mid1[0] - end[0])
             segments = [
-                Line(start, mid1, color=color, **kwargs),
+                Line(start_out, mid1, color=color, **kwargs),
                 Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)
             ]
             label_pos = mid1 + DOWN * 0.2
         elif input_dir == "UP" and start[1] < end[1]:
             # For top input: DOWN → RIGHT → UP
-            mid1 = start + UP *end[1]
+            start_out = start + rel_start_offset if rel_start_offset is not None else start
+            mid1 = start_out + UP *end[1]
             if horizontal_distance is None:
                 horizontal_distance = abs(mid1[0] - end[0])
             mid2 = mid1 + RIGHT * horizontal_distance
             segments = [
-                Line(start, mid1, color=color, **kwargs),
+                Line(start_out, mid1, color=color, **kwargs),
                 Line(mid1, mid2, color=color, **kwargs),
                 Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)
             ]
@@ -611,11 +616,12 @@ class ControlSystem:
         elif start[1] < end[1]:  # RIGHT or UP
             vertical_distance=1
             # Default to standard path for other directions
-            mid1 = start + UP * vertical_distance
+            start_out = start + rel_start_offset if rel_start_offset is not None else start
+            mid1 = start_out + UP * vertical_distance
             if horizontal_distance is None:
                 horizontal_distance = abs(mid1[0] - end[0])
             segments = [
-                Line(start, mid1, color=color, **kwargs),
+                Line(start_out, mid1, color=color, **kwargs),
                 Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)
             ]
             label_pos = mid1 + DOWN * 0.2
