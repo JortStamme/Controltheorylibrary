@@ -438,7 +438,7 @@ class ControlSystem:
         self.inputs = getattr(self, 'inputs', []) + [input_group]
         return input_group
     
-    def add_output(self, source_block, output_port, length=2, use_math_tex=True, label=None, font_size = 25, color=WHITE, rel_pos=UP,**kwargs):
+    def add_output(self, source_block, output_port, length=2, use_math_tex=True, label=None, font_size = 25, color=WHITE, rel_label_pos=UP,**kwargs):
         """Adds an output arrow from a block"""
         start = source_block.output_ports[output_port].get_center()
         end = start + RIGHT * length
@@ -453,20 +453,20 @@ class ControlSystem:
         )
     
         output = VGroup(arrow)
-    
+  
         if label:
             if use_math_tex == True:
                 label = MathTex(label, font_size=font_size, color=color)
             else:
                 label = Text(label, font_size=font_size, color=color)
-            label.next_to(arrow, rel_pos, buff=0.2)
+            label.next_to(arrow, rel_label_pos, buff=0.2)
             output.add(label)
         
         self.outputs = getattr(self, 'outputs', []) + [output]
         return output
     def add_feedback_path(self, source_block, output_port, dest_block, input_port,
-                          vertical_distance=1.5,  # Default vertical drop
-                          horizontal_distance=None, # Auto-calculated if None
+                          vertical_distance=1.5,  
+                          horizontal_distance=None, rel_start_offset = None,
                           label_tex=None, color=WHITE, label_pos=UP, **kwargs):
         """Adds a feedback path with right-angle turns.
 
@@ -476,14 +476,10 @@ class ControlSystem:
         start = source_block.output_ports[output_port].get_center()
         end = dest_block.input_ports[input_port].get_center()
 
-        # Determine the initial direction away from the source block
-        # This is often 'RIGHT' for output ports on the right, 'LEFT' for left output ports
-        # We'll use the direction of the output port itself
         source_output_port_direction = source_block.output_ports[output_port].get_center() - source_block.background.get_center()
-        # Normalize and find the closest cardinal direction
+
         source_output_port_direction = source_output_port_direction / np.linalg.norm(source_output_port_direction)
 
-        # Determine the target input direction for the destination block
         dest_input_port_direction = dest_block.input_ports[input_port].get_center() - dest_block.background.get_center()
         dest_input_port_direction = dest_input_port_direction / np.linalg.norm(dest_input_port_direction)
 
@@ -491,7 +487,7 @@ class ControlSystem:
 
         if np.dot(source_output_port_direction, RIGHT) > 0.9: # Source port is on the right
             source_dir ="RIGHT"
-        elif np.dot(source_output_port_direction, LEFT) > 0.9: # Source port is on the left (like "out_l")
+        elif np.dot(source_output_port_direction, LEFT) > 0.9: 
             source_dir = "LEFT"
         elif np.dot(source_output_port_direction, UP) > 0.9:
             source_dir = "UP"
@@ -502,20 +498,29 @@ class ControlSystem:
         if source_dir == "LEFT":
             if horizontal_distance is None:
                 horizontal_distance = abs(start[0] - end[0])
-                mid1 = start + horizontal_distance*LEFT
-                segments = [
-                Line(start, mid1, color=color, **kwargs),
-                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)]
+
+            mid1 = start + horizontal_distance*LEFT
+            segments = [
+            Line(start, mid1, color=color, **kwargs),
+            Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)]
         if source_dir == "RIGHT":
+            start_out = start + rel_start_offset if rel_start_offset is not None else start
             if horizontal_distance is None:
-                start_out=start+RIGHT
                 horizontal_distance=abs(start_out[0]-end[0])
-                mid1 = start_out + vertical_distance*DOWN
-                mid2 = mid1 + horizontal_distance*LEFT
-                segments = [
-                Line(start_out, mid1, color=color, **kwargs),
-                Line(mid1, mid2, color=color, **kwargs),
-                Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)]
+
+            mid1 = start_out + vertical_distance*DOWN
+            mid2 = mid1 + horizontal_distance*LEFT
+            segments = [
+            Line(start_out, mid1, color=color, **kwargs),
+            Line(mid1, mid2, color=color, **kwargs),
+            Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)]
+        if source_dir == "DOWN":
+            if horizontal_distance is None:
+                start_out=start + rel_start_offset
+                horizontal_distance=abs(start_out[0]-end[0])
+
+
+
 
 
         # Create complete path
