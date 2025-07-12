@@ -9,13 +9,13 @@ class Static_Example2(MovingCameraScene):
         
         # Create blocks
         setpoint = cs.add_block("setpoint", "transfer_function", 6*LEFT,{"color":BLUE, "label":"Setpoint Generator", "block_width":1.7,"block_height":0.8,"font_size":40, "output_dirs":[RIGHT,UP], "output_names": ["out_r","out_up"]})
-        input = cs.add_input(setpoint, "in", length=1)
+        input = cs.add_input(setpoint, "in_left", length=1)
         sum1 = cs.add_block("sum1", "summing_junction", 4.3*LEFT)
         fbcontroller = cs.add_block("fbcontroller", "transfer_function", 2.5*LEFT,{"color":YELLOW,"label": "FB controller", "block_height":0.8,"block_width":1.6, "font_size":40})
         sum2 = cs.add_block("sum2", "summing_junction", 0.7*LEFT, params={"input1_dir": LEFT, "input2_dir": UP, "input2_sign": "-", "input1_sign": "+"})
         ffcontroller = cs.add_block("ffcontroller", "transfer_function", 2.5*LEFT+1.5*UP,{"color":YELLOW,"label": "FF controller", "block_height":0.8,"block_width":1.6, "font_size":40})
-        feedforward = cs.add_feedforward_path(setpoint, "out_up", ffcontroller, "in")
-        feedforward2 = cs.add_feedforward_path(ffcontroller, "out", sum2, "in2")
+        feedforward = cs.add_feedforward_path(setpoint, "out_up", ffcontroller, "in_left")
+        feedforward2 = cs.add_feedforward_path(ffcontroller, "out_right", sum2, "in_top")
 
         amp = cs.add_block("amp", "transfer_function", 1.0*RIGHT,{"color":RED,"label":"Amplifier", "block_width":1.6,"block_height":0.8,"font_size":40})
 
@@ -27,15 +27,15 @@ class Static_Example2(MovingCameraScene):
 
         sens = cs.add_block("sens", "transfer_function", 5.7*RIGHT+1.5*DOWN,{"color":ORANGE,"label":"Sensor", "block_width":1.6,"block_height":0.8,"font_size":40, "output_dirs":[LEFT,DOWN], "input_dirs":[RIGHT,UP], "input_names":["in_r", "in_top"], "output_names": ["out_l","out_down"]})
         
-        feedback = cs.add_feedback_path(sens,"out_l", sum1, "in2")
+        feedback = cs.add_feedback_path(sens,"out_l", sum1, "in_bottom")
 
         # Connections
-        conn1 = cs.connect(setpoint, "out_r", sum1, "in1")
-        conn2 = cs.connect(sum1, "out1", fbcontroller, "in",label_tex="e")
-        conn3 = cs.connect(fbcontroller, "out", sum2, "in1")
-        conn4 = cs.connect(sum2, "out1", amp, "in")
-        conn5 = cs.connect(amp, "out", act, "in")
-        conn6 = cs.connect(act, "out", mech, "in_l")
+        conn1 = cs.connect(setpoint, "out_r", sum1, "in_left")
+        conn2 = cs.connect(sum1, "out_right", fbcontroller, "in_left",label_tex="e")
+        conn3 = cs.connect(fbcontroller, "out_right", sum2, "in_left")
+        conn4 = cs.connect(sum2, "out_right", amp, "in_left")
+        conn5 = cs.connect(amp, "out_right", act, "in_left")
+        conn6 = cs.connect(act, "out_right", mech, "in_l")
 
         conn7 = cs.connect(mech, "out_down", sens, "in_top")
 

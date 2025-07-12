@@ -59,8 +59,8 @@ class ControlBlock(VGroup):
             type_params.update({
                 "input_dirs": [LEFT],  # Default input direction
                 "output_dirs": [RIGHT],  # Default output direction
-                "input_names": ["in"],  # Default input port names
-                "output_names": ["out"],  # Default output port names
+                "input_names": ["in_left"],  # Default input port names
+                "output_names": ["out_right"],  # Default output port names
                 "extra_ports": False  # Whether to add secondary ports
             })
             
@@ -149,42 +149,66 @@ class ControlBlock(VGroup):
             self.add_port(name, direction)
 
     def _create_summing_junction(self):
-       """Create summing junction with customizable ports"""
-       # Add input ports using parameters, with robust fallback
-       self.add_port("in1", self.params.get("input1_dir", LEFT))
-       self.add_port("in2", self.params.get("input2_dir", DOWN))
+        """Create summing junction with customizable ports"""
+        # Input ports configuration
+        input_dirs = [
+            self.params.get("input1_dir", LEFT),
+            self.params.get("input2_dir", DOWN)
+        ]
+        # Add any additional input directions if specified
+        if "input3_dir" in self.params:
+            input_dirs.append(self.params["input3_dir"])
+        if "input4_dir" in self.params:
+            input_dirs.append(self.params["input4_dir"])
         
-        # Add more input ports if their directions are specified in params
-       if "input3_dir" in self.params:
-            self.add_port("in3", self.params["input3_dir"])
-       if "input4_dir" in self.params:
-            self.add_port("in4", self.params["input4_dir"])
-
-        # Add output ports using parameters, with robust fallback
-       self.add_port("out1", self.params.get("output1_dir", RIGHT))
-       self.add_port("out2", self.params.get("output2_dir", UP))
-   
-    
-    # Add signs if not hidden
-       if not self.params["hide_labels"]:
-        # Create mapping between ports and their signs
-        port_sign_mapping = [
-            ("in1", "input1_sign"),
-            ("in2", "input2_sign")
+        # Generate direction-based names
+        direction_map = {
+            tuple(LEFT): "left",
+            tuple(RIGHT): "right",
+            tuple(UP): "top",  # Changed from "up" to "top" to match your convention
+            tuple(DOWN): "bottom"  # Changed from "down" to "bottom"
+        }
+        
+        # Generate input port names
+        input_names = self.params.get("input_names", [
+            f"in_{direction_map.get(tuple(d), str(i))}" 
+            for i, d in enumerate(input_dirs, 1)
+        ])
+        
+        # Add input ports
+        for direction, name in zip(input_dirs, input_names):
+            self.add_port(name, direction)
+        
+        # Output ports configuration
+        output_dirs = [
+            self.params.get("output1_dir", RIGHT),
+            self.params.get("output2_dir", UP)
         ]
         
-        for port, sign_param in port_sign_mapping:
-            tex = MathTex(self.params[sign_param]).scale(0.7)
-            # Get direction from the correct parameter
-            dir_param = sign_param.replace("_sign", "_dir")
-            direction = self.params[dir_param]
-            tex.next_to(
-                self.input_ports[port],
-                -direction,  # Opposite side
-                buff=0.1
-            )
-            self.add(tex)
-
+        # Generate output port names
+        output_names = self.params.get("output_names", [
+            f"out_{direction_map.get(tuple(d), str(i))}" 
+            for i, d in enumerate(output_dirs, 1)
+        ])
+        
+        # Add output ports
+        for direction, name in zip(output_dirs, output_names):
+            self.add_port(name, direction)
+        
+        # Add signs if not hidden
+        if not self.params.get("hide_labels", True):
+            # Create sign mapping for the first two inputs
+            if len(input_names) >= 1 and "input1_sign" in self.params:
+                tex = MathTex(self.params["input1_sign"]).scale(0.7)
+                direction = self.params.get("input1_dir", LEFT)
+                tex.next_to(self.input_ports[input_names[0]], -direction, buff=0.1)
+                self.add(tex)
+            
+            if len(input_names) >= 2 and "input2_sign" in self.params:
+                tex = MathTex(self.params["input2_sign"]).scale(0.7)
+                direction = self.params.get("input2_dir", DOWN)
+                tex.next_to(self.input_ports[input_names[1]], -direction, buff=0.1)
+                self.add(tex)
 
     def add_port(self, name, direction):
         """Adds a port with size scaled to block type"""
