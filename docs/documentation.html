@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation | ControlTheoryLib</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="bg-dark text-white py-4">
+        <div class="container">
+            <h1 class="display-4">ControlTheoryLib Documentation</h1>
+        </div>
+    </header>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="documentation.html">Documentation</a></li>
+                    <li class="nav-item"><a class="nav-link" href="examples.html">Examples</a></li>
+                    <li class="nav-item"><a class="nav-link" href="tutorials.html">Tutorials</a></li>
+                    <li class="nav-item"><a class="nav-link" href="https://github.com/yourusername/controltheorylib">GitHub</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-5">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="sticky-top pt-3" style="top: 20px;">
+                    <h5>Contents</h5>
+                    <ul class="nav flex-column">
+                        <li class="nav-item"><a class="nav-link" href="#installation">Installation</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#quickstart">Quick Start</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#api">API Reference</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#contributing">Contributing</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <section id="installation" class="mb-5">
+                    <h2>Installation</h2>
+                    <p>ControlTheoryLib can be installed via pip:</p>
+                    <pre><code>pip install controltheorylib</code></pre>
+                    
+                    <p>For development installation:</p>
+                    <pre><code>git clone https://github.com/yourusername/controltheorylib.git
+cd controltheorylib
+pip install -e .</code></pre>
+                </section>
+                
+                <section id="quickstart" class="mb-5">
+                    <h2>Quick Start</h2>
+                    <p>Here's a basic example of using ControlTheoryLib:</p>
+                    <pre><code>from controltheorylib import System, Visualizer
+
+# Create a simple system
+sys = System(transfer_function="1/(s+1)")
+
+# Visualize the step response
+viz = Visualizer()
+viz.plot_step_response(sys)
+viz.render()</code></pre>
+                </section>
+                
+                <section id="api" class="mb-5">
+                    <h2>API Reference</h2>
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">System Class</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Represents a control system with various representations.</p>
+                            <h6>Methods:</h6>
+                            <ul>
+                                <li><code>__init__(transfer_function=None, state_space=None)</code> - Initialize system</li>
+                                <li><code>step_response()</code> - Compute step response</li>
+                                <li><code>bode_plot()</code> - Generate Bode plot data</li>
+                                <li><code>nyquist_plot()</code> - Generate Nyquist plot data</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Visualizer Class</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Creates animations of system responses using Manim.</p>
+                            <h6>Methods:</h6>
+                            <ul>
+                                <li><code>plot_step_response(system)</code> - Animate step response</li>
+                                <li><code>plot_bode(system)</code> - Animate Bode plot</li>
+                                <li><code>plot_nyquist(system)</code> - Animate Nyquist plot</li>
+                                <li><code>render()</code> - Render the animation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="contributing">
+                    <h2>Contributing</h2>
+                    <p>We welcome contributions! Please fork the repository and submit a pull request.</p>
+                    <p>For major changes, please open an issue first to discuss what you would like to change.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container text-center">
+            <p>© 2023 ControlTheoryLib Project</p>
+            <p class="text-muted">Built with Manim and Python</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
