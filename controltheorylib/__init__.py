@@ -1,4 +1,4 @@
-from .controlsystem import ControlSystem, ControlBlock, Connection, Disturbance
+from .controlsystem import ControlSystem, ControlBlock, Connection
 from .bode import BodePlot
 from .nyquist import Nyquist
 from .pzmap import PoleZeroMap

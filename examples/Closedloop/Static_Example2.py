@@ -23,7 +23,7 @@ class Static_Example2(MovingCameraScene):
         
         mech = cs.add_block("mech", "transfer_function", 5.7*RIGHT,{"color":PINK,"label":"Mechanism", "block_width":1.6,"block_height":0.8,"font_size":40,"output_dirs":[RIGHT,DOWN], "input_dirs":[LEFT,UP], "input_names":["in_l", "in_top"], "output_names": ["out_r","out_down"]})
 
-        output = cs.add_output(mech, "out_r", length=1.5, label="Position", use_math_tex=False, font_size=20, rel_pos=0.5*UP)
+        output = cs.add_output(mech, "out_r", length=1.5, label="Position", use_math_tex=False, font_size=20, rel_label_pos=0.5*UP)
 
         sens = cs.add_block("sens", "transfer_function", 5.7*RIGHT+1.5*DOWN,{"color":ORANGE,"label":"Sensor", "block_width":1.6,"block_height":0.8,"font_size":40, "output_dirs":[LEFT,DOWN], "input_dirs":[RIGHT,UP], "input_names":["in_r", "in_top"], "output_names": ["out_l","out_down"]})
         
@@ -31,7 +31,7 @@ class Static_Example2(MovingCameraScene):
 
         # Connections
         conn1 = cs.connect(setpoint, "out_r", sum1, "in_left")
-        conn2 = cs.connect(sum1, "out_right", fbcontroller, "in_left",label_tex="e")
+        conn2 = cs.connect(sum1, "out_right", fbcontroller, "in_left",label="e")
         conn3 = cs.connect(fbcontroller, "out_right", sum2, "in_left")
         conn4 = cs.connect(sum2, "out_right", amp, "in_left")
         conn5 = cs.connect(amp, "out_right", act, "in_left")

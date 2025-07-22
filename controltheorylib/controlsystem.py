@@ -11,7 +11,7 @@ my_template = TexTemplate()
 my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 
 #Control loop system classes
-__all__ = ['ControlSystem', 'ControlBlock', 'Connection', 'Disturbance']
+__all__ = ['ControlSystem', 'ControlBlock', 'Connection']
 class ControlBlock(VGroup):
     def __init__(self, name, block_type, position, params=None):
         super().__init__()
@@ -255,8 +255,8 @@ class ControlBlock(VGroup):
 
         self.add(port)
 class Connection(VGroup):
-    def __init__(self, source_block, output_port, dest_block, input_port, label_tex=None,label_font_size=35,
-                 color=WHITE, **kwargs):
+    def __init__(self, source_block, output_port, dest_block, input_port, label=None,label_font_size=35,
+                 color=WHITE, use_math_tex=True, buff=0.2, **kwargs):
         super().__init__()
         self.source_block = source_block
         self.dest_block = dest_block
@@ -277,57 +277,20 @@ class Connection(VGroup):
             **kwargs
         )
         
-        # For curved connections
-        #if abs(start[1] - end[1]) > 0.5:
-            #cp1 = start + RIGHT * 1.5
-            #cp2 = end + LEFT * 1.5
-            #self.arrow.put_start_and_end_on(start, end)
-            #self.arrow.add_cubic_bezier_curve(cp1, cp2)
-        
         # Add label if provided
-        if label_tex:
-            self.label = MathTex(label_tex, font_size=label_font_size,color=color)
-            self.label.next_to(self.arrow.get_center(), UP, buff=0.2)
+        if label and use_math_tex==True:
+            self.label = MathTex(label, font_size=label_font_size,color=color)
+            self.label.next_to(self.arrow.get_center(), UP, buff=buff)
+            self.add(self.label)
+        
+        # Add regular label if mathtex bool is set to false
+        if label and use_math_tex==False:
+            self.label = Text(label, font_size=label_font_size,color=color)
+            self.label.next_to(self.arrow.get_center(), UP, buff=buff)
             self.add(self.label)
         
         self.path = self.arrow
         self.add(self.arrow)
-
-class Disturbance(VGroup):
-    def __init__(self, target_block, input_port, label_tex="d(t)", position="top", **kwargs):
-        super().__init__()
-        self.target = target_block
-        self.port_name = input_port
-        
-        # Default settings
-        settings = {
-            "arrow_length": 1,
-            "label_scale": 0.8,
-            "color": RED
-        } | kwargs
-        
-        # Create arrow
-        self.arrow = Arrow(
-            ORIGIN, DOWN * settings["arrow_length"],
-            buff=0.05, color=settings["color"]
-        )
-        
-        # Create label (MathTex or Text)
-        if isinstance(label_tex, str) and r"" in label_tex:
-            self.label = MathTex(label_tex, font_size=35).scale(settings["label_scale"])
-        else:
-            self.label = Text(label_tex, font_size=35).scale(settings["label_scale"])
-        
-        # Position relative to target block
-        target_port = target_block.input_ports[input_port]
-        if position == "top":
-            self.arrow.next_to(target_port, UP, buff=0)
-            self.label.next_to(self.arrow, UP)
-        elif position == "left":
-            self.arrow.next_to(target_port, LEFT, buff=0)
-            self.label.next_to(self.arrow, LEFT)
-        
-        self.add(self.arrow, self.label)
 
 class ControlSystem:
     def __init__(self):
@@ -339,7 +302,23 @@ class ControlSystem:
         
         
     def add_block(self, name, block_type, position, params=None):
-        """Adds a new block to the system"""
+        """Adds a new block to the system
+
+        PARAMETERS
+        ----------
+        name : str
+            Name of the block
+        block_type : str
+            Type of block, which can be of type:
+              -summing_junction: Creates a summing junction (circular)
+              -transfer_function: Creates a transfer function (rectangular)
+        position : np.ndarray | Sequence[float]
+            The position of the block
+        params : any  
+            Further parameter specifications of the block:
+              -label: 
+              -use_math_tex: ..
+        """
         if not name.strip():  # If name is empty
             name = f"{block_type}_{self._block_counter}"
             self._block_counter += 1
@@ -350,13 +329,13 @@ class ControlSystem:
 
         return new_block
         
-    def connect(self, source_block, output_port, dest_block, input_port, style="default", label_tex=None, label_font_size=30,
-                color=WHITE, **kwargs):
+    def connect(self, source_block, output_port, dest_block, input_port, style="default", label=None, label_font_size=30,
+                color=WHITE, use_math_tex=True, **kwargs):
         """Connect blocks with arrow and optional label
     
         Args:
         style: "default", "dashed", or "bold"
-        label_tex: LaTeX string for label (optional)
+        label: LaTeX string for label (optional)
         label_font_size: Font size for label (default 30)
         """
     # Input validation
@@ -371,9 +350,9 @@ class ControlSystem:
         output_port, 
         dest_block, 
         input_port,
-        label_tex=label_tex,
+        label=label,
         label_font_size=label_font_size,
-        color=color,
+        color=color, use_math_tex=use_math_tex,
         **kwargs
         )
     
@@ -386,26 +365,6 @@ class ControlSystem:
         self.connections.append(connection)
         return connection
 
-    def add_disturbance(self, target_block, input_port, label_tex="d(t)", position="top", **kwargs):
-        """Adds disturbance input to a block
-    
-        Args:
-        target_block: The block to attach the disturbance to
-        input_port: Which input port to attach to
-        label_tex: Label text (supports LaTeX with $...$)
-        position: "top" or "left" placement
-        **kwargs: Additional styling parameters
-        """
-        disturbance = Disturbance(
-        target_block, 
-        input_port, 
-        label_tex=label_tex,
-        position=position,
-        **kwargs
-        )
-        self.disturbances.append(disturbance)
-        return disturbance
-
     def insert_between(self, new_block, source_block, dest_block):
         """Inserts a block between two existing blocks"""
         # Find and remove the old connection
@@ -416,11 +375,33 @@ class ControlSystem:
             self.connect(source_block, old_conn.output_port, new_block, "in")
             self.connect(new_block, "out", dest_block, old_conn.input_port)
     
-    def add_input(self, target_block, input_port, label_tex=None, label_tex_font_size=30, length=2, color=WHITE, stroke_opacity=1, stroke_width=2, **kwargs):
+    def add_input(self, target_block, input_port, label=None, use_math_tex=True, buff=0.2, font_size=30, length=2, color=WHITE, stroke_opacity=1, stroke_width=2, **kwargs):
         """Adds an input arrow to a block."""
         end = target_block.input_ports[input_port].get_center()
-        start = end + LEFT * length  # Default: comes from the left
+
+        source_input_port_direction = end - target_block.background.get_center()
+
+        source_input_port_direction = source_input_port_direction / np.linalg.norm(source_input_port_direction)
     
+        if np.dot(source_input_port_direction, RIGHT) > 0.9: # input port is on the right
+            target_dir ="RIGHT"
+        elif np.dot(source_input_port_direction, LEFT) > 0.9: 
+            target_dir = "LEFT"
+        elif np.dot(source_input_port_direction, UP) > 0.9:
+            target_dir = "UP"
+        elif np.dot(source_input_port_direction, DOWN) > 0.9:
+            target_dir = "DOWN"
+
+        if target_dir == "LEFT":
+            start = end + LEFT * length
+        elif target_dir == "UP":
+            start = end + UP * length
+        elif target_dir == "RIGHT":
+            start = end + RIGHT * length
+        elif target_dir == "DOWN":
+            start = end + DOWN * length
+
+
         arrow = Arrow(
             start, end, stroke_width=stroke_width,
             tip_length=0.25,
@@ -430,9 +411,14 @@ class ControlSystem:
     
         input_group = VGroup(arrow)
     
-        if label_tex:
-            label = MathTex(label_tex, font_size=label_tex_font_size, color=color)
-            label.next_to(arrow, UP, buff=0.2)
+        if label and use_math_tex==True:
+            label = MathTex(label, font_size=font_size, color=color)
+            label.next_to(arrow, UP, buff=buff)
+            input_group.add(label)
+        
+        if label and use_math_tex==False:
+            label = Text(label, font_size=font_size, color=color)
+            label.next_to(arrow, UP, buff=buff)
             input_group.add(label)
         
         self.inputs = getattr(self, 'inputs', []) + [input_group]
@@ -441,8 +427,31 @@ class ControlSystem:
     def add_output(self, source_block, output_port, length=2, use_math_tex=True, label=None, font_size = 25, color=WHITE, rel_label_pos=UP,**kwargs):
         """Adds an output arrow from a block"""
         start = source_block.output_ports[output_port].get_center()
-        end = start + RIGHT * length
     
+        # Determine on which side the output port is
+        source_output_port_direction = start - source_block.background.get_center()
+
+        source_output_port_direction = source_output_port_direction / np.linalg.norm(source_output_port_direction)
+    
+        if np.dot(source_output_port_direction, RIGHT) > 0.9: # input port is on the right
+            source_dir ="RIGHT"
+        elif np.dot(source_output_port_direction, LEFT) > 0.9: 
+            source_dir = "LEFT"
+        elif np.dot(source_output_port_direction, UP) > 0.9:
+            target_dir = "UP"
+        elif np.dot(source_output_port_direction, DOWN) > 0.9:
+            source_dir = "DOWN"
+
+
+        if source_dir == "LEFT":
+            end = start + LEFT * length
+        elif source_dir == "UP":
+            end = start + UP * length
+        elif source_dir == "RIGHT":
+            end = start + RIGHT * length
+        elif source_dir == "DOWN":
+            end = start + DOWN * length
+        
         arrow = Arrow(
             start, end,
             stroke_width=3,
@@ -464,10 +473,12 @@ class ControlSystem:
         
         self.outputs = getattr(self, 'outputs', []) + [output]
         return output
+    
     def add_feedback_path(self, source_block, output_port, dest_block, input_port,
                           vertical_distance=1.5,  
-                          horizontal_distance=None, rel_start_offset = None,
-                          label_tex=None, color=WHITE, label_pos=UP, **kwargs):
+                          horizontal_distance=None, rel_start_offset = None, rel_end_offset = None,
+                          label=None, use_math_tex=True, color=WHITE, label_pos=UP, label_buff=0.2, **kwargs):
+        
         """Adds a feedback path with right-angle turns.
 
         The path will typically go away from the source, turn vertically,
@@ -497,6 +508,8 @@ class ControlSystem:
 
         if source_dir == "LEFT":
             start_out = start + rel_start_offset if rel_start_offset is not None else start
+            end = end + rel_end_offset if rel_end_offset is not None else end
+
             if horizontal_distance is None:
                 horizontal_distance = abs(start_out[0] - end[0])
 
@@ -506,6 +519,8 @@ class ControlSystem:
             Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)]
         if source_dir == "RIGHT":
             start_out = start + rel_start_offset if rel_start_offset is not None else start
+            end = end + rel_end_offset if rel_end_offset is not None else end
+            
             if horizontal_distance is None:
                 horizontal_distance=abs(start_out[0]-end[0])
 
@@ -523,22 +538,27 @@ class ControlSystem:
                 ### ====== to be finished ======
 
 
-
-
-
         # Create complete path
         feedback_arrow = VGroup(*segments)
         feedback_arrow.set_stroke(color=color, width=3)
 
         # Add label if specified
         feedback = VGroup(feedback_arrow)
-        if label_tex:
-            label = MathTex(label_tex, font_size=30)
+        if label and use_math_tex==True:
+            feedback_label = MathTex(label, font_size=30)
             if path_label_point is not None:
-                label.next_to(path_label_point, label_pos, buff=0.2)
+                feedback_label.next_to(path_label_point, label_pos, buff=label_buff)
             else: # Fallback if for some reason path_label_point isn't set
-                 label.next_to(feedback_arrow.get_center(), label_pos, buff=0.2)
-            feedback.add(label)
+                feedback_label.next_to(feedback_arrow.get_center(), label_pos, buff=label_buff)
+            feedback.add(feedback_label)
+
+        if label and use_math_tex==False:
+            feedback_label = Text(label, font_size=30)
+            if path_label_point is not None:
+                feedback_label.next_to(path_label_point, label_pos, buff=label_buff)
+            else: # Fallback if for some reason path_label_point isn't set
+                feedback_label.next_to(feedback_arrow.get_center(), label_pos, buff=label_buff)
+            feedback.add(feedback_label)
 
         # Store feedback path
         self.feedbacks = getattr(self, 'feedbacks', []) + [feedback]
@@ -546,7 +566,8 @@ class ControlSystem:
         return feedback
     
     def add_feedforward_path(self, source_block, output_port, dest_block, input_port,
-                            vertical_distance=None, horizontal_distance=None, label_tex=None, rel_start_offset = None,
+                            vertical_distance=None, horizontal_distance=None, label=None, use_math_tex=True,
+                            label_buff=0.2, rel_start_offset = None, rel_end_offset=None, font_size=30,
                             color=WHITE, **kwargs):
         """Adds a feedforward path that adapts to the input port direction of the destination."""
         
@@ -591,6 +612,7 @@ class ControlSystem:
         if input_dir == "LEFT":
             # Standard feedforward: UP → RIGHT
             start_out = start + rel_start_offset if rel_start_offset is not None else start
+            end = end + rel_end_offset if rel_end_offset is not None else end
             vertical_distance = UP*abs(end[1]-start_out[1])
             mid1 = start+vertical_distance
             if horizontal_distance is None:
@@ -603,6 +625,8 @@ class ControlSystem:
         elif input_dir == "UP" and start[1] < end[1]:
             # For top input: DOWN → RIGHT → UP
             start_out = start + rel_start_offset if rel_start_offset is not None else start
+            end = end + rel_end_offset if rel_end_offset is not None else end
+
             mid1 = start_out + UP *end[1]
             if horizontal_distance is None:
                 horizontal_distance = abs(mid1[0] - end[0])
@@ -617,6 +641,7 @@ class ControlSystem:
             vertical_distance=1
             # Default to standard path for other directions
             start_out = start + rel_start_offset if rel_start_offset is not None else start
+            end = end + rel_end_offset if rel_end_offset is not None else end
             mid1 = start_out + UP * vertical_distance
             if horizontal_distance is None:
                 horizontal_distance = abs(mid1[0] - end[0])
@@ -632,11 +657,16 @@ class ControlSystem:
         
         # Add label if specified
         feedforward = VGroup(feedforward_arrow)
-        if label_tex:
-            label = MathTex(label_tex, font_size=30)
-            label.move_to(label_pos)
+        if label and use_math_tex==True:
+            label = MathTex(label, font_size=font_size)
+            label.move_to(label_pos, buff=label_buff)
             feedforward.add(label)
-            
+
+        if label and use_math_tex==False:
+            label = Text(label, font_size=font_size)
+            label.move_to(label_pos, buff=label_buff)
+            feedforward.add(label)
+
         # Store feedforward path
         self.feedforwards = getattr(self, 'feedforwards', []) + [feedforward]
         return feedforward
@@ -775,7 +805,7 @@ class ControlSystem:
                     current_length += length
                 return valid_paths[-1].get_end()
 
-            travel_time = total_length * signal_speed
+            travel_time = total_length / signal_speed
             total_run_time = duration + travel_time
             signals = []
             
