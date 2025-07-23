@@ -31,113 +31,56 @@
             </div>
         </div>
     </nav>
-
     <main class="container my-5">
         <div class="row">
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">First Order System</h5>
-                        <pre><code>from controltheorylib import System, Visualizer
-
-sys = System(transfer_function="1/(s+1)")
-viz = Visualizer()
-viz.plot_step_response(sys)
-viz.render()</code></pre>
-                        <a href="#" class="btn btn-primary">View Animation</a>
-                    </div>
+            <div class="col-md-3">
+                <div class="sticky-top pt-3" style="top: 20px;">
+                    <h5>Contents</h5>
+                    <ul class="nav flex-column">
+                        <li class="nav-item"><a class="nav-link" href="#Mechanical Visualiations">Mechanical Vizualisations</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#Block diagrams">Block diagrams</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#Bode plots">Bode plots</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#Nyquist contours">Nyquist contours</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#Pole Zero Maps">Pole Zero Maps</a></li>
+                    </ul>
                 </div>
             </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Second Order System</h5>
-                        <pre><code>from controltheorylib import System, Visualizer
-
-sys = System(transfer_function="1/(s^2 + 0.6s + 1)")
-viz = Visualizer()
-viz.plot_step_response(sys)
-viz.render()</code></pre>
-                        <a href="#" class="btn btn-primary">View Animation</a>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Bode Plot</h5>
-                        <pre><code>from controltheorylib import System, Visualizer
-
-sys = System(transfer_function="1/(s+1)")
-viz = Visualizer()
-viz.plot_bode(sys)
-viz.render()</code></pre>
-                        <a href="#" class="btn btn-primary">View Animation</a>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Nyquist Plot</h5>
-                        <pre><code>from controltheorylib import System, Visualizer
-
-sys = System(transfer_function="1/(s+1)")
-viz = Visualizer()
-viz.plot_nyquist(sys)
-viz.render()</code></pre>
-                        <a href="#" class="btn btn-primary">View Animation</a>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">PID Controller</h5>
-                        <pre><code>from controltheorylib import System, PID, Visualizer
-
-plant = System(transfer_function="1/(s^2 + s)")
-controller = PID(kp=1, ki=0.5, kd=0.1)
-closed_loop = controller * plant
-
-viz = Visualizer()
-viz.plot_step_response(closed_loop)
-viz.render()</code></pre>
-                        <a href="#" class="btn btn-primary">View Animation</a>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">State Space System</h5>
-                        <pre><code>from controltheorylib import System, Visualizer
-import numpy as np
-
-A = np.array([[0, 1], [-1, -0.5]])
-B = np.array([[0], [1]])
-C = np.array([[1, 0]])
-D = np.array([[0]])
-
-sys = System(state_space=(A, B, C, D))
-viz = Visualizer()
-viz.plot_step_response(sys)
-viz.render()</code></pre>
-                        <a href="#" class="btn btn-primary">View Animation</a>
-                    </div>
-                </div>
+            <div class="col-md-9">
+                 <h2>Example Gallery</h2>
+                 <p>This gallery contains a collection of best practice code snippets together with their corresponding video/image output, illustrating different functionalities all across the library. These are all under the MIT license, so feel free to copy & paste them to your projects.</p>
+                 
+                <section id="Mechanical Visualiations" class="mb-5">
+                    <h3>Mechanical Visualizations</h3>
+                    <p>......</p>
+                </section>
+                    
+                
+                <section id="Block diagrams" class="mb-5">
+                    <h3>Block diagrams</h3>
+                    <p>.....</p>
+                </section>
+                
+                <section id="Bode plots" class="mb-5">
+                    <h3>Bode plots</h3>
+                    <p>.....</p>
+                </section>
+                
+                <section id="Nyquist contours" class="mb-5">
+                    <h3>Nyquist contours</h3>
+                    <p>.....</p>
+                </section>
+                
+                <section id="Pole Zero Maps" class="mb-5">
+                    <h3>Pole Zero Maps</h3>
+                    <p>.....</p>
+                </section>
             </div>
         </div>
     </main>
 
     <footer class="bg-dark text-white py-4 mt-5">
         <div class="container text-center">
-            <p>© 2023 ControlTheoryLib Project</p>
+            <p>© 2024 ControlTheoryLib Project</p>
             <p class="text-muted">Built with Manim and Python</p>
         </div>
     </footer>
