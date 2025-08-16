@@ -1,7 +1,7 @@
-Welcome to My Project’s documentation!
-======================================
+Welcome to MyManimLibrary’s documentation!
+==========================================
 
-This is the main landing page of the documentation.
+This library extends `Manim <https://www.manim.community/>`_ with additional features.
 
 .. toctree::
    :maxdepth: 2
@@ -10,3 +10,4 @@ This is the main landing page of the documentation.
    installation
    usage
    api
+   examples
