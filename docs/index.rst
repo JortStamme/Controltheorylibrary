@@ -10,4 +10,4 @@ This library extends `Manim <https://www.manim.community/>`_ with additional fea
    installation
    usage
    api
-   examples
+   auto_examples/index
