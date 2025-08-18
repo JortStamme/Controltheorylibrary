@@ -1,7 +1,5 @@
-Welcome to MyManimLibrary’s documentation!
-==========================================
-
-This library extends `Manim <https://www.manim.community/>`_ with additional features.
+Welcome to Your Project’s docs
+==============================
 
 .. toctree::
    :maxdepth: 2
@@ -9,5 +7,5 @@ This library extends `Manim <https://www.manim.community/>`_ with additional fea
 
    installation
    usage
+   examples
    api
-   auto_examples/index
