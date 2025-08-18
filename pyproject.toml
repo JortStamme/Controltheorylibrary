@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yourpkg"
+version = "0.1.0"
+description = "One-liner about your project"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []  # runtime deps, if any
