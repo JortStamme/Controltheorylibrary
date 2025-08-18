@@ -1,31 +1,32 @@
+# docs/conf.py
 import os
 import sys
-sys.path.insert(0, os.path.abspath(".."))
 
-project = "Controltheorylib"
-author = "Jort Stammen"
-release = "0.1.0"
+# If you *don’t* install your package on RTD, you can uncomment the next two lines:
+# sys.path.insert(0, os.path.abspath(".."))  # so autodoc can find your code
+# But best practice is to let RTD `pip install .` (see .readthedocs.yaml below)
 
+project = "Your Project"
+author = "Your Name"
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.napoleon",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",        # Google/NumPy docstrings
     "sphinx.ext.viewcode",
-    "sphinx_gallery.gen_gallery",
+    "sphinx.ext.intersphinx",
+    "sphinx_autodoc_typehints",
 ]
+autosummary_generate = True
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", {}),
+}
 
 templates_path = ["_templates"]
-exclude_patterns = []
-
+html_static_path = ["_static"]
 html_theme = "sphinx_rtd_theme"
 
-# ------------------------
-# Sphinx-Gallery config
-# ------------------------
-from sphinx_gallery.sorting import ExampleTitleSortKey
-
-sphinx_gallery_conf = {
-    "examples_dirs": "Controltheorylib/examples",   # Folder with example .py files
-    "gallery_dirs": "auto_examples",  # Output folder for generated gallery
-    "within_subsection_order": ExampleTitleSortKey,
-    "remove_config_comments": True,
-}
+# If heavy/optional deps break RTD imports, you can mock them:
+# autodoc_mock_imports = ["torch", "tensorflow", "cv2"]
