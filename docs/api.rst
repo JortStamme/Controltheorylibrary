@@ -1,9 +1,11 @@
-API Reference
+API reference
 =============
 
-The following API documentation is generated from the source code.
+.. autosummary::
+   :toctree: _autosummary
+   :recursive:
 
-.. automodule:: mymanimlibrary
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   controltheorylib
+   controltheorylib.bode
+   controltheorylib.nyquist
+   controltheorylib.controlsystem
