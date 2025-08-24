@@ -7,6 +7,8 @@ from collections import OrderedDict
 from manim import TexTemplate
 from scipy.interpolate import interp1d 
 
+config.background_color = "#3d3d3d"
+
 my_template = TexTemplate()
 my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 
@@ -874,22 +876,21 @@ class BodePlot(VGroup):
         return animations, highlights
     
 
+    
     def _calculate_asymptotes(self):
-        """Calculate asymptotes with proper transfer function handling"""
-        # Handle system representation
+        """Calculate asymptotes with proper transfer function handling (multiplicity fixed)."""
         if isinstance(self.system, (signal.TransferFunction, signal.ZerosPolesGain, signal.StateSpace)):
             tf = self.system
             if not isinstance(tf, signal.TransferFunction):
                 tf = tf.to_tf()
         else:
             tf = signal.TransferFunction(*self.system)
-        
-        # Get poles and zeros
+
         zeros = tf.zeros
         poles = tf.poles
-        
-        # Simple pole-zero cancellation
+
         tol = 1e-6
+        # Cancel pole-zero pairs but preserve multiplicity
         for z in zeros.copy():
             for p in poles.copy():
                 if abs(z - p) < tol:
@@ -897,245 +898,101 @@ class BodePlot(VGroup):
                     poles = np.delete(poles, np.where(poles == p))
                     break
 
-        # Initialize asymptotes
         self.mag_asymp = np.zeros_like(self.frequencies)
         self.phase_asymp = np.zeros_like(self.frequencies)
-        
-        # ===== 1. Magnitude Break Frequencies =====
-        mag_break_freqs = sorted([np.abs(p) for p in poles] + [np.abs(z) for z in zeros if z != 0])
-        mag_break_freqs = [f for f in mag_break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
-        
-        # ===== 2. Phase Break Frequencies (Extended Transitions) =====
-        phase_break_freqs = sorted(list(set([np.abs(p) for p in poles if not np.isclose(p, 0, atol=tol)] +
-                                                [np.abs(z) for z in zeros if not np.isclose(z, 0, atol=tol)])))
 
-        self.phase_asymp = np.zeros_like(self.frequencies)
-        # Store break frequencies
-        self.mag_break_freqs = mag_break_freqs
-        self.phase_break_freqs = phase_break_freqs
-        
-        # Calculate DC gain (magnitude at lowest frequency)
+        # Group poles and zeros by frequency with multiplicity
+        def group_by_freq(arr):
+            freq_map = {}
+            for val in arr:
+                if np.isclose(val, 0, atol=1e-8):
+                    continue
+                f = round(abs(val), 8)  # rounding to avoid floating-point mismatch
+                freq_map[f] = freq_map.get(f, 0) + 1
+            return freq_map
+
+        pole_groups = group_by_freq(poles)
+        zero_groups = group_by_freq(zeros)
+
+        # Keep sorted break frequencies
+        mag_break_freqs = sorted(set(list(pole_groups.keys()) + list(zero_groups.keys())))
+        self.mag_break_freqs = [f for f in mag_break_freqs if self.freq_range[0] <= f <= self.freq_range[1]]
+
+        # DC gain
         num = np.poly1d(tf.num)
         den = np.poly1d(tf.den)
         w0 = self.freq_range[0]
         dc_gain = 20 * np.log10(np.abs(num(w0*1j)/den(w0*1j)))
 
-        w_start = self.frequencies[0]
-        num_val_at_start = np.polyval(tf.num, w_start * 1j)
-        den_val_at_start = np.polyval(tf.den, w_start * 1j)
-        dc_ph = num_val_at_start/den_val_at_start
-        #start_phase_anchor = np.angle(complex_gain_at_start, deg=True)
-
-        # Calculate DC phase
+        # DC phase
         n_zeros_origin = sum(np.isclose(zeros, 0, atol=1e-8))
         n_poles_origin = sum(np.isclose(poles, 0, atol=1e-8))
         start_phase = (n_zeros_origin - n_poles_origin) * 90
-    
-        # Adjust for DC gain sign if no origin poles/zeros
         if n_zeros_origin == 0 and n_poles_origin == 0:
+            dc_ph = num(w0*1j) / den(w0*1j)
             if np.real(dc_ph) < 0:
                 start_phase += 180
-        
-        # Force exactly 0° start if no phase contribution
-        if n_zeros_origin == 0 and n_poles_origin == 0 and np.real(dc_ph) > 0:
-            start_phase = 0
-        
-        # Calculate phase at each frequency point
+            else:
+                start_phase = 0
+
+        # Magnitude asymptote calculation (with multiplicity)
+        for i, freq in enumerate(self.frequencies):
+            current_mag = dc_gain
+            # Origin effects
+            current_mag += (n_zeros_origin - n_poles_origin) * 20 * np.log10(freq / w0)
+
+            # Poles
+            for f_break, count in pole_groups.items():
+                if freq >= f_break:
+                    current_mag += -20 * count * np.log10(freq / f_break)
+
+            # Zeros
+            for f_break, count in zero_groups.items():
+                if freq >= f_break:
+                    current_mag += 20 * count * np.log10(freq / f_break)
+
+            self.mag_asymp[i] = current_mag
+
+        # Phase asymptote calculation (with multiplicity)
         for i, freq in enumerate(self.frequencies):
             current_phase = start_phase
 
-        # ===== Magnitude Asymptote Calculation =====
-        mag_slope = 0
-        for i, freq in enumerate(self.frequencies):
-            current_mag = dc_gain
-            current_slope = 0
-            
-            # Handle poles and zeros at origin first
-            n_integrators = sum(np.isclose(poles, 0, atol=1e-8))
-            n_differentiators = sum(np.isclose(zeros, 0, atol=1e-8))
-            current_mag += (n_differentiators - n_integrators) * 20 * np.log10(freq/w0)
-            current_slope += (n_differentiators - n_integrators) * 20
-            
-            # Handle other poles and zeros
-            for p in poles:
-                if not np.isclose(p, 0, atol=1e-8):
-                    w_break = np.abs(p)
-                    if freq >= w_break:
-                        current_mag += -20 * np.log10(freq/w_break)
-                        current_slope -= 20
-            
-            for z in zeros:
-                if not np.isclose(z, 0, atol=1e-8):
-                    w_break = np.abs(z)
-                    if freq >= w_break:
-                        current_mag += 20 * np.log10(freq/w_break)
-                        current_slope += 20
-            
-            self.mag_asymp[i] = current_mag
-        
-                # ===== Phase Asymptote Calculation =====
-        real_poles = [p for p in poles if np.isclose(p.imag, 0, atol=1e-8) and not np.isclose(p, 0, atol=1e-8)]
-        real_zeros = [z for z in zeros if np.isclose(z.imag, 0, atol=1e-8) and not np.isclose(z, 0, atol=1e-8)]
-        
-        complex_pole_pairs = []
-        processed_poles_for_pairing = set()
-        for p in poles:
-            if not np.isclose(p.imag, 0, atol=1e-8) and p not in processed_poles_for_pairing:
-                p_conj = np.conj(p)
-                # Find the conjugate in the poles list (using a tolerance for comparison)
-                found_conj = None
-                for pole_in_list in poles:
-                    if np.isclose(p_conj, pole_in_list, atol=tol):
-                        found_conj = pole_in_list
-                        break
+            # Real poles
+            for f_break, count in pole_groups.items():
+                if freq >= f_break:
+                    current_phase += -90 * count
 
-                if found_conj is not None:
-                    complex_pole_pairs.append((p, found_conj))
-                    processed_poles_for_pairing.add(p)
-                    processed_poles_for_pairing.add(found_conj)
-
-        complex_zero_pairs = []
-        processed_zeros_for_pairing = set()
-        for z in zeros:
-            if not np.isclose(z.imag, 0, atol=1e-8) and z not in processed_zeros_for_pairing:
-                z_conj = np.conj(z)
-                # Find the conjugate in the zeros list (using a tolerance for comparison)
-                found_conj = None
-                for zero_in_list in zeros:
-                    if np.isclose(z_conj, zero_in_list, atol=tol):
-                        found_conj = zero_in_list
-                        break
-
-                if found_conj is not None:
-                    complex_zero_pairs.append((z, found_conj))
-                    processed_zeros_for_pairing.add(z)
-                    processed_zeros_for_pairing.add(found_conj)
-
-
-        # Calculate phase at each frequency point based on cumulative jumps
-        for i, freq in enumerate(self.frequencies):
-            current_phase = start_phase # Start with DC phase from origin roots
-
-            # Add contributions from real poles
-            for p in poles:
-                 if np.isclose(p.imag, 0, atol=tol) and not np.isclose(p, 0, atol=tol):
-                     w0 = abs(p)
-                     if freq >= w0:
-                         # LHP pole contributes -90, RHP pole contributes +90
-                         current_phase += -90 if p.real < 0 else 90
-
-            # Add contributions from real zeros
-            for z in zeros:
-                 if np.isclose(z.imag, 0, atol=tol) and not np.isclose(z, 0, atol=tol):
-                     w0 = abs(z)
-                     if freq >= w0:
-                         # LHP zero contributes +90, RHP zero contributes -90
-                         current_phase += 90 if z.real < 0 else -90
-
-            # Add contributions from complex conjugate pole pairs
-            processed_cplx_poles = set()
-            for p in poles:
-                 if not np.isclose(p.imag, 0, atol=tol) and p not in processed_cplx_poles:
-                     w0 = abs(p)
-                     if freq >= w0:
-                         # Complex pole pair contributes -180
-                         current_phase += -180
-                     processed_cplx_poles.add(p)
-                     processed_cplx_poles.add(np.conj(p)) # Mark conjugate as processed
-
-            # Add contributions from complex conjugate zero pairs
-            processed_cplx_zeros = set()
-            for z in zeros:
-                 if not np.isclose(z.imag, 0, atol=tol) and z not in processed_cplx_zeros:
-                     w0 = abs(z)
-                     if freq >= w0:
-                         # Complex zero pair contributes +180
-                         current_phase += 180
-                     processed_cplx_zeros.add(z)
-                     processed_cplx_zeros.add(np.conj(z)) # Mark conjugate as processed
+            # Real zeros
+            for f_break, count in zero_groups.items():
+                if freq >= f_break:
+                    current_phase += 90 * count
 
             self.phase_asymp[i] = current_phase
 
     def show_asymptotes(self, color=YELLOW, add_directly=True, **kwargs):
-        """Plot asymptotes using separate break frequencies for magnitude and phase"""
+        """Plot asymptotes using mag_asymp/phase_asymp arrays directly (preserves multiplicity slopes)."""
         self._remove_existing_asymptotes()
         self.show_asymptotes_r = True
         if not hasattr(self, 'mag_asymp'):
             self._calculate_asymptotes()
-    
-        if hasattr(self, 'phase_asymp'):
-            self.phase_min_calc = min(np.min(self.phase_min_calc), np.min(self.phase_asymp))
-            self.phase_max_calc = max(np.max(self.phase_max_calc), np.max(self.phase_asymp))
-        
+
         mag_min, mag_max = self.magnitude_yrange[0], self.magnitude_yrange[1]
         phase_min, phase_max = self.phase_yrange[0], self.phase_yrange[1]
         clipped_mag_asymp = np.clip(self.mag_asymp, mag_min, mag_max)
         clipped_phase_asymp = np.clip(self.phase_asymp, phase_min, phase_max)
-        self.tol=1e-6
 
-        # ===== Magnitude Plot =====
-        mag_break_indices = [np.argmin(np.abs(self.frequencies - f)) 
-                            for f in self.mag_break_freqs]
-        
-        # Ensure start and end points are included
-        if 0 not in mag_break_indices:
-            mag_break_indices.insert(0, 0)
-        if (len(self.frequencies)-1) not in mag_break_indices:
-            mag_break_indices.append(len(self.frequencies)-1)
-        
-        # Create magnitude segments
-        self.mag_asymp_plot = VGroup()
-        for i in range(len(mag_break_indices)-1):
-            start_idx = mag_break_indices[i]
-            end_idx = mag_break_indices[i+1]
-            y_start = clipped_mag_asymp[start_idx]
-            y_end = clipped_mag_asymp[end_idx]
-            start_point = self.mag_axes.coords_to_point(
-                np.log10(self.frequencies[start_idx]),
-                y_start
-            )
-            end_point = self.mag_axes.coords_to_point(
-                np.log10(self.frequencies[end_idx]),
-                y_end
-            )
-            
-            segment = Line(start_point, end_point, color=color,
-                        **kwargs)
-            self.mag_asymp_plot.add(segment)
+        # Magnitude Plot
+        self.mag_asymp_plot = VMobject()
+        mag_points = [self.mag_axes.coords_to_point(np.log10(f), m) 
+                    for f, m in zip(self.frequencies, clipped_mag_asymp)]
+        self.mag_asymp_plot.set_points_as_corners(mag_points).set_color(color).set_stroke(**kwargs)
 
-        # ===== Phase Plot =====
-        self.phase_asymp_plot = VGroup()
+        # Phase Plot
+        self.phase_asymp_plot = VMobject()
+        phase_points = [self.phase_axes.coords_to_point(np.log10(f), p) 
+                        for f, p in zip(self.frequencies, clipped_phase_asymp)]
+        self.phase_asymp_plot.set_points_as_corners(phase_points).set_color(color).set_stroke(**kwargs)
 
-        # Iterate through the calculated phase asymptote points and draw segments
-        for i in range(len(self.frequencies) - 1):
-            freq1 = self.frequencies[i]
-            freq2 = self.frequencies[i+1]
-            phase1 = clipped_phase_asymp[i]
-            phase2 = clipped_phase_asymp[i+1]
-
-        # Only draw if within frequency range
-            if not (self.freq_range[0] <= freq1 <= self.freq_range[1] and
-                    self.freq_range[0] <= freq2 <= self.freq_range[1]):
-                continue
-            # Draw horizontal segment
-            point1_h = self.phase_axes.coords_to_point(np.log10(freq1), phase1)
-            point2_h = self.phase_axes.coords_to_point(np.log10(freq2), phase1) # Horizontal segment stays at phase1
-
-            if np.abs(point2_h[0] - point1_h[0]) > 1e-6: # Only draw if there's horizontal distance
-                 horizontal_segment = Line(point1_h, point2_h, color=color,
-                                           **kwargs)
-                 self.phase_asymp_plot.add(horizontal_segment)
-
-            # Draw vertical segment if phase changes
-            if np.abs(phase2 - phase1) > self.tol: # Check if phase value changes significantly
-                 point1_v = self.phase_axes.coords_to_point(np.log10(freq2), phase1) # Vertical segment starts at freq2, phase1
-                 point2_v = self.phase_axes.coords_to_point(np.log10(freq2), phase2) # Vertical segment ends at freq2, phase2
-
-                 vertical_segment = Line(point1_v, point2_v, color=color,
-                                         **kwargs)
-                 self.phase_asymp_plot.add(vertical_segment)
-
-        # Add to plot
         if self._show_magnitude and add_directly:
             self.mag_group.add(self.mag_asymp_plot)
         if self._show_phase and add_directly:
@@ -1389,3 +1246,4 @@ class BodePlot(VGroup):
             ws = np.inf
         
         return gm, pm, sm, wg, wp, ws
+    
