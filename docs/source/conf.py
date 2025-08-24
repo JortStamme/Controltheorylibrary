@@ -3,7 +3,7 @@ import sys
 import pathlib
 import manim
 
-#sys.path.insert(0, os.path.abspath('../..'))
+#sys.path.insert(0, os.path.abspath('../..'))ss
 project_root = r"C:\Users\20222934\OneDrive - TU Eindhoven\Documents\BscME\Y3\4WC00 - BEP\Controltheorylib"
 sys.path.insert(0, project_root)
 
