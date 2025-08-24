@@ -18,7 +18,7 @@ python:
   install:
     # 1) Install your package so autodoc can import it
     - method: pip
-      path: 
+      path: .
     # 2) Install doc-only dependencies
     - requirements: docs/source/requirements.txt
 
