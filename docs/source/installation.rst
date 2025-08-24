@@ -1,13 +1,13 @@
 Installation
 ============
 
-The standard way of installing Manim and ControlTheoryLib is by using Python's package manager pip to install the latest release from `PyPi <https://pypi.org/project/controltheorylib/>`.
+The standard way of installing Manim and ControlTheoryLib is by using Python's package manager pip to install the latest release from `PyPi <https://pypi.org/project/controltheorylib/>`_.
 
 Step 1: Install Manim
 ---------------------
-We first need to make sure that Manim and it's corresponding dependecies are installed. To do this, follow Manim's extensive guide which can be found `here <https://docs.manim.community/en/stable/installation.html>`.
+We first need to make sure that Manim and it's corresponding dependecies are installed. To do this, follow Manim's extensive guide which can be found `here <https://docs.manim.community/en/stable/installation.html>`_.
 
-Running into problems? Have a look at the FAQ `here <https://docs.manim.community/en/stable/faq/installation.html>`.
+Running into problems? Have a look at the FAQ `here <https://docs.manim.community/en/stable/faq/installation.html>`_.
 
 Step 2: Install ControlTheoryLib
 --------------------------------
