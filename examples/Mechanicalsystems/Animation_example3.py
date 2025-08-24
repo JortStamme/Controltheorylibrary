@@ -1,3 +1,11 @@
+"""
+Simple animation example with Manim
+===================================
+
+This example demonstrates a basic Manim animation.
+It will show up in the documentation gallery with this
+title and description.
+"""
 from manim import *
 from controltheorylib import *
 from scipy.integrate import solve_ivp

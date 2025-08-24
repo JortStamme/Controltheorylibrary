@@ -1,3 +1,11 @@
+"""
+Simple animation example with Manim
+===================================
+
+This example demonstrates a basic Manim animation.
+It will show up in the documentation gallery with this
+title and description.
+"""
 from manim import *
 from controltheorylib import *
 
@@ -8,7 +16,7 @@ class SignalFlow(Scene):
         cs = ControlSystem()
         
         # Create blocks
-        sum_block1 = cs.add_block("", "summing_junction", 3.5*LEFT, params={"input1_dir": LEFT, "input2_dir": DOWN, "input2_sign": "-", "input1_sign": "+","fill_opacity": 0})
+        sum_block1 = cs.add_block("", "summing_junction", 3.5*LEFT, params={"input1_dir": LEFT,"stroke_width":1, "input2_dir": DOWN, "input2_sign": "-", "input1_sign": "+","fill_opacity": 0})
         ref = cs.add_input(sum_block1, "in_left", label=r"r(t)")
         controller = cs.add_block(r"K_p(1+Ds)", "transfer_function", LEFT, {"use_mathtex":False, "color":WHITE, "font_size":50,"label":"Controller"})
     
@@ -25,5 +33,5 @@ class SignalFlow(Scene):
         diagram = cs.get_all_components()
         self.add(diagram)
 
-        cs.animate_signals(self, sum_block1, controller, plant, color=YELLOW, signal_speed=5, spawn_interval=0.8, feedback_color=YELLOW, duration=12)
+        cs.animate_signals(self, sum_block1, controller, plant, color=YELLOW, signal_speed=3, spawn_interval=0.8, feedback_color=YELLOW, duration=12)
 

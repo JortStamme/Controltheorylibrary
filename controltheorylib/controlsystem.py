@@ -34,6 +34,7 @@ class ControlBlock(VGroup):
             "block_height": 1.0,
             "summing_size": 0.6,
             "width_font_ratio": 0.3,
+            "stroke_width":0.5,
             "height_font_ratio": 0.5,
             "label": ""
 
@@ -107,14 +108,16 @@ class ControlBlock(VGroup):
             self.background = Circle(
                 radius=self.params["summing_size"]/2,
                 fill_opacity=self.params["fill_opacity"], 
-                color=self.params["color"]
+                color=self.params["color"],
+                stroke_width=self.params["stroke_width"]
             )
         else:
             self.background = Rectangle(
                 width=self.params["block_width"],
                 height=self.params["block_height"],
                 fill_opacity=self.params["fill_opacity"],
-                color=self.params["color"]
+                color=self.params["color"],
+                stroke_width=self.params["stroke_width"]
             )
         
          # Create background and add components
@@ -479,10 +482,46 @@ class ControlSystem:
                           horizontal_distance=None, rel_start_offset = None, rel_end_offset = None,
                           label=None, use_math_tex=True, color=WHITE, label_pos=UP, label_buff=0.2, **kwargs):
         
-        """Adds a feedback path with right-angle turns.
+        """
+        Adds a feedback path that adapts to the input port direction of the destination.
 
-        The path will typically go away from the source, turn vertically,
-        then horizontally, then towards the destination.
+        PARAMETERS
+        ----------
+        source_block : np.ndarray | Sequence[float]
+            The block the feedback path should start from
+        output_port : float
+            The output port of the source block where the feedback path should start from
+        dest_block : float
+            The block the feedback path should go to
+        input_port : float | None
+            The input port of the destination block the feedback path should go to
+        vertical_distance : float
+            The vertical distance the feedback path should shift upwards or downwards
+        Horizontal distance  : Color
+            Color of the label.
+        rel_start_offset : ..
+            The start offset relative to the output port of the source block of the feedback path
+        rel_end_offset : ..
+            The end offset relative to the input port of the destination block of the feedback path
+            ..
+        label : ..
+            Label of the feedback path
+        use_math_tex : bool
+            When True, uses Mathtex for the label. If False, uses regular Text.
+        label_pos : ..
+            ..
+        label_buff : ..
+            ..
+        color : Manim color
+            Color of the feedback path
+        **kwargs : Any
+            Additional arguments passed to the Line constructor 
+            (e.g., stroke_width, stroke_opacity).
+
+        RETURNS
+        -------
+        VGroup
+            A VGroup containing a set of lines representing the feedback path
         """    
         start = source_block.output_ports[output_port].get_center()
         end = dest_block.input_ports[input_port].get_center()
@@ -531,11 +570,34 @@ class ControlSystem:
             Line(mid1, mid2, color=color, **kwargs),
             Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)]
         if source_dir == "DOWN":
+            start_out = start + rel_start_offset if rel_start_offset is not None else start
+            end = end + rel_end_offset if rel_end_offset is not None else end
+
             if horizontal_distance is None:
-                start_out = start + rel_start_offset if rel_start_offset is not None else start
                 horizontal_distance=abs(start_out[0]-end[0])
 
-                ### ====== to be finished ======
+            mid1 = start_out + vertical_distance*DOWN
+            mid2 = mid1 + horizontal_distance*LEFT
+            segments = [
+                Line(start_out,mid1, color=color, **kwargs),
+                Line(mid1, mid2, color=color, **kwargs),
+                Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)
+            ]
+        
+        if source_dir == "UP":
+            start_out = start + rel_start_offset if rel_start_offset is not None else start
+            end = end + rel_end_offset if rel_end_offset is not None else end
+
+            if horizontal_distance is None:
+                horizontal_distance=abs(start_out[0]-end[0])
+
+            mid1 = start_out + vertical_distance*UP
+            mid2 = mid1 + horizontal_distance*LEFT
+            segments = [
+                Line(start_out,mid1, color=color, **kwargs),
+                Line(mid1, mid2, color=color, **kwargs),
+                Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)
+            ]
 
 
         # Create complete path
@@ -569,7 +631,49 @@ class ControlSystem:
                             vertical_distance=None, horizontal_distance=None, label=None, use_math_tex=True,
                             label_buff=0.2, rel_start_offset = None, rel_end_offset=None, font_size=30,
                             color=WHITE, **kwargs):
-        """Adds a feedforward path that adapts to the input port direction of the destination."""
+        """
+        Adds a feedforward path that adapts to the input port direction of the destination.
+
+        PARAMETERS
+        ----------
+        source_block : np.ndarray | Sequence[float]
+            The block the feedforward path should start from
+        output_port : float
+            The output port of the source block where the feedforward path should start from
+        dest_block : float
+            The block the feedforward path should go to
+        input_port : float | None
+            The input port of the destination block the feedforward path should go to
+        vertical_distance : float
+            The vertical distance the feedforward path should shift upwards or downwards
+        Horizontal distance  : Color
+            Color of the label.
+        rel_start_offset : 
+            The start offset relative to the output port of the source block of the feedforward path
+        rel_end_offset : ..
+            The end offset relative to the input port of the destination block of the feedforward path
+            ..
+        label : String
+            Label of the feedforward path
+        use_math_tex : bool
+            When True, uses Mathtex for the label. If False, uses regular Text.
+        label_pos : 
+            Relative label position
+        label_buff : 
+        Buffer between arrow/Line and label
+        font_size : ..
+            font size of label
+        color : Manim color
+            Color of the feedback path
+        **kwargs : Any
+            Additional arguments passed to the Line constructor 
+            (e.g., stroke_width, stroke_opacity).
+
+        RETURNS
+        -------
+        VGroup
+            A VGroup containing a set of lines representing the feedforward path
+        """
         
             # Get connection points
         start = source_block.output_ports[output_port].get_center()
@@ -610,7 +714,6 @@ class ControlSystem:
         
         # Calculate path based on input direction
         if input_dir == "LEFT":
-            # Standard feedforward: UP → RIGHT
             start_out = start + rel_start_offset if rel_start_offset is not None else start
             end = end + rel_end_offset if rel_end_offset is not None else end
             vertical_distance = UP*abs(end[1]-start_out[1])
@@ -618,26 +721,39 @@ class ControlSystem:
             if horizontal_distance is None:
                 horizontal_distance = abs(mid1[0] - end[0])
             segments = [
-                Line(start_out, mid1, color=color, **kwargs),
-                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)
+            
+                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs), 
+                Line(start_out, mid1, color=color, **kwargs)
             ]
             label_pos = mid1 + DOWN * 0.2
-        elif input_dir == "UP" and start[1] < end[1]:
-            # For top input: DOWN → RIGHT → UP
-            start_out = start + rel_start_offset if rel_start_offset is not None else start
-            end = end + rel_end_offset if rel_end_offset is not None else end
+        elif input_dir == "UP":
+            if start[1] < end[1]:
+                start_out = start + rel_start_offset if rel_start_offset is not None else start
+                end = end + rel_end_offset if rel_end_offset is not None else end
 
-            mid1 = start_out + UP *end[1]
-            if horizontal_distance is None:
-                horizontal_distance = abs(mid1[0] - end[0])
-            mid2 = mid1 + RIGHT * horizontal_distance
-            segments = [
-                Line(start_out, mid1, color=color, **kwargs),
-                Line(mid1, mid2, color=color, **kwargs),
-                Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs)
-            ]
-            label_pos = mid2 + UP * 0.2
-        elif start[1] < end[1]:  # RIGHT or UP
+                mid1 = start_out + UP *end[1]
+                if horizontal_distance is None:
+                    horizontal_distance = abs(mid1[0] - end[0])
+                mid2 = mid1 + RIGHT * horizontal_distance
+                segments = [
+                    Line(mid1, mid2, color=color, **kwargs),
+                    Arrow(mid2, end, tip_length=0.2, buff=0, color=color, **kwargs),
+                    Line(start_out, mid1, color=color, **kwargs)
+                ]
+                label_pos = mid2 + UP * 0.2
+            if start[1] > end[1]:
+                start_out = start + rel_start_offset if rel_start_offset is not None else start
+                end = end + rel_end_offset if rel_end_offset is not None else end
+                if horizontal_distance is None:
+                    horizontal_distance = abs(mid1[0] - end[0])
+                mid1 = start_out + RIGHT * horizontal_distance
+                segments = [
+                    Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs),
+                    Line(start_out, mid1, color=color, **kwargs)
+                ]
+                label_pos = mid1 + UP * 0.2
+
+        elif start[1] < end[1]: 
             vertical_distance=1
             # Default to standard path for other directions
             start_out = start + rel_start_offset if rel_start_offset is not None else start
@@ -646,8 +762,8 @@ class ControlSystem:
             if horizontal_distance is None:
                 horizontal_distance = abs(mid1[0] - end[0])
             segments = [
-                Line(start_out, mid1, color=color, **kwargs),
-                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs)
+                Arrow(mid1, end, tip_length=0.2, buff=0, color=color, **kwargs),
+                Line(start_out, mid1, color=color, **kwargs)
             ]
             label_pos = mid1 + DOWN * 0.2
         
@@ -672,7 +788,7 @@ class ControlSystem:
         return feedforward
     
     def get_all_components(self):
-        """Modified to include all system components"""
+        """Function which returns all current components of the block diagram in one single VGroup"""
         self.all_components = VGroup()
         
         # Add non-summing-junction blocks first
@@ -715,13 +831,53 @@ class ControlSystem:
                     include_input=True,
                     include_output=True,
                     include_feedback=True, include_feedforward=True, feedforward_delay=None,feedback_delay=None):
-        
+        """
+        Animates real-time signal flow for a given block diagram
+
+        PARAMETERS
+        ----------
+        blocks : np.ndarray | Sequence[float]
+            The position of the center of mass.
+        duration : float
+            Width of the rectangular mass.
+        color : float
+            Height of the rectangular mass.
+        feedback_color : float | None
+            Font size of the mass label. If None, scaled proportionally to height.
+        feedforward color : str
+            Text displayed inside the mass.
+        radius : Color
+            Color of the label.
+        include_input : ..
+            ..
+        include_output : ..
+            ..
+        include_feedback : ..
+            ...
+        include_feedforward : ..
+            ...
+        feedforward_delay : ..
+            ..
+        feedback_delay : ..
+            ...
+        **kwargs : Any
+            Additional arguments passed to the Rectangle constructor 
+            (e.g., stroke_width, fill_color, fill_opacity).
+
+        RETURNS
+        -------
+        Scene
+            An animation of real-time signal flow
+        """
         self.feedback_color = feedback_color
         self.spawn_interval = spawn_interval
         self.signal_speed = signal_speed
         self.duration = duration
         self.color = color
         self.radius = radius
+
+        fade_in_duration = 0.2
+        fade_out_duration = 0.2
         
 
         # Prepare path groups
@@ -825,14 +981,27 @@ class ControlSystem:
                     def make_updater(my_start_time):
                         def dot_updater(mob, _dt=0):
                             elapsed = start_time[0] - my_start_time
+                            
+                            # Calculate fade-in and fade-out progress
+                            fade_in_progress = min(1, elapsed / fade_in_duration)
+                            fade_out_progress = max(0, (travel_time - elapsed) / fade_out_duration)
+
+                            # Set position and opacity
+                            if elapsed < 0 or elapsed > travel_time:
+                                mob.set_opacity(0)
+                                return
+
                             progress = elapsed / travel_time
-                            if progress < 0:
-                                mob.set_opacity(0)
-                            elif 0 <= progress <= 1:
-                                mob.move_to(get_point_at_distance(progress * total_length))
-                                mob.set_opacity(1)
+                            mob.move_to(get_point_at_distance(progress * total_length))
+
+                            # Determine opacity based on fade progress
+                            if elapsed < fade_in_duration:
+                                mob.set_opacity(fade_in_progress)
+                            elif elapsed > travel_time - fade_out_duration:
+                                mob.set_opacity(fade_out_progress)
                             else:
-                                mob.set_opacity(0)
+                                mob.set_opacity(1)
+                                
                         return dot_updater
 
                     dot.add_updater(make_updater(my_start_time))

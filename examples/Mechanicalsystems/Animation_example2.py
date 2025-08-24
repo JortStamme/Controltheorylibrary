@@ -1,3 +1,11 @@
+"""
+Simple animation example with Manim
+===================================
+
+This example demonstrates a basic Manim animation.
+It will show up in the documentation gallery with this
+title and description.
+"""
 from manim import *
 import cmath
 from controltheorylib import *

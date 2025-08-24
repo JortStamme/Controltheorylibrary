@@ -26,3 +26,12 @@ examples/PoleZeroMap/media/
 
 examples/NyquistPlot/media/
 examples/NyquistPlot/__pycache__/
+
+make.bat
+
+Makefile
+
+# Ignore html build files
+docs/_build
+
+

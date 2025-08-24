@@ -1,0 +1,60 @@
+/* Custom CSS for buttons/icons */
+.sd-outline-primary {
+    border-color: #3a86ff !important;
+}
+.sd-outline-success {
+    border-color: #2ecc71 !important;
+}
+
+.wy-side-nav-search .wy-nav-top img,
+.wy-side-nav-search .wy-side-nav-search img {
+    max-height: 40px; /* adjust size */
+    width: auto;      /* maintain aspect ratio */
+}
+
+/* Custom styles for Manim examples */
+.manim-example {
+    margin: 1rem 0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 1rem;
+    background: #f8f9fa;
+}
+
+.manim-video-container {
+    text-align: center;
+}
+
+.manim-video-container video {
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.manim-fallback {
+    border-color: #ffc107;
+    background: #fff3cd;
+}
+
+/* Hide table borders */
+.invisible-table table {
+    border: none;
+    background: none;
+}
+
+.invisible-table td {
+    border: none;
+    background: none;
+    padding: 10px;
+    vertical-align: top;
+}
+
+/* Optional: Add some spacing and center the videos */
+.invisible-table .figure {
+    margin: 0 auto;
+    text-align: center;
+}
+
+.invisible-table p {
+    text-align: center;
+    margin-top: 8px;
+}
