@@ -112,12 +112,12 @@ class BodePlot(VGroup):
         #self.phase_vert_grid = VGroup()
 
         #Create all components
-        self.create_axes()
-        self.calculate_bode_data()
-        self.plot_bode_response()
+        self._create_axes()
+        self._calculate_bode_data()
+        self._plot_bode_response()
 
         # Position everything properly
-        self.update_plot_visibility()
+        self._update_plot_visibility()
 
     # Check transfer function
     
@@ -195,9 +195,9 @@ class BodePlot(VGroup):
             If true shows the magnitude plot
         """
         self._show_magnitude = show
-        self.create_axes()
-        self.add_plot_components()
-        self.update_plot_visibility()
+        self._create_axes()
+        self._add_plot_components()
+        self._update_plot_visibility()
         return self
 
     def show_phase(self, show=True):
@@ -209,9 +209,9 @@ class BodePlot(VGroup):
             If true shows the phase plot
         """
         self._show_phase = show
-        self.create_axes()
-        self.add_plot_components()
-        self.update_plot_visibility()
+        self._create_axes()
+        self._add_plot_components()
+        self._update_plot_visibility()
         return self
     
     # Check whether grid should be turned on or off
@@ -235,7 +235,7 @@ class BodePlot(VGroup):
         self.phase_hor_grid.set_opacity(opacity)
         self.phase_vert_grid.set_opacity(opacity)
 
-    def update_plot_visibility(self):
+    def _update_plot_visibility(self):
         """Update the visibility and positioning of all plot components."""
         # Clear everything first
         for mobject in self.submobjects.copy():
@@ -289,7 +289,7 @@ class BodePlot(VGroup):
 
         self.add(*self.components_to_add)
 
-    def create_axes(self):
+    def _create_axes(self):
         """Create the Bode plot axes with dynamic step sizing."""
         min_exp = np.floor(np.log10(self.freq_range[0]))
         max_exp = np.ceil(np.log10(self.freq_range[1]))
@@ -347,11 +347,11 @@ class BodePlot(VGroup):
             )
             
         # Add boxes and labels only for the visible plots
-        self.calculate_bode_data()
-        self.plot_bode_response()
-        self.add_plot_components()
+        self._calculate_bode_data()
+        self._plot_bode_response()
+        self._add_plot_components()
 
-    def add_plot_components(self):
+    def _add_plot_components(self):
         """Add boxes, labels, grids, and frequency labels for the visible plots."""
         min_exp = np.floor(np.log10(self.freq_range[0]))
         max_exp = np.ceil(np.log10(self.freq_range[1]))
@@ -373,24 +373,24 @@ class BodePlot(VGroup):
 
         # Magnitude plot components
         self.mag_box = SurroundingRectangle(self.mag_axes, buff=0, color=WHITE, stroke_width=2)
-        self.mag_yticklabels = self.create_y_labels(self.mag_axes, self.magnitude_yrange)
+        self.mag_yticklabels = self._create_y_labels(self.mag_axes, self.magnitude_yrange)
         self.mag_ylabel = Text(self.magnitude_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(self.mag_box, LEFT, buff=ylabel_buff)
-        self.mag_yticks = self.create_ticks(self.mag_axes, self.magnitude_yrange, "horizontal")
-        self.mag_xticks = self.create_ticks(self.mag_axes, None, "vertical")
+        self.mag_yticks = self._create_ticks(self.mag_axes, self.magnitude_yrange, "horizontal")
+        self.mag_xticks = self._create_ticks(self.mag_axes, None, "vertical")
 
         # Phase plot components
         self.phase_box = SurroundingRectangle(self.phase_axes, buff=0, color=WHITE, stroke_width=2)
-        self.phase_yticklabels = self.create_y_labels(self.phase_axes, self.phase_yrange)
+        self.phase_yticklabels = self._create_y_labels(self.phase_axes, self.phase_yrange)
         self.phase_ylabel = Text(self.phase_label, font_size=self.font_size_ylabels).rotate(PI/2).next_to(self.phase_box, LEFT, buff=ylabel_buff)
         self.freq_xlabel = Text(self.xlabel, font_size=self.font_size_xlabel).next_to(self.phase_box, DOWN, buff=xlabel_buff)
-        self.phase_yticks = self.create_ticks(self.phase_axes, self.phase_yrange, "horizontal")
-        self.phase_xticks = self.create_ticks(self.phase_axes, None, "vertical")
+        self.phase_yticks = self._create_ticks(self.phase_axes, self.phase_yrange, "horizontal")
+        self.phase_xticks = self._create_ticks(self.phase_axes, None, "vertical")
 
             # Store grid components with proper references
-        self.mag_hor_grid = self.create_grid(self.mag_axes, self.magnitude_yrange, "horizontal")
-        self.mag_vert_grid = self.create_grid(self.mag_axes, None, "vertical")
-        self.phase_hor_grid = self.create_grid(self.phase_axes, self.phase_yrange, "horizontal")
-        self.phase_vert_grid = self.create_grid(self.phase_axes, None, "vertical")
+        self.mag_hor_grid = self._create_grid(self.mag_axes, self.magnitude_yrange, "horizontal")
+        self.mag_vert_grid = self._create_grid(self.mag_axes, None, "vertical")
+        self.phase_hor_grid = self._create_grid(self.phase_axes, self.phase_yrange, "horizontal")
+        self.phase_vert_grid = self._create_grid(self.phase_axes, None, "vertical")
 
         # Group components with proper grid references
         self.mag_components = VGroup(
@@ -402,7 +402,7 @@ class BodePlot(VGroup):
         self.phase_ylabel, self.phase_yticks, self.phase_xticks
         )
     
-    def create_ticks(self, axes, y_range=None, orientation="horizontal"):
+    def _create_ticks(self, axes, y_range=None, orientation="horizontal"):
         """Generalized tick creation for both axes"""
         ticks = VGroup()
         
@@ -470,7 +470,7 @@ class BodePlot(VGroup):
             
         return ticks
     
-    def create_grid(self, axes, y_range=None, orientation="horizontal"):
+    def _create_grid(self, axes, y_range=None, orientation="horizontal"):
         """Generalized grid creation"""
         grid = VGroup()
         show = self._show_grid
@@ -519,7 +519,7 @@ class BodePlot(VGroup):
             line.set_opacity(opacity_val)
         return grid
 
-    def create_y_labels(self, axes, y_range):
+    def _create_y_labels(self, axes, y_range):
         """Create dynamic y-axis labels."""
         y_labels = VGroup()
         if y_range[2]==None:
@@ -569,8 +569,8 @@ class BodePlot(VGroup):
             self._title = Text(text, font_size=self.title_font_size, color=color)
         
         # Update title position based on which plots are shown
-        self.create_axes()
-        self.update_plot_visibility()
+        self._create_axes()
+        self._update_plot_visibility()
 
         return self
     # Determine the ranges of interest whenever ranges are not specified
@@ -717,7 +717,7 @@ class BodePlot(VGroup):
 
     
     # calculate the bode data using Scipy.signal
-    def calculate_bode_data(self):
+    def _calculate_bode_data(self):
         """Calculate the Bode plot data using scipy.signal."""
         w = np.logspace(
             np.log10(self.freq_range[0]),
@@ -777,7 +777,7 @@ class BodePlot(VGroup):
         self.phases = phase_aligned # Store the aligned phase
 
     # Plot the actual data
-    def plot_bode_response(self):
+    def _plot_bode_response(self):
         """Create the Bode plot curves with proper out-of-range handling."""
         log_w = np.log10(self.frequencies)
         
@@ -824,7 +824,7 @@ class BodePlot(VGroup):
         self.phase_plot = VMobject().set_points_as_corners(phase_points)
         self.phase_plot.set_color(color=self.plotcolor).set_stroke(width=self.plot_stroke_width)
 
-    def get_critical_points(self):
+    def _get_critical_points(self):
         """Identify critical points (resonance, crossover, etc.)"""
         if not hasattr(self, 'magnitudes') or not hasattr(self, 'phases'):
             return {
@@ -850,7 +850,7 @@ class BodePlot(VGroup):
     
     def highlight_critical_points(self):
         """Return animations for highlighting critical points."""
-        critical_points = self.get_critical_points()
+        critical_points = self._get_critical_points()
         highlights = VGroup()
         animations = []
     

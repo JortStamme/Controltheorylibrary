@@ -21,7 +21,6 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag",
         Type of spring shape to generate: either "zigzag" or "helical".
     color : Color
         Color of the spring.
-
     **kwargs : Any
         Additional parameters passed to Manim's Line and VMobject constructors.
 
@@ -121,14 +120,14 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag",
 
 ############## SPRING AND DAMPER ###########
 
-def SpringDamperMJ(start=ORIGIN, end=UP * 3,
+def springdamper(start=ORIGIN, end=UP * 3,
                 num_coils=6, type="zigzag",
                 width=0.5, fluid_color=BLUE,
                 inline=True, **kwargs):
     """
     Combines a spring and a damper between two points.
 
-    Parameters
+    PARAMETERS
     ----------
     start : np.ndarray
         Start point of the combined element.
@@ -147,7 +146,7 @@ def SpringDamperMJ(start=ORIGIN, end=UP * 3,
     **kwargs : dict
         Additional stroke/fill options.
 
-    Returns
+    RETURNS
     -------
     VGroup
         Combined spring and damper.

@@ -300,8 +300,8 @@ class PoleZeroMap(VGroup):
         ]
         self.poles = VGroup(*pole_markers)
         
-        self.x_ticks = self.create_ticks(self.axis, orientation="horizontal")
-        self.y_ticks = self.create_ticks(self.axis, orientation="vertical")
+        self.x_ticks = self._create_ticks(self.axis, orientation="horizontal")
+        self.y_ticks = self._create_ticks(self.axis, orientation="vertical")
         self.x_tick_labels = self.create_tick_labels(self.axis, orientation="horizontal")
         self.y_tick_labels = self.create_tick_labels(self.axis, orientation="vertical")  
 
@@ -342,7 +342,7 @@ class PoleZeroMap(VGroup):
         self.add(self.unit_circle)
         self.basecomponents.add(self.unit_circle)
 
-    def create_tick_labels(self, axes, orientation="horizontal"):
+    def _create_tick_labels(self, axes, orientation="horizontal"):
         """Create tick labels using c2p method"""
         labels = VGroup()
         
@@ -379,7 +379,7 @@ class PoleZeroMap(VGroup):
         
         return labels
     
-    def create_ticks(self, axes, orientation="horizontal"):
+    def _create_ticks(self, axes, orientation="horizontal"):
         """Generalized tick creation for both axes using c2p method"""
         ticks = VGroup()
         tick_length = 0.1

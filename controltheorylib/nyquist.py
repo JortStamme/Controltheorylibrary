@@ -131,10 +131,10 @@ class Nyquist(VGroup):
         self.y_step = self._calculate_step(self.y_span)
         
         # Create all components
-        self.create_axes()
-        self.calculate_nyquist_data()
-        self.plot_nyquist_response()
-        self.add_plot_components()
+        self._create_axes()
+        self._calculate_nyquist_data()
+        self._plot_nyquist_response()
+        self._add_plot_components()
     
     def _calculate_step(self, span):
         """Helper to calculate step size based on span."""
@@ -526,7 +526,7 @@ class Nyquist(VGroup):
             return (center-5, center+5)
         return (min_val, max_val)
     
-    def create_axes(self):
+    def _create_axes(self):
         """Create the Nyquist plot axes."""
         # Create complex plane
         x_min, x_max = self._validate_range(self.x_range)
@@ -695,7 +695,7 @@ class Nyquist(VGroup):
         if self._title:
             self.add(self._title)
 
-    def calculate_nyquist_data(self):
+    def _calculate_nyquist_data(self):
         """Calculate the Nyquist plot data using scipy.signal."""
         w = np.logspace(
             np.log10(self.freq_range[0]),
@@ -717,7 +717,7 @@ class Nyquist(VGroup):
         self.neg_real_part = self.real_part[::-1]
         self.neg_imag_part = -self.imag_part[::-1]
 
-    def plot_nyquist_response(self):
+    def _plot_nyquist_response(self):
         """Create the Nyquist plot curve with robust arrow placement."""
 
         # Get all points from the calculated response
@@ -826,15 +826,15 @@ class Nyquist(VGroup):
         self.add(self.nyquist_plot)
 
 
-    def add_plot_components(self):
+    def _add_plot_components(self):
         """Add additional plot components like ticks, labels, etc."""
         # Add ticks to axes
-        self.x_ticks = self.create_ticks(self.plane, orientation="horizontal")
-        self.y_ticks = self.create_ticks(self.plane, orientation="vertical")
+        self.x_ticks = self._create_ticks(self.plane, orientation="horizontal")
+        self.y_ticks = self._create_ticks(self.plane, orientation="vertical")
         
         # Add tick labels
-        self.x_ticklabels = self.create_tick_labels(self.plane, orientation="horizontal")
-        self.y_ticklabels = self.create_tick_labels(self.plane, orientation="vertical")
+        self.x_ticklabels = self._create_tick_labels(self.plane, orientation="horizontal")
+        self.y_ticklabels = self._create_tick_labels(self.plane, orientation="vertical")
         
         # Add -1 point marker if it's in view
         if self.x_range[0] <= -1 <= self.x_range[1] and self.y_range[0] <= 0 <= self.y_range[1]:
@@ -849,7 +849,7 @@ class Nyquist(VGroup):
         self.box = SurroundingRectangle(self.plane, buff=0, color=WHITE, stroke_width=2)
         self.axes_components.add(self.x_ticks, self.y_ticks, self.x_ticklabels, self.y_ticklabels, self.box)
 
-    def create_ticks(self, axes, y_range=None, orientation="horizontal"):
+    def _create_ticks(self, axes, y_range=None, orientation="horizontal"):
         """Generalized tick creation for both axes using c2p method"""
         ticks = VGroup()
         tick_length = 0.1
@@ -915,7 +915,7 @@ class Nyquist(VGroup):
         
         return ticks
 
-    def create_tick_labels(self, axes, orientation="horizontal"):
+    def _create_tick_labels(self, axes, orientation="horizontal"):
         """Create tick labels using c2p method"""
         labels = VGroup()
         
