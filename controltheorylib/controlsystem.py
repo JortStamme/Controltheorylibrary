@@ -319,7 +319,7 @@ class ControlSystem:
             The position of the block
         params : any  
             Further parameter specifications of the block:
-              -label: 
+              -label; 
               -use_math_tex: ..
         """
         if not name.strip():  # If name is empty
@@ -332,14 +332,38 @@ class ControlSystem:
 
         return new_block
         
-    def connect(self, source_block, output_port, dest_block, input_port, style="default", label=None, label_font_size=30,
-                color=WHITE, use_math_tex=True, **kwargs):
+    def connect(self, source_block, output_port, dest_block, input_port, style="default", label=None, font_size=30,
+                use_math_tex=True, **kwargs):
         """Connect blocks with arrow and optional label
     
-        Args:
-        style: "default", "dashed", or "bold"
-        label: LaTeX string for label (optional)
-        label_font_size: Font size for label (default 30)
+        PARAMETERS
+        ----------
+        source_block : 
+            The block the connection should start from
+        output_port : 
+            The port of the source_block where the connection should start from
+        dest_block : 
+            The block the connection should go to
+        input_port : 
+            The port of the dest_block where the connection should go to
+        style : str
+            Style of the arrow which can be any of:
+            -default: Continuous connection with standard settings
+            -dashed: Dashed connection
+            -bold: Continuous connection with increased stroke_width 
+        label : str
+            Label of the connection
+        font_size : float
+            Font size of the label
+        use_math_tex : bool
+            Boolean which determines whether the label should be rendered in LaTeX or regular text:
+            -If true: LaTeX
+            -If false: Regular text
+        **kwargs : any 
+            Additional arguments to be passed to the connection such as:
+            Color: color of the connection
+            stroke_width: Thickness of the line connection
+
         """
     # Input validation
         if output_port not in source_block.output_ports:
@@ -354,8 +378,8 @@ class ControlSystem:
         dest_block, 
         input_port,
         label=label,
-        label_font_size=label_font_size,
-        color=color, use_math_tex=use_math_tex,
+        label_font_size=font_size,
+        use_math_tex=use_math_tex,
         **kwargs
         )
     
@@ -369,7 +393,17 @@ class ControlSystem:
         return connection
 
     def insert_between(self, new_block, source_block, dest_block):
-        """Inserts a block between two existing blocks"""
+        """Inserts a block between two existing blocks
+
+        PARAMETERS
+        ----------
+        new_block : 
+            Add new block 
+        source_block : 
+            The block where the connection originates from
+        dest_block :
+            The block where the connection goes to 
+        """
         # Find and remove the old connection
         old_conn = self._find_connection(source_block, dest_block)
         if old_conn:
@@ -378,8 +412,32 @@ class ControlSystem:
             self.connect(source_block, old_conn.output_port, new_block, "in")
             self.connect(new_block, "out", dest_block, old_conn.input_port)
     
-    def add_input(self, target_block, input_port, label=None, use_math_tex=True, buff=0.2, font_size=30, length=2, color=WHITE, stroke_opacity=1, stroke_width=2, **kwargs):
-        """Adds an input arrow to a block."""
+    def add_input(self, target_block, input_port, length=2, buff=0.05, label=None, use_math_tex=True, font_size=30, **kwargs):
+        """Adds an input arrow to a block.
+        
+        PARAMETERS
+        ----------
+
+        target_block :
+            The block where the input should be applied to
+        input_port :
+            The input port where the input should go to from the selected target block
+        length : float
+            The length of the input connection
+        buff : float
+            The buffer between the end point of the arrow and the input port
+        label : str
+            Label of the input
+        font_size : float
+            Font size of the label
+        use_math_tex : bool
+            Boolean which determines whether the label should be rendered in LaTeX or regular text
+        **kwargs : any
+            Additional arguments to be passed to Arrow:
+            -stroke_width: Thickness of the arrow line
+            -stroke_opacity: Opacity of the arrow
+            -color: color of the arrow
+        """
         end = target_block.input_ports[input_port].get_center()
 
         source_input_port_direction = end - target_block.background.get_center()
@@ -406,21 +464,20 @@ class ControlSystem:
 
 
         arrow = Arrow(
-            start, end, stroke_width=stroke_width,
+            start, end,
             tip_length=0.25,
-            buff=0.05,
-            color=color, stroke_opacity=stroke_opacity,
+            buff=buff,
             **kwargs)
     
         input_group = VGroup(arrow)
     
         if label and use_math_tex==True:
-            label = MathTex(label, font_size=font_size, color=color)
+            label = MathTex(label, font_size=font_size)
             label.next_to(arrow, UP, buff=buff)
             input_group.add(label)
         
         if label and use_math_tex==False:
-            label = Text(label, font_size=font_size, color=color)
+            label = Text(label, font_size=font_size)
             label.next_to(arrow, UP, buff=buff)
             input_group.add(label)
         
@@ -428,7 +485,32 @@ class ControlSystem:
         return input_group
     
     def add_output(self, source_block, output_port, length=2, use_math_tex=True, label=None, font_size = 25, color=WHITE, rel_label_pos=UP,**kwargs):
-        """Adds an output arrow from a block"""
+        """Adds an output arrow from a block
+        
+        PARAMETERS
+        ----------
+
+        source_block :
+            The block where the output should originate from
+        output_port :
+            The output port where the output should start from
+        length : float
+            The length of the output connection
+        buff : float
+            The buffer between the end point of the arrow and the output port
+        label : str
+            Label of the output
+        font_size : float
+            Font size of the label
+        use_math_tex : bool
+            Boolean which determines whether the label should be rendered in LaTeX or regular text
+        **kwargs : any
+            Additional arguments to be passed to Arrow:
+            -stroke_width: Thickness of the arrow line
+            -stroke_opacity: Opacity of the arrow
+            -color: color of the arrow
+
+        """
         start = source_block.output_ports[output_port].get_center()
     
         # Determine on which side the output port is

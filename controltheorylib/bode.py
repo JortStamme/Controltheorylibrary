@@ -187,7 +187,13 @@ class BodePlot(VGroup):
     
     # Check which bode plots to show
     def show_magnitude(self, show=True):
-        """Show or hide the magnitude plot and all its components."""
+        """Show or hide the magnitude plot and all its components.
+        PARAMETERS
+        ----------
+
+        show : bool
+            If true shows the magnitude plot
+        """
         self._show_magnitude = show
         self.create_axes()
         self.add_plot_components()
@@ -195,7 +201,13 @@ class BodePlot(VGroup):
         return self
 
     def show_phase(self, show=True):
-        """Show or hide the phase plot and all its components."""
+        """Show or hide the phase plot and all its components.
+        PARAMETERS
+        ----------
+
+        show : bool
+            If true shows the phase plot
+        """
         self._show_phase = show
         self.create_axes()
         self.add_plot_components()
@@ -531,10 +543,15 @@ class BodePlot(VGroup):
         """
         Add a title to the Bode plot.
         
-        Parameters:
-        - text: The title text (string)
-        - font_size: Font size (default: 35)
-        - use_math_tex: Whether to render as MathTex (default: False)
+        PARAMETERS
+        ----------
+
+        text : str
+            The title
+        font_size : float
+            Font size of the title
+        use_math_tex : bool
+            Boolean which determines whether to render as LaTeX or regular text
         """
         self.title_font_size = font_size
         self._use_math_tex = use_math_tex
@@ -970,7 +987,21 @@ class BodePlot(VGroup):
             self.phase_asymp[i] = current_phase
 
     def show_asymptotes(self, color=YELLOW, add_directly=True, **kwargs):
-        """Plot asymptotes using mag_asymp/phase_asymp arrays directly (preserves multiplicity slopes)."""
+        """Plot asymptotes of the Bode plot.
+        
+        PARAMETERS
+        ----------
+
+        color : Manim color
+            Color of the asymptotes
+        add_directly : bool
+            If true, the asymptotes are added directly to the Bode plot. To animate the asymptotes set add_directly to false
+        **kwargs : any
+            Any arguments to be passed to Line:
+            -stroke_width: Thickness of the asymptote lines
+            -stroke_opacity: Opacity of the asymptote lines
+
+        """
         self._remove_existing_asymptotes()
         self.show_asymptotes_r = True
         if not hasattr(self, 'mag_asymp'):
@@ -1010,10 +1041,12 @@ class BodePlot(VGroup):
     def show_margins(self, show_values=True, show_pm=True, show_gm=True, gm_in_dB=True, pm_color=GREEN_C, add_directly=True,
                      gm_color=YELLOW, text_color_white=True,font_size=24, gm_label=None, pm_label=None, pm_label_pos=DOWN+LEFT, gm_label_pos=UP+RIGHT,**kwargs):
         """
-        Show gain and phase margins on the Bode plot if possible.
+        Shows gain and phase margins on the Bode plot if finite.
         
-        Parameters:
-        - show_values: Whether to display the numerical values of the margins
+        PARAMETERS
+        ----------
+
+        show_values: Whether to display the numerical values of the margins
         - margin_color: Color for the margin indicators
         - text_color: Color for the text labels
         """
