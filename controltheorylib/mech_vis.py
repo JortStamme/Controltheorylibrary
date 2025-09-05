@@ -93,7 +93,7 @@ def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag",
         # spring = VMobject().set_points_as_corners(points).set_stroke(**stroke_kwargs)
         spring = VGroup(*[Line(points[i], points[i+1], **stroke_kwargs) for i in range(len(points)-1)])
 
-
+#h
     elif type == 'helical':
         stroke_kwargs = kwargs.copy()
         if "stroke_width" in stroke_kwargs:

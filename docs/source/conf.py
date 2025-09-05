@@ -63,7 +63,7 @@ templates_path = ['_templates']
 exclude_patterns = []
 
 
-# Add to your conf.py - mock ALL missing dependencies
+# Add to your conf.py - mock ALL missing dependenciesj
 autodoc_mock_imports = [
     'manim'
     'numpy',
