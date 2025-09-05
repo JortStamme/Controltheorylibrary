@@ -595,10 +595,17 @@ class PoleZeroMap(VGroup):
         """
         Add or update the title of the pole-zero plot.
         
-        :param text: The title text
-        :param font_size: Font size of the title
-        :param color: Color of the title
-        :param use_math_tex: Whether to render as MathTex
+        PARAMETERS
+        ----------
+
+        text : str
+            The title text
+        font_size : float
+            Font size of the title
+        color : Manim color
+            Color of the title
+        use_math_tex : bool
+            Whether to render as MathTex
         """
         # Remove existing title if present
         if self.title_text in self:
