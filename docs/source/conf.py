@@ -65,11 +65,11 @@ exclude_patterns = []
 
 # Add to your conf.py - mock ALL missing dependencies
 autodoc_mock_imports = [
+    'manim'
     'numpy',
     'sympy',  # Add this
     'scipy',   # Add if you use scipy too
     'matplotlib',  # Add if you use matplotlib
-    'controltheorylib'
 ]
 
 # Also add these settings for better mocking

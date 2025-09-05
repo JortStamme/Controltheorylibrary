@@ -12,6 +12,9 @@ build:
     - gir1.2-pango-1.0
     - gir1.2-harfbuzz-0.0
     - gir1.2-gdkpixbuf-2.0
+    - ffmpeg
+    - pkg-config
+    - libffi-dev
 
 sphinx:
   configuration: docs/source/conf.py
