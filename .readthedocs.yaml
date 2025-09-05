@@ -28,4 +28,4 @@ python:
     - requirements: docs/source/requirements.txt
 
 formats:
-  - html
+  - htmlzip
