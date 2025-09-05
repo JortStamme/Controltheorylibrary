@@ -5,8 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "controltheorylib"
 version = "1.0.0"
-description = "Control Theory Library"
+description = "Control Theory Library for creating mathematical animations with Manim"
+readme = "README.md"
 requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Jort Stammen", email = "j.r.k.stammen@student.tue.nl"}
+]
 dependencies = [
     "numpy>=1.21.0",
     "scipy>=1.7.0",
@@ -23,3 +28,7 @@ docs = [
     "sphinx-design>=0.3.0",
     "sphinxcontrib-programoutput>=1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/controltheorylib"
+Documentation = "https://controltheorylibrary.readthedocs.io/en/latest/"
