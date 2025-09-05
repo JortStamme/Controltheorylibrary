@@ -2,7 +2,7 @@ from manim import *
 import numpy as np
 import warnings
 
-# Spring function
+# Spring functions
 def spring(start=ORIGIN, end=UP * 3, num_coils=6, coil_width=0.4, type="zigzag", **kwargs):
     """
     Generates a spring shape as a Manim VGroup between two points.
