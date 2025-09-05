@@ -3,25 +3,12 @@ import sys
 import pathlib
 import manim
 
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
-
 #sys.path.insert(0, os.path.abspath('../..'))s
 project_root = r"C:\Users\20222934\OneDrive - TU Eindhoven\Documents\BscME\Y3\4WC00 - BEP\Controltheorylib"
 sys.path.insert(0, project_root)
 
 sys.path.insert(0, os.path.abspath('.'))
 
-if on_rtd:
-    from unittest.mock import MagicMock
-
-    class Mock(MagicMock):
-        @classmethod
-        def __getattr__(cls, name):
-            return MagicMock()
-
-    MOCK_MODULES = ['manim', 'numpy', 'scipy', 'sympy', 'matplotlib']
-    for mod_name in MOCK_MODULES:
-        sys.modules[mod_name] = Mock()
 project = 'controltheorylib'
 copyright = '2025, Jort Stammen'
 author = 'Jort Stammen'
@@ -83,6 +70,7 @@ autodoc_mock_imports = [
     'sympy',  # Add this
     'scipy',   # Add if you use scipy too
     'matplotlib',  # Add if you use matplotlib
+    'controltheorylib'
 ]
 
 # Also add these settings for better mocking
