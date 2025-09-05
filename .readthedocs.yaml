@@ -19,16 +19,13 @@ build:
 sphinx:
   configuration: docs/source/conf.py
 
-# Build HTML; uncomment if you also want PDF/ePub artifacts
-# formats:
-#   - pdf
-#   - epub
-
 python:
   install:
-    # 1) Install your package so autodoc can import it
     - method: pip
       path: .
-    # 2) Install doc-only dependencies
+      extra_requirements:
+        - docs
     - requirements: docs/source/requirements.txt
 
+formats:
+  - html

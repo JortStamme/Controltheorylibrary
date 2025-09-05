@@ -1,11 +1,25 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "controltheorylib"
-version = "0.1.0"
-description = "One-liner about your project"
-readme = "README.md"
-requires-python = ">=3.9"
-dependencies = []  # runtime deps, if any
+version = "1.0.0"
+description = "Control Theory Library"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.21.0",
+    "scipy>=1.7.0",
+    "sympy>=1.9",
+    "matplotlib>=3.5.0",
+]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "sphinx-autodoc-typehints>=1.0.0",
+    "myst-parser>=0.18.0",
+    "sphinx-design>=0.3.0",
+    "sphinxcontrib-programoutput>=1.0.0",
+]
