@@ -13,6 +13,27 @@ my_template.add_to_preamble(r"\usepackage{amsmath}")  # Add required packages
 #Control loop system classes
 __all__ = ['ControlSystem', 'ControlBlock', 'Connection']
 class ControlBlock(VGroup):
+    """
+    A configurable block for control system diagrams.
+
+    This class represents various types of blocks used in control system diagrams,
+    including transfer function blocks, summing junctions, and input blocks.
+    Each block can have multiple input and output ports with customizable properties.
+
+    Parameters
+    ----------
+    name : str
+        Unique identifier for the block. If empty, an automatic name is generated.
+    block_type : str
+        Type of block to create. Supported types:
+        - "input": Input signal block
+        - "transfer_function": Transfer function block (rectangular)
+        - "summing_junction": Summing junction block (circular)
+    position : np.ndarray or Sequence[float]
+        Position coordinates for the block center.
+    params : dict, optional
+        Configuration parameters for the block. See Notes for details.
+    """
     def __init__(self, name, block_type, position, params=None):
         super().__init__()
         self.name = name
@@ -258,6 +279,35 @@ class ControlBlock(VGroup):
 
         self.add(port)
 class Connection(VGroup):
+    """
+    A connection between two control blocks with optional labeling.
+    
+    Represents a signal flow connection between output and input ports of
+    control blocks. Supports both LaTeX and regular text labels.
+    
+    Parameters
+    ----------
+    source_block : ControlBlock
+        Source block where the connection originates
+    output_port : str
+        Name of the output port on the source block
+    dest_block : ControlBlock
+        Destination block where the connection terminates
+    input_port : str
+        Name of the input port on the destination block
+    label : str, optional
+        Text label to display along the connection
+    label_font_size : float, optional
+        Font size for the label (default: 35)
+    color : Manim color, optional
+        Color of the connection arrow (default: WHITE)
+    use_math_tex : bool, optional
+        Use LaTeX rendering for the label (default: True)
+    buff : float, optional
+        Buffer distance between label and arrow (default: 0.2)
+    **kwargs
+        Additional arguments passed to Arrow constructor
+    """
     def __init__(self, source_block, output_port, dest_block, input_port, label=None,label_font_size=35,
                  color=WHITE, use_math_tex=True, buff=0.2, **kwargs):
         super().__init__()
@@ -296,6 +346,12 @@ class Connection(VGroup):
         self.add(self.arrow)
 
 class ControlSystem:
+    """
+    A complete control system diagram manager.
+    
+    This class manages the creation, connection, and animation of control system
+    components including blocks, connections, inputs, outputs, and feedback paths.
+    """
     def __init__(self):
         self.blocks = OrderedDict()  
         self._block_counter = 0 
@@ -320,7 +376,7 @@ class ControlSystem:
         params : any  
             Further parameter specifications of the block:
               -label; 
-              -use_math_tex: ..
+              use_math_tex, ...
         """
         if not name.strip():  # If name is empty
             name = f"{block_type}_{self._block_counter}"
@@ -338,13 +394,13 @@ class ControlSystem:
     
         PARAMETERS
         ----------
-        source_block : 
+        source_block : ControlBlock | str
             The block the connection should start from
-        output_port : 
+        output_port : str
             The port of the source_block where the connection should start from
-        dest_block : 
+        dest_block : ControlBlock | str
             The block the connection should go to
-        input_port : 
+        input_port : str
             The port of the dest_block where the connection should go to
         style : str
             Style of the arrow which can be any of:
@@ -397,11 +453,11 @@ class ControlSystem:
 
         PARAMETERS
         ----------
-        new_block : 
+        new_block : ControlBlock | str
             Add new block 
-        source_block : 
+        source_block : ControlBlock | str
             The block where the connection originates from
-        dest_block :
+        dest_block : ControlBlock | str
             The block where the connection goes to 
         """
         # Find and remove the old connection
@@ -418,9 +474,9 @@ class ControlSystem:
         PARAMETERS
         ----------
 
-        target_block :
+        target_block : ControlBlock | str
             The block where the input should be applied to
-        input_port :
+        input_port : str
             The input port where the input should go to from the selected target block
         length : float
             The length of the input connection
@@ -490,9 +546,9 @@ class ControlSystem:
         PARAMETERS
         ----------
 
-        source_block :
+        source_block : ControlBlock | str
             The block where the output should originate from
-        output_port :
+        output_port : str
             The output port where the output should start from
         length : float
             The length of the output connection
@@ -569,31 +625,31 @@ class ControlSystem:
 
         PARAMETERS
         ----------
-        source_block : np.ndarray | Sequence[float]
+        source_block : ControlBlock | str
             The block the feedback path should start from
-        output_port : float
+        output_port : str
             The output port of the source block where the feedback path should start from
-        dest_block : float
+        dest_block : ControlBlock | str
             The block the feedback path should go to
-        input_port : float | None
+        input_port : str
             The input port of the destination block the feedback path should go to
         vertical_distance : float
             The vertical distance the feedback path should shift upwards or downwards
-        Horizontal distance  : Color
-            Color of the label.
-        rel_start_offset : ..
+        Horizontal distance  : float
+            The vertical distance the feedback path should shift upwards or downwards
+        rel_start_offset : np.ndarray | None
             The start offset relative to the output port of the source block of the feedback path
-        rel_end_offset : ..
+        rel_end_offset : np.ndarray | None
             The end offset relative to the input port of the destination block of the feedback path
-            ..
-        label : ..
+        label : str | None
             Label of the feedback path
         use_math_tex : bool
             When True, uses Mathtex for the label. If False, uses regular Text.
-        label_pos : ..
-            ..
-        label_buff : ..
-            ..
+        label_pos : np.ndarray | None
+            Position relative to the path where the label should be placed. Common values
+            are UP, DOWN, LEFT, RIGHT or specific direction arrays.
+        label_buff : float
+            Buffer distance between the label and the feedback path.
         color : Manim color
             Color of the feedback path
         **kwargs : Any
@@ -718,32 +774,31 @@ class ControlSystem:
 
         PARAMETERS
         ----------
-        source_block : np.ndarray | Sequence[float]
+        source_block : ControlBlock | str
             The block the feedforward path should start from
-        output_port : float
+        output_port : str
             The output port of the source block where the feedforward path should start from
-        dest_block : float
+        dest_block : ControlBlock | str
             The block the feedforward path should go to
-        input_port : float | None
+        input_port : str
             The input port of the destination block the feedforward path should go to
         vertical_distance : float
             The vertical distance the feedforward path should shift upwards or downwards
-        Horizontal distance  : Color
-            Color of the label.
-        rel_start_offset : 
+        Horizontal distance  : float
+            The horizontal distance the feedforward path should shift upwards or downwards
+        rel_start_offset : np.ndarray | None
             The start offset relative to the output port of the source block of the feedforward path
-        rel_end_offset : ..
+        rel_end_offset : np.ndarray | None
             The end offset relative to the input port of the destination block of the feedforward path
-            ..
         label : String
             Label of the feedforward path
         use_math_tex : bool
             When True, uses Mathtex for the label. If False, uses regular Text.
-        label_pos : 
+        label_pos : np.ndarray | None
             Relative label position
-        label_buff : 
-        Buffer between arrow/Line and label
-        font_size : ..
+        label_buff : float
+            Buffer between arrow/Line and label
+        font_size : float
             font size of label
         color : Manim color
             Color of the feedback path
@@ -914,37 +969,53 @@ class ControlSystem:
                     include_output=True,
                     include_feedback=True, include_feedforward=True, feedforward_delay=None,feedback_delay=None):
         """
-        Animates real-time signal flow for a given block diagram
+        Animates real-time signal flow for a given block diagram.
+
+        Creates moving dots that travel along connections, inputs, outputs, feedback,
+        and feedforward paths to visualize signal propagation through the control system.
 
         PARAMETERS
         ----------
-        blocks : np.ndarray | Sequence[float]
-            The position of the center of mass.
-        duration : float
-            Width of the rectangular mass.
-        color : float
-            Height of the rectangular mass.
-        feedback_color : float | None
-            Font size of the mass label. If None, scaled proportionally to height.
-        feedforward color : str
-            Text displayed inside the mass.
-        radius : Color
-            Color of the label.
-        include_input : ..
-            ..
-        include_output : ..
-            ..
-        include_feedback : ..
-            ...
-        include_feedforward : ..
-            ...
-        feedforward_delay : ..
-            ..
-        feedback_delay : ..
-            ...
+        scene : Scene
+            The Manim scene object where the animation will be rendered.
+        *blocks : ControlBlock or str
+            Variable number of blocks defining the main signal path sequence.
+            Blocks can be provided as ControlBlock objects or block names.
+            The animation will follow the connection path between these blocks in order.
+        spawn_interval : float, optional
+            Time interval between spawning new signal dots, in seconds.
+            Smaller values create more frequent signals. (default: 0.5)
+        signal_speed : float, optional
+            Speed of signal dots movement in units per second. (default: 0.8)
+        duration : float, optional
+            Total duration of the animation in seconds. (default: 10.0)
+        color : Manim color, optional
+            Color of the main signal path dots. (default: YELLOW)
+        feedback_color : Manim color, optional
+            Color of the feedback path signal dots. (default: YELLOW)
+        feedforward_color : Manim color, optional
+            Color of the feedforward path signal dots. (default: YELLOW)
+        radius : float, optional
+            Radius of the signal dots. (default: 0.12)
+        include_input : bool, optional
+            Whether to animate signals on system input arrows. (default: True)
+        include_output : bool, optional
+            Whether to animate signals on system output arrows. (default: True)
+        include_feedback : bool, optional
+            Whether to animate signals on feedback paths. (default: True)
+        include_feedforward : bool, optional
+            Whether to animate signals on feedforward paths. (default: True)
+        feedforward_delay : float or None, optional
+            Delay before starting feedforward signal animation, in seconds.
+            If None, automatically calculated based on signal path geometry. (default: None)
+        feedback_delay : float or None, optional
+            Delay before starting feedback signal animation, in seconds.
+            If None, automatically calculated based on signal path geometry. (default: None)
         **kwargs : Any
-            Additional arguments passed to the Rectangle constructor 
-            (e.g., stroke_width, fill_color, fill_opacity).
+            Additional arguments passed to the Dot constructor for signal dots:
+            - fill_opacity: float - Opacity of the signal dots
+            - stroke_width: float - Border stroke width
+            - stroke_color: Manim color - Border color
 
         RETURNS
         -------

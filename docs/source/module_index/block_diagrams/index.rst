@@ -1,7 +1,7 @@
-Feedback Diargams
+Feedback Diagrams
 =================
 
-This module provides classes for creating control system block diagrams.
+This module provides classes and functions for creating control system block diagram animations.
 
 Class Overview
 --------------

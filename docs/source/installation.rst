@@ -9,6 +9,8 @@ We first need to make sure that Manim and it's corresponding dependecies are ins
 
 Running into problems? Have a look at the FAQ `here <https://docs.manim.community/en/stable/faq/installation.html>`_.
 
+Still running into problems? Try following an online tutorial on YouTube like `this one <https://www.youtube.com/watch?v=Qf8H7AKWClE>`_
+
 Step 2: Install ControlTheoryLib
 --------------------------------
 Next, we need to install the actual library. This can be done by running the following command in your terminal.
